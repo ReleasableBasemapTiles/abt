@@ -1,0 +1,42 @@
+{
+    "layer_id": "road_line",
+    "description": "",
+    "geometry_type": "linestring",
+    "attributes": [
+        {"name": "brunnel",        "type": "string", "description": ""},
+        {"name": "brunnel_name",   "type": "string", "description": ""},
+        {"name": "lifecycle_type", "type": "string", "description": ""},
+        {"name": "name",           "type": "string", "description": ""},
+        {"name": "ref",            "type": "string", "description": ""},
+        {"name": "ref_len",        "type": "float",  "description": ""},
+        {"name": "ref_number",     "type": "string", "description": ""},
+        {"name": "ref_number_len", "type": "float",  "description": ""},
+        {"name": "route_type",     "type": "string", "description": ""},
+        {"name": "subclass",       "type": "string", "description": ""},
+        {"name": "surface",        "type": "string", "description": ""}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 6,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms",
+        "filter": {
+
+    "*":
+    ["any",
+    ["all", [">=", "$zoom", 4], ["in", "subclass", "motorway", "trunk", "construction_trunk", "construction_motorway"]],
+    ["all", [">=", "$zoom", 6], ["in", "subclass", "motorway", "trunk", "primary", "construction_trunk", "construction_motorway", "construction_primary"]],
+    ["all", [">=", "$zoom", 7], ["in", "subclass", "motorway", "motorway_link", "trunk", "primary", "construction_trunk", "construction_motorway", "construction_primary"]],
+    ["all", [">=", "$zoom", 8], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "secondary", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary"]],
+    ["all", [">=", "$zoom", 9], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary"]],
+    ["all", [">=", "$zoom", 10], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "tertiary", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary", "construction_tertiary", "construction", "construction_unclassified", "construction_road"]],
+    ["all", [">=", "$zoom", 11], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "road", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary", "construction_tertiary", "construction_unclassified", "construction_road","construction"]],
+    ["all", [">=", "$zoom", 12], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "proposed", "road", "living_street", "residential", "tertiary_link", "unclassified", "road", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary", "construction", "construction_tertiary", "construction_unclassified", "construction_road", "construction_residential", "construction_living_street"]],
+    ["all", [">=", "$zoom", 13]]
+    ]
+}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

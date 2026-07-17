@@ -1,0 +1,23 @@
+{
+    "layer_id": "pier_polygon",
+    "description": "",
+    "geometry_type": "polygon",
+    "attributes": [
+        {"name": "name",        "type": "string",  "description": ""},
+        {"name": "class",       "type": "string",  "description": "OSM key: man_made"},
+        {"name": "subclass",    "type": "string",  "description": "pier, breakwater, or groyne"},
+        {"name": "is_floating", "type": "bool",    "description": "true if floating=yes"},
+        {"name": "area",        "type": "float",   "description": "area in m² (web mercator)"}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 12,
+        "maximum_zoom": 13,
+        "max_detail_const": 14,
+        "additional_flags": "--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO -nlt PROMOTE_TO_MULTI"
+    }
+}

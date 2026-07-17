@@ -1,0 +1,72 @@
+  transportation_polygon:
+    type: polygon
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: ref
+      key: ref
+      type: string
+    - name: network
+      key: network
+      type: string
+    - name: operator
+      key: operator
+      type: string
+    - name: station
+      key: station
+      type: string
+    - name: usage
+      key: usage
+      type: string
+    - name: service
+      key: service
+      type: string
+    - name: yard_size
+      key: railway:yard:size
+      type: string
+    - name: yard_purpose
+      key: railway:yard:purpose
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: is_area
+      key: area
+      type: bool
+    - name: tags
+      type: hstore_tags
+    mapping:
+      railway:
+      - platform
+      - yard
+      - facility
+      - turntable
+      - station
+      - halt
+      highway:
+      - platform
+      - rest_area
+      - services
+      amenity:
+      - bus_station
+      - ferry_terminal
+      aerialway:
+      - station
+      public_transport:
+      - platform
+      - station

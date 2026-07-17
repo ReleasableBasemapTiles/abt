@@ -1,0 +1,186 @@
+  utility_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: seamark_type
+      key: seamark:type
+      type: string
+    - name: substance
+      key: substance
+      type: string
+    - name: ref
+      key: ref
+      type: string
+    - name: access
+      key: access
+      type: string
+    - name: type
+      key: type
+      type: string
+    - name: lock
+      key: lock
+      type: string
+    - name: gate_category
+      key: seamark:gate:category
+      type: string
+    - name: military
+      key: military
+      type: string
+    - name: ele
+      key: ele
+      type: integer
+    - name: radar
+      key: radar
+      type: string
+    - name: description
+      key: description
+      type: string
+    - name: content
+      key: content
+      type: string
+    - name: height
+      key: height
+      type: integer
+    - name: substation
+      key: substation
+      type: string
+    - name: pumping_station
+      key: pumping_station
+      type: string
+    - name: operator
+      key: operator
+      type: string
+    - name: plant_source
+      key: plant:source
+      type: string
+    - name: plant_method
+      key: plant:method
+      type: string
+    - name: plant_storage
+      key: plant:storage
+      type: string
+    - name: plant_output
+      key: plant:output
+      type: string
+    - name: generator_source
+      key: generator:source
+      type: string
+    - name: generator_method
+      key: generator:method
+      type: string
+    - name: generator_type
+      key: generator:type
+      type: string
+    - name: generator_output 
+      key: generator:output
+      type: string
+    - name: generator_plant
+      key: generator:plant
+      type: string
+    - name: seamark_pylon_category
+      key: seamark:pylon:category
+      type: string
+    - name: seamark_platform_category
+      key: seamark:platform:category
+      type: string
+    - name: seamark_production_area_category
+      key: seamark:production_area:category
+      type: string
+    - name: seamark_name
+      key: seamark:name
+      type: string
+    - name: seamark_platform_height
+      key: seamark:platform:height
+      type: string
+    - name: tower_type
+      key: tower:type
+      type: string
+    - name: tower_construction
+      key: tower:construction
+      type: string
+    - name: mast_type
+      key: mast:type
+      type: string
+    - name: rotor_diameter
+      key: rotor:diameter
+      type: string
+    - name: service
+      key: service
+      type: string
+    - name: capacity
+      key: capacity
+      type: string
+    - name: location
+      key: location
+      type: string
+    - name: surface_type
+      key: surface
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: resource
+      key: resource
+      type: string
+    - name: mineshaft_type
+      key: mineshaft:type
+      type: string
+    - name: disused
+      key: disused
+      type: bool
+    - name: tags
+      type: hstore_tags
+    mapping:
+      power:
+      - line
+      - cable
+      - generator
+      - pole
+      - substation
+      - transmission
+      - tower
+      pipeline:
+      - substation
+      man_made:
+      - mineshaft
+      - storage_tank
+      - oil_well
+      - petroleum_well
+      - offshore_platform
+      - lighthouse
+      - communications_tower
+      - tower
+      - mast
+      - antenna
+      - utility_pole
+      - pole
+      - water_tower
+      - substation
+      - transmission
+      - silo
+      - telescope
+      - lock_gate
+      seamark:type:
+      - __any__
+      utility:
+      - __any__
+      building:
+      - silo
+      - water_tower
+      - storage_tank

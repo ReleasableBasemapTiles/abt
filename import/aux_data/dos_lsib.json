@@ -1,0 +1,14 @@
+{
+    "folder_name": "dos_lsib",
+    "url": "https://data.geodata.state.gov/LSIB.gpkg",
+    "type": "gpkg",
+    "zipped": false,
+    "aux_load": [
+        {
+            "aux_file_name": "LSIB.gpkg",
+            "aux_source_name": "Department of State LSIB*",
+            "aux_layer_name": "dos_lsib",
+            "aux_load_options": "-nlt MULTILINESTRING"
+        }
+    ]
+}

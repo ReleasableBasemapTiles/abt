@@ -1,0 +1,27 @@
+{
+    "layer_id": "power_station_polygon",
+    "description": "",
+    "geometry_type": "polygon",
+    "attributes": [
+        {
+            "name": "area",
+            "type": "float",
+            "description": ""
+        },
+        {
+            "name": "subclass",
+            "type": "string",
+            "description": ""
+        }
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 9,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO -nlt PROMOTE_TO_MULTI"
+    }
+}

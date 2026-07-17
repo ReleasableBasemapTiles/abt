@@ -1,0 +1,57 @@
+  poi_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: information
+      key: information
+      type: string
+    - name: ref
+      key: ref
+      type: string
+    - name: religion
+      key: religion
+      type: string
+    - name: level
+      key: level
+      type: integer
+    - name: is_indoor
+      key: indoor
+      type: bool
+    - name: layer
+      key: layer
+      type: integer
+    - name: sport
+      key: sport
+      type: string
+    - name: operator
+      key: operator
+      type: string
+    - name: brand
+      key: brand
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      amenity: [arts_centre, atm, bank, bar, bbq, bicycle_parking, bicycle_rental, biergarten, cafe, cinema, clinic, college, community_centre, courthouse, dentist, doctors, drinking_water, fast_food, fire_station, food_court, fuel, grave_yard, hospital, ice_cream, kindergarten, library, marketplace, motorcycle_parking, nightclub, nursing_home, parking, pharmacy, place_of_worship, police, parcel_locker, post_box, post_office, prison, pub, public_building, recycling, restaurant, school, shelter, swimming_pool, taxi, telephone, theatre, toilets, townhall, university, veterinary, waste_basket]
+      building: [dormitory]
+      historic: [monument, castle, ruins]
+      landuse: [basin, brownfield, cemetery, reservoir, winter_sports]
+      leisure: [dog_park, escape_game, garden, golf_course, ice_rink, hackerspace, marina, miniature_golf, park, pitch, playground, sports_centre, stadium, swimming_area, swimming_pool, water_park]
+      office: [diplomatic]
+      shop: [accessories, alcohol, antiques, art, bag, bakery, beauty, bed, beverages, bicycle, books, boutique, butcher, camera, car, car_repair, car_parts, carpet, charity, chemist, chocolate, clothes, coffee, computer, confectionery, convenience, copyshop, cosmetics, deli, delicatessen, department_store, doityourself, dry_cleaning, electronics, erotic, fabric, florist, frozen_food, furniture, garden_centre, general, gift, greengrocer, hairdresser, hardware, hearing_aids, hifi, ice_cream, interior_decoration, jewelry, kiosk, lamps, laundry, locksmith, mall, massage, mobile_phone, motorcycle, music, musical_instrument, newsagent, optician, outdoor, perfume, perfumery, pet, photo, second_hand, shoes, sports, stationery, supermarket, tailor, tattoo, ticket, tobacco, toys, travel_agency, video, video_games, watches, weapons, wholesale, wine]
+      sport: [american_football, archery, athletics, australian_football, badminton, baseball, basketball, beachvolleyball, billiards, bmx, boules, bowls, boxing, canadian_football, canoe, chess, climbing, climbing_adventure, cricket, cricket_nets, croquet, curling, cycling, disc_golf, diving, dog_racing, equestrian, fatsal, field_hockey, free_flying, gaelic_games, golf, gymnastics, handball, hockey, horse_racing, horseshoes, ice_hockey, ice_stock, judo, karting, korfball, long_jump, model_aerodrome, motocross, motor, multi, netball, orienteering, paddle_tennis, paintball, paragliding, pelota, racquet, rc_car, rowing, rugby, rugby_league, rugby_union, running, sailing, scuba_diving, shooting, shooting_range, skateboard, skating, skiing, soccer, surfing, swimming, table_soccer, table_tennis, team_handball, tennis, toboggan, volleyball, water_ski, yoga]
+      tourism: [alpine_hut, aquarium, artwork, attraction, bed_and_breakfast, camp_site, caravan_site, chalet, gallery, guest_house, hostel, hotel, information, motel, museum, picnic_site, theme_park, viewpoint, zoo]
+      waterway: [dock]

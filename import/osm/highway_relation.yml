@@ -1,0 +1,26 @@
+  highway_relation:
+    type: relation_member
+    columns:
+    - name: osm_id
+      type: id
+    - name: member
+      type: member_id
+    - name: role
+      type: member_role
+    - name: network
+      key: network
+      type: string
+    - name: ref
+      key: ref
+      type: string
+    - name: route
+      key: route
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      route:
+      - road
+      - bicycle
+      - bus
+      - ferry

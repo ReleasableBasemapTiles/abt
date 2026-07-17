@@ -1,0 +1,13 @@
+{
+    "folder_name": "osm_icesheet",
+    "url": "https://osmdata.openstreetmap.de/download/antarctica-icesheet-polygons-3857.zip",
+    "type": "shp",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_folder_name": "osm_icesheet",
+            "aux_file_name": "icesheet_polygons.shp",
+            "aux_load_options": "-nlt MULTIPOLYGON -overwrite -t_srs EPSG:4326"
+        }
+    ]
+}

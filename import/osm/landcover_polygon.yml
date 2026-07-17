@@ -1,0 +1,141 @@
+  landcover_polygon:
+    type: polygon
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: validated_geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: surface
+      key: surface
+      type: string
+    - name: leaf_cycle
+      key: leaf_cycle
+      type: string
+    - name: leaf_type
+      key: leaf_type
+      type: string
+    - name: wetland
+      key: wetland
+      type: string
+    - name: is_intermittent
+      key: intermittent
+      type: bool
+    - name: is_seasonal
+      key: seasonal
+      type: bool
+    - name: area
+      type: area
+    - name: tags
+      type: hstore_tags
+    mapping:
+      landuse:
+      - allotments
+      - farm
+      - farmland
+      - orchard
+      - vineyard
+      - grass
+      - grassland
+      - meadow
+      - plant_nursery
+      - paddy
+      - forest
+      - village_green
+      - recreation_ground
+      - wetland
+      - sand
+      - scree
+      - scrub
+      - tree
+      - heath
+      - bare_rock
+      natural:
+      - wood
+      - forest
+      - wetland
+      - fell
+      - grassland
+      - grass
+      - heath
+      - scrub
+      - shrubbery
+      - tundra
+      - bare_rock
+      - glacier
+      - blockfield
+      - shingle
+      - scree
+      - arete
+      - cliff
+      - earth_bank
+      - rock
+      - sinkhole
+      - beach
+      - sand
+      - dune
+      - reef
+      - shoal
+      - mud
+      - dry_lake
+      - moor
+      - tree
+      - tree_row
+      - marsh
+      landcover:
+      - trees
+      - wetland
+      - grass
+      - mostly_rock
+      - scrub
+      - fell
+      - shrubbery
+      - sand
+      - dry_swamp
+      crop:
+      - rice
+      - grass
+      landform:
+      - beach
+      - dune_system
+      wetland:
+      - bog
+      - fen
+      - dambo
+      - wet_meadow
+      - marsh
+      - reedbed
+      - saltern
+      - tidalflat
+      - saltmarsh
+      - mangrove
+      - mud
+      - swamp
+      - string_bog
+      geological:
+      - inselberg
+      - pingo
+      - limestone_pavement
+      - sinkhole
+      - cone
+      - tor
+      - monocline
+      - dyke
+      - meteor_crater
+      - rock_glacier
+      - glacial_erratic
+      - volcanic_vent
+      - volcanic_lava_field
+      - volcanic_caldera_rim
+      - moraine
+      boundary:
+      - forest

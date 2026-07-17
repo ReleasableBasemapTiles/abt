@@ -1,0 +1,20 @@
+{
+    "folder_name": "disdi",
+    "url": "https://datacollects.blob.core.usgovcloudapi.net/abt-data/installations_ranges.zip",
+    "type": "gdb",
+    "zipped":true,
+    "aux_load": [
+        {
+            "aux_folder_name": "disdi",
+            "aux_file_name": "disdi_extracted.gdb",
+            "aux_layer_name": "MirtaLocations",
+            "aux_load_options": "-nlt MULTIPOINT -overwrite"
+        },
+        {
+            "aux_folder_name": "disdi",
+            "aux_file_name": "disdi_extracted.gdb",
+            "aux_layer_name": "MirtaLocations_A",
+            "aux_load_options": "-nlt MULTIPOLYGON -overwrite"
+        }
+    ]
+}

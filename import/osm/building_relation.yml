@@ -1,0 +1,60 @@
+  building_relation:
+    type: relation_member
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: validated_geometry
+    - name: member
+      type: member_id
+    - name: role
+      type: member_role
+    - name: area
+      type: area
+    - name: building
+      from_member: true
+      key: building
+      type: string
+    - name: material
+      key: building:material
+      type: string
+    - name: colour
+      key: building:colour
+      type: string
+    - name: buildingpart
+      from_member: true
+      key: building:part
+      type: string
+    - name: height
+      from_member: true
+      key: height
+      type: string
+    - name: buildingheight
+      from_member: true
+      key: building:height
+      type: string
+    - name: levels
+      from_member: true
+      key: levels
+      type: string
+    - name: buildinglevels
+      from_member: true
+      key: building:levels
+      type: string
+    - name: relbuildingheight
+      key: building:height
+      type: string
+    - name: relheight
+      key: height
+      type: string
+    - name: relbuildinglevels
+      key: building:levels
+      type: string
+    - name: rellevels
+      key: levels
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      type:
+      - building

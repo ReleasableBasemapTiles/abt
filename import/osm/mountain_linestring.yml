@@ -1,0 +1,38 @@
+  mountain_linestring:
+    type: linestring
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: subclass
+      type: mapping_value
+    - name: mapping_key
+      type: mapping_key
+    - name: wikipedia
+      key: wikipedia
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      natural:
+      - ridge
+      - cliff
+      - arete
+      - valley
+      - dune
+      - landform
+      landform:
+      - esker
+      - dune_system
+      - dune
+      geological:
+      - moraine
+      - outcrop
+      - volcanic_caldera_rim

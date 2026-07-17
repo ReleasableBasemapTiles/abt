@@ -1,0 +1,172 @@
+  railway_linestring:
+    type: linestring
+    _resolve_wikidata: false
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: short_name
+      key: short_name
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: railway
+      key: railway
+      type: string
+    - name: ref
+      key: ref
+      type: string
+    - name: network
+      key: network
+      type: string
+    - name: is_tunnel
+      key: tunnel
+      type: bool
+    - name: is_bridge
+      key: bridge
+      type: bool
+    - name: is_ramp
+      key: ramp
+      type: bool
+    - name: is_ford
+      key: ford
+      type: bool
+    - name: is_oneway
+      key: oneway
+      type: direction
+    - name: is_indoor
+      key: indoor
+      type: bool
+    - name: is_area
+      key: area
+      type: bool
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: service
+      key: service
+      type: string
+    - name: usage
+      key: usage
+      type: string
+    - name: track_ref
+      key: railway:track_ref
+      type: string
+    - name: electrified
+      key: electrified
+      type: string
+    - name: tracks
+      key: tracks
+      type: string
+    - name: gauge
+      key: gauge
+      type: string
+    - name: voltage
+      key: voltage
+      type: string
+    - name: frequency
+      key: frequency
+      type: string
+    - name: bridge_name
+      key: bridge:name
+      type: string
+    - name: tunnel_name
+      key: tunnel:name
+      type: string
+    - name: construction
+      key: construction
+      type: string
+    - name: proposed
+      key: proposed
+      type: string
+    - name: planned
+      key: planned
+      type: string
+    - name: destroyed
+      key: destroyed
+      type: string
+    - name: demolished
+      key: demolished
+      type: string
+    - name: razed
+      key: razed
+      type: string
+    - name: removed
+      key: removed
+      type: string
+    - name: disused
+      key: disused
+      type: string
+    - name: abandoned
+      key: abandoned
+      type: string
+    - name: ruins
+      key: ruins
+      type: string
+    - name: lifecycle_desc
+      key: construction
+      type: string
+    - name: lifecycle_type
+      key: proposed
+      type: string
+    - name: damage_event
+      key: damage:event
+      type: string
+    - name: damage_type
+      key: damage:type
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      - platform
+      - public_transport
+      - construction
+      - proposed
+      - planned
+      - destroyed
+      - demolished
+      - razed
+      - removed
+      - abandoned
+      - disused
+      - ruins
+      route:
+      - railway
+      - tracks
+      - train
+      - light_rail
+      - subway
+      - tram
+      - monorail
+      - funicular
+      route_master:
+      - railway
+      - tracks
+      - train
+      - light_rail
+      - subway
+      - tram
+      - monorail
+      - funicular

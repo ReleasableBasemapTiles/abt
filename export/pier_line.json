@@ -1,0 +1,21 @@
+{
+    "layer_id": "pier_line",
+    "description": "",
+    "geometry_type": "linestring",
+    "attributes": [
+        {"name": "name",        "type": "string",  "description": ""},
+        {"name": "class",       "type": "string",  "description": "OSM key: man_made or highway"},
+        {"name": "subclass",    "type": "string",  "description": "pier, breakwater, or groyne"},
+        {"name": "is_floating", "type": "bool",    "description": "true if floating=yes"}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 12,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

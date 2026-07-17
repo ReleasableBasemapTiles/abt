@@ -1,0 +1,38 @@
+{
+    "layer_id": "landcover_label",
+    "description": "",
+    "geometry_type": "point",
+    "attributes": [
+        {"name": "name",         "type": "string", "description": ""},
+        {"name": "name_en",      "type": "string", "description": ""},
+        {"name": "subclass",     "type": "string", "description": ""},
+        {"name": "leaf_type",    "type": "string", "description": ""},
+        {"name": "leaf_cycle",   "type": "string", "description": ""},
+        {"name": "intermittent", "type": "string", "description": ""},
+        {"name": "area",         "type": "float",  "description": ""},
+        {"name": "z_level",      "type": "int",    "description": "Minimum zoom for this label point, derived from feature area."}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 4,
+        "maximum_zoom": 13,
+        "additional_flags": "--base-zoom=5",
+        "filter": {
+            "*": [
+                "any",
+                ["all", [">=", "$zoom", 4],  ["==", "z_level", 4]],
+                ["all", [">=", "$zoom", 5],  ["==", "z_level", 5]],
+                ["all", [">=", "$zoom", 6],  ["==", "z_level", 6]],
+                ["all", [">=", "$zoom", 7],  ["==", "z_level", 7]],
+                ["all", [">=", "$zoom", 8],  ["==", "z_level", 8]],
+                ["all", [">=", "$zoom", 9],  ["==", "z_level", 9]],
+                ["all", [">=", "$zoom", 10], ["==", "z_level", 10]],
+                ["all", [">=", "$zoom", 11], ["==", "z_level", 11]],
+                ["all", [">=", "$zoom", 12], ["==", "z_level", 12]]
+            ]
+        }
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

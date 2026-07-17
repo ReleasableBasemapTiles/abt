@@ -1,0 +1,13 @@
+{
+    "folder_name": "nga_geonames_hydrographic",
+    "url": "https://geonames.nga.mil/geonames/GNSData/fc_files/Hydrographic.zip",
+    "type": "txt",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "Hydrographic.txt",
+            "aux_folder_name": "nga_geonames_hydrographic",
+            "aux_load_options": "-oo X_POSSIBLE_NAMES=long_dd -oo Y_POSSIBLE_NAMES=lat_dd -overwrite -s_srs EPSG:4326 -t_srs EPSG:4326 -lco GEOMETRY_NAME=geometry"
+        }
+    ]
+}

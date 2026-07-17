@@ -1,0 +1,14 @@
+{
+    "folder_name": "fieldmaps_adm1_lines",
+    "url": "https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm1_lines.gpkg.zip",
+    "type": "gpkg",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "adm1_lines.gpkg",
+            "aux_source_name": "adm1_lines",
+            "aux_layer_name": "fieldmaps_adm1_lines",
+            "aux_load_options": "-nlt MULTILINESTRING"
+        }
+    ]
+}

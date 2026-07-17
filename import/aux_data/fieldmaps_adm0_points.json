@@ -1,0 +1,14 @@
+{
+    "folder_name": "fieldmaps_adm0_points",
+    "url": "https://data.fieldmaps.io/adm0/osm/all/adm0_points.gpkg.zip",
+    "type": "gpkg",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "adm0_points.gpkg",
+            "aux_source_name": "adm0_points",
+            "aux_layer_name": "fieldmaps_adm0_points",
+            "aux_load_options": ""
+        }
+    ]
+}

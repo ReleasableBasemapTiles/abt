@@ -1,0 +1,13 @@
+{
+    "folder_name": "nga_geonames_populated_places",
+    "url": "https://geonames.nga.mil/geonames/GNSData/fc_files/Populated_Places.zip",
+    "type": "txt",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "Populated_Places.txt",
+            "aux_folder_name": "nga_geonames_populated_places",
+            "aux_load_options": "-oo X_POSSIBLE_NAMES=long_dd -oo Y_POSSIBLE_NAMES=lat_dd -overwrite -s_srs EPSG:4326 -t_srs EPSG:4326 -lco GEOMETRY_NAME=geometry"
+        }
+    ]
+}

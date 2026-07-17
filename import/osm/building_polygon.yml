@@ -1,0 +1,85 @@
+  building_polygon:
+    type: polygon
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: validated_geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: area
+      type: area
+    - name: building
+      key: building
+      type: string
+    - name: buildingpart
+      key: building:part
+      type: string
+    - name: material
+      key: building:material
+      type: string
+    - name: colour
+      key: building:colour
+      type: string
+    - name: buildingheight
+      key: building:height
+      type: string
+    - name: buildingmin_height
+      key: building:min_height
+      type: string
+    - name: buildinglevels
+      key: building:levels
+      type: string
+    - name: buildingmin_level
+      key: building:min_level
+      type: string
+    - name: height
+      key: height
+      type: string
+    - name: min_height
+      key: min_height
+      type: string
+    - name: levels
+      key: levels
+      type: string
+    - name: min_level
+      key: min_level
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: destroyed
+      key: destroyed
+      type: string
+    - name: man_made
+      key: man_made
+      type: string
+    - name: tower_type
+      key: tower:type
+      type: string
+    - name: tower_construction
+      key: tower:construction
+      type: string
+    - name: tags
+      type: hstore_tags
+    filters:
+      reject:
+        building: ["no", "none", "No"]
+        building:part: ["no", "none", "No"]
+        location: ["underground"]
+        man_made: ["bridge"]
+    mapping:
+      building:
+      - __any__
+      building:part:
+      - __any__
+      aeroway:
+      - terminal
+      - hangar

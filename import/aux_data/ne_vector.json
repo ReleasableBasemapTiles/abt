@@ -1,0 +1,63 @@
+{
+    "folder_name": "natural_earth_10m",
+    "url": "https://naciscdn.org/naturalearth/packages/natural_earth_vector.gpkg.zip",
+    "type": "gpkg",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_admin_0_countries",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_glaciated_areas",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_geography_regions_polys",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_antarctic_ice_shelves_polys",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_geography_marine_polys",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_urban_areas",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_land",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_populated_places",
+            "aux_load_options": ""
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_50m_lakes",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_50m_ocean",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "natural_earth_vector.gpkg",
+            "aux_layer_name": "ne_10m_lakes",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        }
+    ]
+}

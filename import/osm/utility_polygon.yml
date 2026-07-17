@@ -1,0 +1,121 @@
+  utility_polygon:
+    type: polygon
+    _resolve_wikidata: false
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: validated_geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: seamark_type
+      key: seamark:type
+      type: string
+    - name: ref
+      key: ref
+      type: string
+    - name: access
+      key: access
+      type: string
+    - name: type
+      key: type
+      type: string
+    - name: content
+      key: content
+      type: string
+    - name: surface_type
+      key: surface
+      type: string
+    - name: operator
+      key: operator
+      type: string
+    - name: substance
+      key: substance
+      type: string
+    - name: substation
+      key: substation
+      type: string
+    - name: pumping_station
+      key: pumping_station
+      type: string
+    - name: plant_source
+      key: plant:source
+      type: string
+    - name: plant_method
+      key: plant:method
+      type: string
+    - name: plant_storage
+      key: plant:storage
+      type: string
+    - name: plant_output
+      key: plant:output
+      type: string
+    - name: generator_source
+      key: generator:source
+      type: string
+    - name: generator_method
+      key: generator:method
+      type: string
+    - name: generator_type
+      key: generator:type
+      type: string
+    - name: generator_output
+      key: generator:output
+      type: string
+    - name: generator_plant
+      key: generator:plant
+      type: string
+    - name: capacity
+      key: capacity
+      type: string
+    - name: height
+      key: height
+      type: string
+    - name: ele
+      key: ele
+      type: integer
+    - name: location
+      key: location
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: is_area
+      key: area
+      type: bool
+    - name: tags
+      type: hstore_tags
+    mapping:
+      man_made:
+      - pumping_station
+      - silo
+      - wastewater_plant
+      - water_works
+      - storage_tank
+      power:
+      - station
+      - substation
+      - plant
+      - plant_part
+      - generator
+      building:
+      - silo
+      - water_tower
+      - storage_tank
+      seamark:type:
+      - __any__
+      utility:
+      - __any__
+      pipeline:
+      - substation

@@ -1,0 +1,47 @@
+  water_polygon:
+    type: polygon
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: validated_geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: intermittent
+      key: intermittent
+      type: bool
+    - name: area
+      type: area
+    - name: tags
+      type: hstore_tags
+    filters:
+      reject:
+        covered:
+        - "yes"
+    mapping:
+      landuse:
+      - reservoir
+      - basin
+      - salt_pond
+      leisure:
+      - swimming_pool
+      natural:
+      - water
+      - bay
+      - spring
+      - strait
+      waterway:
+      - __any__
+      water:
+      - __any__
+      place:
+      - sea
+      - ocean

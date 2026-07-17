@@ -1,0 +1,14 @@
+{
+    "folder_name": "fieldmaps_adm0_lines",
+    "url": "https://data.fieldmaps.io/adm0/osm/all/adm0_lines.gpkg.zip",
+    "type": "gpkg",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "adm0_lines.gpkg",
+            "aux_source_name": "adm0_lines",
+            "aux_layer_name": "fieldmaps_adm0_lines",
+            "aux_load_options": "-nlt MULTILINESTRING"
+        }
+    ]
+}

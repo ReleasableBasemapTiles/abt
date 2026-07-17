@@ -1,0 +1,57 @@
+  aeroway_linestring:
+    type: linestring
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: ref
+      key: ref
+      type: string
+    - name: icao
+      key: icao
+      type: string
+    - name: iata
+      key: iata
+      type: string
+    - name: surface
+      key: surface
+      type: string
+    - name: width
+      key: width
+      type: string
+    - name: ele
+      key: ele
+      type: string
+    - name: length
+      key: length
+      type: string
+    - name: military
+      key: military
+      type: string
+    - name: operator
+      key: operator
+      type: string
+    - name: amenity
+      key: amenity
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      aeroway:
+      - runway
+      - taxiway
+      - holding_position
+      - parking_position
+      - taxilane
+      - highway_strip

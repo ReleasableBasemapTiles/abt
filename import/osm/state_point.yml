@@ -1,0 +1,37 @@
+  state_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: place
+      key: place
+      type: string
+    - name: is_in_country
+      key: is_in:country
+      type: string
+    - name: is_in_country_code
+      key: is_in:country_code
+      type: string
+    - name: ref
+      key: ref
+      type: string
+    - name: rank
+      key: rank
+      type: integer
+    - name: tags
+      type: hstore_tags
+    filters:
+      require:
+        name: ["__any__"]
+    mapping:
+      place:
+      - state
+      - province

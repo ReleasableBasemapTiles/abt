@@ -1,0 +1,24 @@
+-- =============================================================================
+-- LAYER: Building
+-- Schema:        export
+-- Sources:       osm.osm_building_polygon
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- export.building_polygon — building footprint polygons
+-- -----------------------------------------------------------------------------
+
+BEGIN;
+DROP MATERIALIZED VIEW IF EXISTS export.building_polygon CASCADE;
+CREATE MATERIALIZED VIEW export.building_polygon AS
+SELECT
+    osm_id,
+    ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
+    geometry
+FROM osm.osm_building_polygon;
+
+CREATE INDEX idx_building_geometry ON export.building_polygon USING gist(geometry);
+CREATE INDEX idx_building_osm_id   ON export.building_polygon USING btree(osm_id);
+CREATE INDEX idx_building_area     ON export.building_polygon USING btree(area);
+COMMIT;

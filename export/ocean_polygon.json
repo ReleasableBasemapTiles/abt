@@ -1,0 +1,25 @@
+{
+    "layer_id": "ocean_polygon",
+    "description": "",
+    "geometry_type": "polygon",
+    "attributes": [
+        {"name": "subclass", "type": "string", "description": ""},
+        {"name": "z_level",  "type": "int",    "description": ""}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 0,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit",
+        "filter": {
+            "*": [
+                "any",
+                ["all", [">=", "$zoom", 0], ["<=", "$zoom", 4], ["==", "z_level", 0]],
+                ["all", [">=", "$zoom", 5], ["==", "z_level", 1]]
+            ]
+        }
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO -nlt PROMOTE_TO_MULTI"
+    }
+}

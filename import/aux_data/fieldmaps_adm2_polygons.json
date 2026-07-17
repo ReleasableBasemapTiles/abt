@@ -1,0 +1,14 @@
+{
+    "folder_name": "fieldmaps_adm2_polygons",
+    "url": "https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_polygons.gpkg.zip",
+    "type": "gpkg",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "adm2_polygons.gpkg",
+            "aux_source_name": "adm2_polygons",
+            "aux_layer_name": "fieldmaps_adm2_polygons",
+            "aux_load_options": "-nlt MULTILINESTRING"
+        }
+    ]
+}

@@ -1,0 +1,31 @@
+  mountain_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: subclass
+      type: mapping_value
+    - name: mapping_key
+      type: mapping_key
+    - name: ele
+      key: ele
+      type: integer
+    - name: wikipedia
+      key: wikipedia
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      natural:
+      - peak
+      - volcano
+      - saddle
+      - hill

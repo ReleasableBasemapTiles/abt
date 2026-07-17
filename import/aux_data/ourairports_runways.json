@@ -1,0 +1,14 @@
+{
+    "folder_name": "ourairports_runways",
+    "url": "https://davidmegginson.github.io/ourairports-data/runways.csv",
+    "type": "csv",
+    "zipped": false,
+    "aux_load": [
+        {
+            "aux_folder_name": "ourairports_runways",
+            "aux_file_name": "runways.csv",
+            "aux_layer_name": null,
+            "aux_load_options": "-oo X_POSSIBLE_NAMES=longitude_deg -oo Y_POSSIBLE_NAMES=latitude_deg -a_srs EPSG:4326 -overwrite"
+        }
+    ]
+}

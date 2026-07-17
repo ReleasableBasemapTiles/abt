@@ -1,0 +1,43 @@
+  city_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: place
+      key: place
+      type: string
+    - name: population
+      key: population
+      type: integer
+    - name: capital
+      key: capital
+      type: string
+    - name: rank
+      key: rank
+      type: integer
+    - name: tags
+      type: hstore_tags
+    filters:
+      require:
+        name: ["__any__"]
+    mapping:
+      place:
+      - city
+      - town
+      - village
+      - hamlet
+      - borough
+      - suburb
+      - quarter
+      - neighbourhood
+      - isolated_dwelling
+      - locality
+      - square

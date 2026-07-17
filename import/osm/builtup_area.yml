@@ -1,0 +1,114 @@
+  builtup_area:
+    type: polygon
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: area
+      type: area
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: industrial
+      key: industrial
+      type: string
+    - name: port
+      key: port
+      type: string
+    - name: cargo
+      key: cargo
+      type: string
+    - name: access
+      key: access
+      type: string
+    - name: port_type
+      key: port:type
+      type: string
+    - name: religion
+      key: religion
+      type: string
+    - name: denomination
+      key: denomination
+      type: string
+    - name: cemetery
+      key: cemetery
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: tags
+      type: hstore_tags
+    mapping:
+      landuse:
+      - railway
+      - quarry
+      - brownfield
+      - depot
+      - port
+      - greenfield
+      - residential
+      - commercial
+      - industrial
+      - garages
+      - retail
+      - construction
+      - education
+      - fairground
+      - institutional
+      - civic_admin
+      - landfill
+      amenity:
+      - bus_station
+      - place_of_worship
+      - school
+      - university
+      - kindergarten
+      - college
+      - library
+      - hospital
+      - clinic
+      - fuel 
+      - ferry_terminal
+      - police
+      - fire_station
+      - post_office
+      - townhall
+      - embassy
+      - consulate
+      - prison
+      - courthouse
+      - crematorium
+      tourism:
+      - theme_park
+      - zoo
+      leisure:
+      - stadium
+      - pitch
+      - playground
+      - track
+      - sports_centre
+      place:
+      - suburb
+      - quarter
+      - neighbourhood
+      - city
+      - borough
+      - city_block
+      - plot
+      - town
+      - village
+      - hamlet
+      - isolated_dwelling
+      - farm
+      - allotments
