@@ -31,6 +31,9 @@ import/osm/        imposm mapping YAML
 import/aux_data/   aux data JSON configs
 export/            per-layer export JSON configs
 carto_sql/         SQL scripts, run in filename order
+tile-metadata/     metadata.py, defines a `metadata` dict (name, description,
+                   attribution, tags, license, etc.) written into the bundled
+                   mbtiles -- required by `bundler`
 ```
 
 ## Commands

@@ -2,7 +2,6 @@ import typer
 from typing import Annotated, List, Optional
 from pathlib import Path
 import importlib.util
-import pathlib
 
 from .cli_helpers import get_pg_config, get_tile_layers_for_bundler
 
@@ -20,16 +19,14 @@ from ..utils.fields import (
 )
 
 
-def _load_metadata():
-    spec = importlib.util.spec_from_file_location(
-        "abt_metadata",
-        pathlib.Path(__file__).parents[3] / "abtv2-schema-rbt" / "tile-metadata" / "abt_metadata.py"
-    )
+def _load_metadata(schema_dir: Path) -> dict:
+    metadata_path = schema_dir / "tile-metadata" / "metadata.py"
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"No metadata.py found at {metadata_path}")
+    spec = importlib.util.spec_from_file_location("tile_metadata", metadata_path)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod.metadata
-
-joined_metadata = _load_metadata()
 
 
 def init_bundler(
@@ -55,6 +52,7 @@ def init_bundler(
     data_schema = DataSchema(base_schema_dir=schema_dir)
     processing_directory = ProcessingDirectorySchema.init_working_directories(working_dir=working_dir)
     reporter = RunReporter(run_id=processing_directory.run_id, command="abt bundler")
+    joined_metadata = _load_metadata(schema_dir)
 
     pg_config = get_pg_config(cli_input=pg_config_type, log_dir=processing_directory.carto_log_dir)
 
