@@ -8,6 +8,20 @@
 
 
 -- -----------------------------------------------------------------------------
+-- SESSION TUNING — applies to every statement below (plain SET is
+-- session-scoped and survives the BEGIN/COMMIT blocks)
+-- -----------------------------------------------------------------------------
+
+SET work_mem = '2GB';
+SET maintenance_work_mem = '16GB';
+SET max_parallel_workers_per_gather = 10;
+SET parallel_setup_cost = 100;
+SET parallel_tuple_cost = 0.01;
+SET jit = off;
+SET synchronous_commit = off;
+
+
+-- -----------------------------------------------------------------------------
 -- transportation — schema
 -- -----------------------------------------------------------------------------
 
@@ -17,22 +31,23 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
--- transportation.usa_boundary — USA boundary polygon (Natural Earth 1:10m)
+-- transportation.usa_boundary — USA boundary polygon (Natural Earth 1:10m),
+--                               subdivided so per-feature intersection tests
+--                               stay cheap
 -- -----------------------------------------------------------------------------
 
 BEGIN;
 DROP TABLE IF EXISTS transportation.usa_boundary CASCADE;
 CREATE TABLE transportation.usa_boundary AS
 SELECT
-    'USA'                                                               AS gid_0,
-    (ST_Dump(
-        ST_MakeValid(geometry, 'method=structure')
-    )).geom::geometry(Polygon, 4326)                                    AS geometry
-FROM aux_data.ne_10m_admin_0_countries
-WHERE iso_a3 = 'USA';
+    ST_Subdivide(geom, 256)::geometry(Polygon, 4326)                    AS geometry
+FROM (
+    SELECT (ST_Dump(ST_MakeValid(geometry, 'method=structure'))).geom   AS geom
+    FROM aux_data.ne_10m_admin_0_countries
+    WHERE iso_a3 = 'USA'
+) parts;
 
 CREATE INDEX idx_usa_boundary_geometry ON transportation.usa_boundary USING gist(geometry);
-CLUSTER transportation.usa_boundary USING idx_usa_boundary_geometry;
 ANALYZE transportation.usa_boundary;
 COMMIT;
 
@@ -62,13 +77,9 @@ WITH highway_routes AS (
         END
 ),
 highway_fieldmap AS (
-    SELECT DISTINCT
-        h.id,
-        b.gid_0
+    -- ids of major numbered highways that geometrically fall inside the USA
+    SELECT h.id
     FROM osm.osm_highway_linestring h
-    JOIN transportation.usa_boundary b
-        ON h.geometry && b.geometry
-       AND ST_Intersects(h.geometry, b.geometry)
     WHERE h.ref IS NOT NULL
       AND TRIM(h.ref) != ''
       AND h.subclass IN (
@@ -76,27 +87,38 @@ highway_fieldmap AS (
           'primary', 'primary_link', 'secondary', 'secondary_link',
           'tertiary', 'tertiary_link'
       )
-      AND h.geometry && (SELECT ST_Extent(geometry)::geometry FROM transportation.usa_boundary)
+      AND EXISTS (
+          SELECT 1
+          FROM transportation.usa_boundary b
+          WHERE h.geometry && b.geometry
+            AND ST_Intersects(h.geometry, b.geometry)
+      )
 ),
-normalized AS (
+enriched AS (
+    -- Single scan of the highway table: all per-row expressions computed here
     SELECT
-        id,
-        -- surface: simple regex alternation
+        h.osm_id,
+        h.geometry,
+        ST_Length(ST_Transform(h.geometry, 3857))::int                  AS geom_len,
         CASE
-            WHEN surface IS NULL OR TRIM(surface) = '' THEN 'paved_unknown'
-            WHEN lower(surface) ~ '(asphalt|asphal|asfalt|tarmac|concrete|cement|cobblestone|sett|paving_stone|brick|block|metal|steel|wood|boardwalk|chipseal|tiles|flagstone|bitum|interlock|paver|tartan|unhewn_cobblestone|pebblestone|\mpaved\M)'
-                OR surface ~* 'tar.*road'                               THEN 'paved'
-            WHEN lower(surface) ~ '(unpaved|dirt|gravel|sand|earth|mud|grass|ground|clay|soil|compacted|fine_gravel|ice|snow|shell|rock|stone)' THEN 'unpaved'
-            ELSE 'unknown'
-        END                                                             AS normalized_surface,
-        CASE lower(subclass)
-            WHEN 'construction' THEN COALESCE(NULLIF(TRIM(lower(construction)), ''), 'road')
-            WHEN 'proposed'     THEN COALESCE(NULLIF(TRIM(lower(proposed)), ''), 'road')
-            WHEN 'planned'      THEN COALESCE(NULLIF(TRIM(lower(planned)), ''), 'road')
-            WHEN 'destroyed'    THEN COALESCE(NULLIF(TRIM(lower(destroyed_highway)), ''), 'road')
-            WHEN 'demolished'   THEN COALESCE(NULLIF(TRIM(lower(tags->'demolished:highway')), ''), 'road')
-            WHEN 'razed'        THEN COALESCE(NULLIF(TRIM(lower(tags->'razed:highway')), ''), 'road')
-            WHEN 'removed'      THEN COALESCE(NULLIF(TRIM(lower(tags->'removed:highway')), ''), 'road')
+            WHEN h.is_tunnel THEN CASE WHEN h.is_bridge THEN 'tunnel;bridge' ELSE 'tunnel' END
+            WHEN h.is_bridge THEN CASE WHEN h.is_ford THEN 'bridge;ford' ELSE 'bridge' END
+            WHEN h.is_ford   THEN 'ford'
+            WHEN NULLIF(TRIM(h.destroyed_bridge), '')          IS NOT NULL THEN 'bridge'
+            WHEN NULLIF(h.tags->'destroyed:tunnel', '')        IS NOT NULL THEN 'tunnel'
+        END                                                             AS brunnel,
+        COALESCE(
+            NULLIF(TRIM(h.bridge_name), ''),
+            NULLIF(TRIM(h.tunnel_name), '')
+        )                                                               AS brunnel_name,
+        CASE lower(h.subclass)
+            WHEN 'construction' THEN COALESCE(NULLIF(TRIM(lower(h.construction)), ''), 'road')
+            WHEN 'proposed'     THEN COALESCE(NULLIF(TRIM(lower(h.proposed)), ''), 'road')
+            WHEN 'planned'      THEN COALESCE(NULLIF(TRIM(lower(h.planned)), ''), 'road')
+            WHEN 'destroyed'    THEN COALESCE(NULLIF(TRIM(lower(h.destroyed_highway)), ''), 'road')
+            WHEN 'demolished'   THEN COALESCE(NULLIF(TRIM(lower(h.tags->'demolished:highway')), ''), 'road')
+            WHEN 'razed'        THEN COALESCE(NULLIF(TRIM(lower(h.tags->'razed:highway')), ''), 'road')
+            WHEN 'removed'      THEN COALESCE(NULLIF(TRIM(lower(h.tags->'removed:highway')), ''), 'road')
             WHEN 'motorway'          THEN 'motorway'
             WHEN 'motoway'           THEN 'motorway'
             WHEN 'trunk'             THEN 'trunk'
@@ -129,50 +151,30 @@ normalized AS (
             WHEN 'secondary_link'    THEN 'secondary_link'
             WHEN 'tertiary_link'     THEN 'tertiary_link'
             WHEN 'unclassified_link' THEN 'unclassified_link'
-            ELSE lower(subclass)
-        END                                                             AS normalized_subclass,
-        -- ref: extract numeric portions inline
-        CASE
-            WHEN ref IS NOT NULL
-            THEN NULLIF(
-                (SELECT string_agg(m[1], ';') FROM regexp_matches(ref, '[0-9]+', 'g') AS m),
-                ''
-            )
-        END                                                             AS ref_number
-    FROM osm.osm_highway_linestring
-    WHERE NOT is_area
-),
-base AS (
-    SELECT
-        h.osm_id,
-        h.geometry,
-        ST_Length(ST_Transform(h.geometry, 3857))::int                  AS geom_len,
-        CASE
-            WHEN h.is_tunnel THEN CASE WHEN h.is_bridge THEN 'tunnel;bridge' ELSE 'tunnel' END
-            WHEN h.is_bridge THEN CASE WHEN h.is_ford THEN 'bridge;ford' ELSE 'bridge' END
-            WHEN h.is_ford   THEN 'ford'
-            WHEN NULLIF(TRIM(h.destroyed_bridge), '')         IS NOT NULL THEN 'bridge'
-            WHEN NULLIF(h.tags->'destroyed:tunnel', '')        IS NOT NULL THEN 'tunnel'
-        END                                                             AS brunnel,
-        COALESCE(
-            NULLIF(TRIM(h.bridge_name), ''), 
-            NULLIF(TRIM(h.tunnel_name), '')
-        )                                                               AS brunnel_name,
-        n.normalized_subclass                                           AS subclass,
+            ELSE lower(h.subclass)
+        END                                                             AS subclass,
         h.name,
         h.name_en,
         length(h.name)                                                  AS name_len,
         NULLIF(TRIM(h.ref), '')                                         AS ref,
+        h.ref                                                           AS ref_raw,
         length(h.ref)                                                   AS ref_len,
-        n.ref_number,
-        length(n.ref_number)                                            AS ref_number_len,
+        NULLIF(trim(both ';' from regexp_replace(h.ref, '[^0-9]+', ';', 'g')), '') AS ref_number,
         COALESCE(h.ref ~~ ANY(ARRAY['%:%', '%,%', '%;%']), false)       AS ref_multi,
         h.network,
-        COALESCE(hf.gid_0 = 'USA', false)
+        hr.network                                                      AS rel_network,
+        (hf.id IS NOT NULL)                                             AS in_usa,
+        (hf.id IS NOT NULL)
             OR hr.network LIKE 'US:%'
             OR h.network LIKE 'US:%'
-            OR NULLIF(TRIM(h.ref), '') ~ '^(I |US |[A-Z]{2} )'         AS is_us,
-        n.normalized_surface                                            AS surface,
+            OR NULLIF(TRIM(h.ref), '') ~ '^(I |US |[A-Z]{2} )'          AS is_us,
+        CASE
+            WHEN h.surface IS NULL OR TRIM(h.surface) = '' THEN 'paved_unknown'
+            WHEN lower(h.surface) ~ '(asphalt|asphal|asfalt|tarmac|concrete|cement|cobblestone|sett|paving_stone|brick|block|metal|steel|wood|boardwalk|chipseal|tiles|flagstone|bitum|interlock|paver|tartan|unhewn_cobblestone|pebblestone|\mpaved\M)'
+                OR h.surface ~* 'tar.*road'                             THEN 'paved'
+            WHEN lower(h.surface) ~ '(unpaved|dirt|gravel|sand|earth|mud|grass|ground|clay|soil|compacted|fine_gravel|ice|snow|shell|rock|stone)' THEN 'unpaved'
+            ELSE 'unknown'
+        END                                                             AS surface,
         CASE
             WHEN lower(h.subclass) IN (
                 'construction', 'proposed', 'planned', 'destroyed',
@@ -190,54 +192,6 @@ base AS (
             ELSE 'intact'
         END                                                             AS lifecycle_type,
         CASE
-            WHEN (hf.gid_0 = 'USA' OR hr.network LIKE 'US:%' OR h.network LIKE 'US:%'
-                  OR NULLIF(TRIM(h.ref), '') ~ '^(I |US |[A-Z]{2} )')
-                 AND NOT COALESCE(h.ref ~~ ANY(ARRAY['%:%', '%,%', '%;%']), false) THEN
-                CASE
-                    -- relation network fallback
-                    WHEN hr.network = 'US:interstate'               THEN
-                        CASE
-                            WHEN h.ref ILIKE '%Bus%' THEN 'Interstate Business'
-                            WHEN h.ref LIKE '% % %'  THEN 'Interstate Other'
-                            ELSE                          'Interstate'
-                        END
-                    WHEN hr.network = 'US:us'                       THEN
-                        CASE
-                            WHEN h.ref LIKE '%Bus%'  THEN 'US Hwy Business'
-                            WHEN h.ref LIKE '% % %'  THEN 'US Hwy Other'
-                            ELSE                          'US Hwy'
-                        END
-                    WHEN hr.network LIKE 'US:%'                     THEN
-                        CASE
-                            WHEN h.ref LIKE '__ %Bus%' THEN 'State Hwy Business'
-                            WHEN h.ref LIKE '__ % %'   THEN 'State Hwy Other'
-                            ELSE                            'State Hwy'
-                        END
-                    -- ref pattern matching fallback
-                    WHEN h.ref ~ '^(A[KLRZ]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AT]|W[AIVY])' THEN
-                        CASE
-                            WHEN h.ref LIKE '__ %Bus%' THEN 'State Hwy Business'
-                            WHEN h.ref LIKE '__ % %'   THEN 'State Hwy Other'
-                            ELSE                            'State Hwy'
-                        END
-                    WHEN h.ref LIKE 'US %' THEN
-                        CASE
-                            WHEN h.ref LIKE '%Bus%'    THEN 'US Hwy Business'
-                            WHEN h.ref LIKE '% % %'    THEN 'US Hwy Other'
-                            ELSE                            'US Hwy'
-                        END
-                    WHEN h.ref LIKE 'I %' THEN
-                        CASE
-                            WHEN h.ref ILIKE '%Bus%'   THEN 'Interstate Business'
-                            WHEN h.ref LIKE '% % %'    THEN 'Interstate Other'
-                            ELSE                            'Interstate'
-                        END
-                    ELSE 'Other'
-                END
-            WHEN hf.gid_0 = 'USA' OR hr.network LIKE 'US:%' THEN 'Other'
-            ELSE NULL
-        END                                                             AS route_type,
-        CASE
             WHEN h.lanes IN ('1','2','3','4','5') THEN h.lanes::int
             ELSE NULL
         END                                                             AS lane,
@@ -253,13 +207,93 @@ base AS (
         h.is_oneway,
         h.is_ramp
     FROM osm.osm_highway_linestring h
-    LEFT JOIN normalized n          ON h.id = n.id
     LEFT JOIN highway_fieldmap hf   ON h.id = hf.id
     LEFT JOIN highway_routes hr     ON h.osm_id = hr.osm_id
     WHERE NOT h.is_area
+),
+base AS (
+    -- Second layer: expressions that reference computed columns
+    SELECT
+        osm_id,
+        geometry,
+        geom_len,
+        brunnel,
+        brunnel_name,
+        subclass,
+        name,
+        name_en,
+        name_len,
+        ref,
+        ref_len,
+        ref_number,
+        length(ref_number)                                              AS ref_number_len,
+        ref_multi,
+        network,
+        is_us,
+        surface,
+        lifecycle_type,
+        CASE
+            WHEN is_us AND NOT ref_multi THEN
+                CASE
+                    -- relation network fallback
+                    WHEN rel_network = 'US:interstate'              THEN
+                        CASE
+                            WHEN ref_raw ILIKE '%Bus%' THEN 'Interstate Business'
+                            WHEN ref_raw LIKE '% % %'  THEN 'Interstate Other'
+                            ELSE                            'Interstate'
+                        END
+                    WHEN rel_network = 'US:us'                      THEN
+                        CASE
+                            WHEN ref_raw LIKE '%Bus%'  THEN 'US Hwy Business'
+                            WHEN ref_raw LIKE '% % %'  THEN 'US Hwy Other'
+                            ELSE                            'US Hwy'
+                        END
+                    WHEN rel_network LIKE 'US:%'                    THEN
+                        CASE
+                            WHEN ref_raw LIKE '__ %Bus%' THEN 'State Hwy Business'
+                            WHEN ref_raw LIKE '__ % %'   THEN 'State Hwy Other'
+                            ELSE                              'State Hwy'
+                        END
+                    -- ref pattern matching fallback
+                    WHEN ref_raw ~ '^(A[KLRZ]|C[AOT]|D[CE]|FL|GA|HI|I[ADLN]|K[SY]|LA|M[ADEINOST]|N[CDEHJMVY]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[AT]|W[AIVY])' THEN
+                        CASE
+                            WHEN ref_raw LIKE '__ %Bus%' THEN 'State Hwy Business'
+                            WHEN ref_raw LIKE '__ % %'   THEN 'State Hwy Other'
+                            ELSE                              'State Hwy'
+                        END
+                    WHEN ref_raw LIKE 'US %' THEN
+                        CASE
+                            WHEN ref_raw LIKE '%Bus%'    THEN 'US Hwy Business'
+                            WHEN ref_raw LIKE '% % %'    THEN 'US Hwy Other'
+                            ELSE                              'US Hwy'
+                        END
+                    WHEN ref_raw LIKE 'I %' THEN
+                        CASE
+                            WHEN ref_raw ILIKE '%Bus%'   THEN 'Interstate Business'
+                            WHEN ref_raw LIKE '% % %'    THEN 'Interstate Other'
+                            ELSE                              'Interstate'
+                        END
+                    ELSE 'Other'
+                END
+            WHEN in_usa OR rel_network LIKE 'US:%' THEN 'Other'
+            ELSE NULL
+        END                                                             AS route_type,
+        lane,
+        layer,
+        level,
+        service,
+        access,
+        toll,
+        expressway,
+        bicycle,
+        foot,
+        horse,
+        is_oneway,
+        is_ramp
+    FROM enriched
 )
 SELECT * FROM base
-WHERE geometry IS NOT NULL 
+WHERE geometry IS NOT NULL
   AND subclass IN (
       'demolished', 'abandoned', 'bridleway','bus_guideway','cycleway','footway',
       'living_street','motorway','motorway_link','path','pedestrian','primary',
@@ -284,27 +318,16 @@ SELECT
     osm_id,
     NULLIF(name, '')                                                    AS name,
     NULLIF(name_en, '')                                                 AS name_en,
-    subclass,
+    CASE WHEN class = 'public_transport' THEN 'platform' ELSE subclass END AS subclass,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
     geometry
 FROM osm.osm_highway_polygon
-WHERE class = 'highway'
-  AND subclass IN ('pedestrian', 'footway', 'steps', 'path', 'cycleway', 'bridleway', 'corridor')
-  AND geometry IS NOT NULL
-
-UNION ALL
-
-SELECT
-    osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
-    'platform'::text                                                    AS subclass,
-    ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
-    geometry
-FROM osm.osm_highway_polygon
-WHERE class = 'public_transport'
-  AND subclass = 'platform'
-  AND geometry IS NOT NULL;
+WHERE geometry IS NOT NULL
+  AND (
+        (class = 'highway'
+         AND subclass IN ('pedestrian', 'footway', 'steps', 'path', 'cycleway', 'bridleway', 'corridor'))
+     OR (class = 'public_transport' AND subclass = 'platform')
+  );
 
 CREATE INDEX idx_road_polygon_geometry ON export.road_polygon USING gist(geometry);
 CREATE INDEX idx_road_polygon_subclass ON export.road_polygon USING btree(subclass);

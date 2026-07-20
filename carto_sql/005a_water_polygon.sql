@@ -12,6 +12,22 @@
 
 
 -- -----------------------------------------------------------------------------
+-- SESSION TUNING — applies to every statement below (plain SET is
+-- session-scoped and survives the BEGIN/COMMIT blocks)
+-- -----------------------------------------------------------------------------
+
+# NOTE: HARD CODED TEST SETTINGS. REVISIT POSTGRES TUNING IF THIS WORKS.
+
+SET work_mem = '2GB';
+SET maintenance_work_mem = '16GB';
+SET max_parallel_workers_per_gather = 10;
+SET parallel_setup_cost = 100;
+SET parallel_tuple_cost = 0.01;
+SET jit = off;
+SET synchronous_commit = off;
+
+
+-- -----------------------------------------------------------------------------
 -- SCHEMA
 -- -----------------------------------------------------------------------------
 
@@ -177,30 +193,151 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
--- water.water_surface_clean — exploded single polygons, marine types excluded
+-- water.water_surface_clean — dissolved single polygons, marine types excluded
+--
+-- Two-phase grid dissolve:
+--   Phase 1: whole polygons binned into 1° cells by bbox centre, unioned per
+--            cell, fanned out over 16 parallel dblink worker connections.
+--            No clipping, so no artificial edges are introduced.
+--   Phase 2: the small subset of phase-1 results that touch a result from a
+--            different cell is clustered and re-unioned; the rest pass
+--            through untouched.
+-- ST_ReducePrecision snaps coordinates to the same 1e-6° grid used by the
+-- fixed-precision unions, closing hairline gaps left by per-feature
+-- simplification. Intermediates are UNLOGGED (transient, so no WAL).
 -- -----------------------------------------------------------------------------
+
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS dblink;
+COMMIT;
+
+BEGIN;
+DROP TABLE IF EXISTS water.dissolve_src CASCADE;
+CREATE UNLOGGED TABLE water.dissolve_src AS
+WITH src AS (
+    SELECT (ST_Dump(ST_ReducePrecision(geometry, 0.000001))).geom AS geometry
+    FROM water.water_surface
+    WHERE subclass NOT IN ('bay', 'harbour', 'sea', 'strait')
+)
+SELECT
+    floor((ST_XMin(geometry) + ST_XMax(geometry)) / 2.0)::int   AS cell_x,
+    floor((ST_YMin(geometry) + ST_YMax(geometry)) / 2.0)::int   AS cell_y,
+    geometry
+FROM src
+WHERE ST_Dimension(geometry) = 2
+  AND NOT ST_IsEmpty(geometry);
+
+CREATE INDEX idx_dissolve_src_cell ON water.dissolve_src USING btree(cell_x, cell_y);
+ANALYZE water.dissolve_src;
+
+DROP TABLE IF EXISTS water.dissolve_pass1 CASCADE;
+CREATE UNLOGGED TABLE water.dissolve_pass1 (
+    id       bigint GENERATED ALWAYS AS IDENTITY,
+    cell_x   int,
+    cell_y   int,
+    geometry geometry(Polygon, 4326)
+);
+COMMIT;
+
+-- Phase 1: per-cell union across parallel worker connections. dissolve_src is
+-- committed above, so the workers (separate sessions) can see it. A failure in
+-- any worker propagates to this session and aborts the script.
+DO $$
+DECLARE
+    nshards CONSTANT int := 16;
+    connstr CONSTANT text := format(
+        'dbname=%s options=''-c work_mem=1GB -c synchronous_commit=off -c jit=off''',
+        current_database());
+    i int;
+    n int;
+BEGIN
+    FOR i IN 0 .. nshards - 1 LOOP
+        PERFORM dblink_connect('dissolve_w' || i, connstr);
+        PERFORM dblink_send_query('dissolve_w' || i, format($q$
+            INSERT INTO water.dissolve_pass1 (cell_x, cell_y, geometry)
+            SELECT cell_x, cell_y,
+                   (ST_Dump(ST_Union(geometry, 0.000001))).geom
+            FROM water.dissolve_src
+            WHERE abs(cell_x * 92821 + cell_y) %% %s = %s
+            GROUP BY cell_x, cell_y
+        $q$, nshards, i));
+    END LOOP;
+
+    FOR i IN 0 .. nshards - 1 LOOP
+        LOOP
+            PERFORM * FROM dblink_get_result('dissolve_w' || i) AS t(res text);
+            GET DIAGNOSTICS n = ROW_COUNT;
+            EXIT WHEN n = 0;
+        END LOOP;
+        PERFORM dblink_disconnect('dissolve_w' || i);
+    END LOOP;
+EXCEPTION WHEN OTHERS THEN
+    FOR i IN 0 .. nshards - 1 LOOP
+        BEGIN
+            PERFORM dblink_disconnect('dissolve_w' || i);
+        EXCEPTION WHEN OTHERS THEN NULL;
+        END;
+    END LOOP;
+    RAISE;
+END;
+$$;
+
+BEGIN;
+CREATE INDEX idx_dissolve_pass1_geometry ON water.dissolve_pass1 USING gist(geometry);
+CREATE INDEX idx_dissolve_pass1_id       ON water.dissolve_pass1 USING btree(id);
+ANALYZE water.dissolve_pass1;
+COMMIT;
+
+-- Phase 2: ids of phase-1 results that touch a result from a different cell
+BEGIN;
+DROP TABLE IF EXISTS water.dissolve_touching CASCADE;
+CREATE UNLOGGED TABLE water.dissolve_touching AS
+SELECT DISTINCT unnest(ARRAY[a.id, b.id]) AS id
+FROM water.dissolve_pass1 a
+JOIN water.dissolve_pass1 b
+  ON a.id < b.id
+ AND a.geometry && b.geometry
+ AND ST_Intersects(a.geometry, b.geometry)
+WHERE (a.cell_x <> b.cell_x OR a.cell_y <> b.cell_y);
+
+CREATE INDEX idx_dissolve_touching_id ON water.dissolve_touching USING btree(id);
+ANALYZE water.dissolve_touching;
+COMMIT;
 
 BEGIN;
 DROP TABLE IF EXISTS water.water_surface_clean CASCADE;
 CREATE TABLE water.water_surface_clean AS
 SELECT
-    subclass,
-    (ST_Dump(ST_MakeValid(ST_Union(geometry), 'method=structure'))).geom::geometry(Polygon, 4326) AS geometry
+    'water'::text                                               AS subclass,
+    geometry::geometry(Polygon, 4326)                           AS geometry
 FROM (
-    SELECT
-        subclass,
-        ST_ClusterDBSCAN(geometry, eps := 0.000001, minpoints := 1) OVER (PARTITION BY subclass) AS cid,
-        ST_MakeValid(
-            ST_SimplifyPreserveTopology(geometry, 0.000001),
-            'method=structure'
-        ) AS geometry
-    FROM water.water_surface
-    WHERE subclass NOT IN ('bay', 'harbour', 'sea', 'strait')
-) clustered
-GROUP BY subclass, cid;
+    -- isolated phase-1 results pass through untouched
+    SELECT p.geometry
+    FROM water.dissolve_pass1 p
+    WHERE NOT EXISTS (SELECT 1 FROM water.dissolve_touching t WHERE t.id = p.id)
+
+    UNION ALL
+
+    -- cross-cell components, clustered and merged
+    SELECT (ST_Dump(ST_Union(geometry, 0.000001))).geom
+    FROM (
+        SELECT
+            ST_ClusterIntersectingWin(p.geometry) OVER ()       AS cid,
+            p.geometry
+        FROM water.dissolve_pass1 p
+        JOIN water.dissolve_touching t USING (id)
+    ) clustered
+    GROUP BY cid
+) merged
+WHERE ST_Dimension(geometry) = 2
+  AND NOT ST_IsEmpty(geometry);
 
 CREATE INDEX idx_water_surface_clean_geometry ON water.water_surface_clean USING gist(geometry);
 CREATE INDEX idx_water_surface_clean_subclass ON water.water_surface_clean USING btree(subclass);
+
+DROP TABLE water.dissolve_src;
+DROP TABLE water.dissolve_pass1;
+DROP TABLE water.dissolve_touching;
 COMMIT;
 
 

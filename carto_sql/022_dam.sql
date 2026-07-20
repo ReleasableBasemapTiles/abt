@@ -8,6 +8,20 @@
 
 
 -- -----------------------------------------------------------------------------
+-- SESSION TUNING — applies to every statement below (plain SET is
+-- session-scoped and survives the BEGIN/COMMIT blocks)
+-- -----------------------------------------------------------------------------
+
+SET work_mem = '2GB';
+SET maintenance_work_mem = '16GB';
+SET max_parallel_workers_per_gather = 10;
+SET parallel_setup_cost = 100;
+SET parallel_tuple_cost = 0.01;
+SET jit = off;
+SET synchronous_commit = off;
+
+
+-- -----------------------------------------------------------------------------
 -- SCHEMA
 -- -----------------------------------------------------------------------------
 
@@ -92,10 +106,59 @@ COMMIT;
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.dam_label CASCADE;
 DROP TABLE IF EXISTS dam.label_tmp_surface_points;
+DROP TABLE IF EXISTS dam.label_tmp_point_labels;
 COMMIT;
 
--- Materialize supplemental surface points into a staging table so the curve
--- deduplication ST_DWithin check runs against an indexed table rather than an unindexed CTE
+-- Named dam points, staged into an indexed table so the dam_line
+-- deduplication ST_Intersects check probes a GIST index rather than a
+-- materialized, unindexed CTE.
+-- Water checks exclude dam subclasses so water_intersect means "touches
+-- actual water", not "touches itself or another dam feature".
+-- EXISTS pairs short-circuit: the expensive waterway ST_DWithin probe only
+-- runs when the water-polygon probe missed.
+BEGIN;
+CREATE TABLE dam.label_tmp_point_labels AS
+SELECT
+    wl.id                                                               AS fid,
+    NULLIF(wl.name, '')                                                 AS name,
+    NULLIF(wl.name_en, '')                                              AS name_en,
+    wl.subclass                                                         AS fclass,
+    CASE
+        WHEN LOWER(wl.tags -> 'surface') IN ('asphalt', 'cement', 'concrete', 'rock', 'stone', 'wood') THEN 'hard'
+        WHEN LOWER(wl.tags -> 'surface') IN ('dirt', 'earth', 'grass', 'gravel', 'mud', 'sand')        THEN 'loose'
+        ELSE NULL
+    END                                                                 AS surface,
+    CASE WHEN EXISTS (
+             SELECT 1 FROM osm.osm_water_polygon w
+             WHERE ST_Intersects(wl.geometry, w.geometry)
+               AND w.subclass NOT IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
+         )
+         OR EXISTS (
+             SELECT 1 FROM osm.osm_waterway_linestring ww
+             WHERE ST_DWithin(wl.geometry, ww.geometry, 0.005)
+               AND ww.subclass NOT IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
+         )
+         THEN 'Y' ELSE 'N' END                                          AS water_intersect,
+    CASE WHEN EXISTS (
+             SELECT 1 FROM export.dam_polygon ds
+             WHERE ST_Intersects(wl.geometry, ds.geometry)
+         )
+         OR EXISTS (
+             SELECT 1 FROM export.dam_line dc
+             WHERE ST_Intersects(wl.geometry, dc.geometry)
+         )
+         THEN 'Y' ELSE 'N' END                                          AS dam_srf_crv_intersect,
+    wl.geometry
+FROM osm.osm_water_point wl
+WHERE wl.subclass IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
+  AND NULLIF(wl.name, '') IS NOT NULL;
+
+CREATE INDEX idx_dam_label_tmp_point_labels ON dam.label_tmp_point_labels USING gist(geometry);
+ANALYZE dam.label_tmp_point_labels;
+COMMIT;
+
+-- Supplemental surface points, staged so the curve deduplication ST_DWithin
+-- check runs against an indexed table rather than an unindexed CTE
 BEGIN;
 CREATE TABLE dam.label_tmp_surface_points AS
 SELECT
@@ -104,19 +167,20 @@ SELECT
     COALESCE(ds.name_en, 'Unnamed Dam')                                 AS name_en,
     ds.fclass,
     ds.surface,
-    CASE WHEN wp.hit IS NOT NULL OR wl.hit IS NOT NULL THEN 'Y' ELSE 'N' END
-                                                                        AS water_intersect,
+    CASE WHEN EXISTS (
+             SELECT 1 FROM osm.osm_water_polygon w
+             WHERE ST_Intersects(ds.geometry, w.geometry)
+               AND w.subclass NOT IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
+         )
+         OR EXISTS (
+             SELECT 1 FROM osm.osm_waterway_linestring ww
+             WHERE ST_DWithin(ds.geometry, ww.geometry, 0.005)
+               AND ww.subclass NOT IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
+         )
+         THEN 'Y' ELSE 'N' END                                          AS water_intersect,
     'Y'                                                                 AS dam_srf_crv_intersect,
     ST_PointOnSurface(ds.geometry)::geometry(Point, 4326)               AS geometry
 FROM export.dam_polygon ds
-LEFT JOIN LATERAL (
-    SELECT 1 AS hit FROM osm.osm_water_polygon w
-    WHERE ST_Intersects(ds.geometry, w.geometry) LIMIT 1
-) wp ON true
-LEFT JOIN LATERAL (
-    SELECT 1 AS hit FROM osm.osm_waterway_linestring ww
-    WHERE ST_DWithin(ds.geometry, ww.geometry, 0.005) LIMIT 1
-) wl ON true
 WHERE NOT EXISTS (
     SELECT 1 FROM osm.osm_water_point ol
     WHERE ol.subclass IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
@@ -124,47 +188,12 @@ WHERE NOT EXISTS (
 );
 
 CREATE INDEX idx_dam_label_tmp_surface_points ON dam.label_tmp_surface_points USING gist(geometry);
+ANALYZE dam.label_tmp_surface_points;
 COMMIT;
 
 BEGIN;
 CREATE MATERIALIZED VIEW export.dam_label AS
-WITH original_labels AS (
-    SELECT
-        wl.id                                                           AS fid,
-        NULLIF(wl.name, '')                                             AS name,
-        NULLIF(wl.name_en, '')                                          AS name_en,
-        wl.subclass                                                     AS fclass,
-        CASE
-            WHEN LOWER(wl.tags -> 'surface') IN ('asphalt', 'cement', 'concrete', 'rock', 'stone', 'wood') THEN 'hard'
-            WHEN LOWER(wl.tags -> 'surface') IN ('dirt', 'earth', 'grass', 'gravel', 'mud', 'sand')        THEN 'loose'
-            ELSE NULL
-        END                                                             AS surface,
-        CASE WHEN wp.hit IS NOT NULL OR wl2.hit IS NOT NULL THEN 'Y' ELSE 'N' END
-                                                                        AS water_intersect,
-        CASE WHEN dp.hit IS NOT NULL OR dl.hit IS NOT NULL THEN 'Y' ELSE 'N' END
-                                                                        AS dam_srf_crv_intersect,
-        wl.geometry
-    FROM osm.osm_water_point wl
-    LEFT JOIN LATERAL (
-        SELECT 1 AS hit FROM osm.osm_water_polygon w
-        WHERE ST_Intersects(wl.geometry, w.geometry) LIMIT 1
-    ) wp  ON true
-    LEFT JOIN LATERAL (
-        SELECT 1 AS hit FROM osm.osm_waterway_linestring ww
-        WHERE ST_DWithin(wl.geometry, ww.geometry, 0.005) LIMIT 1
-    ) wl2 ON true
-    LEFT JOIN LATERAL (
-        SELECT 1 AS hit FROM export.dam_polygon ds
-        WHERE ST_Intersects(wl.geometry, ds.geometry) LIMIT 1
-    ) dp  ON true
-    LEFT JOIN LATERAL (
-        SELECT 1 AS hit FROM export.dam_line dc
-        WHERE ST_Intersects(wl.geometry, dc.geometry) LIMIT 1
-    ) dl  ON true
-    WHERE wl.subclass IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
-      AND NULLIF(wl.name, '') IS NOT NULL
-),
-curve_midpoints AS (
+WITH curve_midpoints AS (
     SELECT
         dc.name,
         dc.name_en,
@@ -174,7 +203,7 @@ curve_midpoints AS (
         ST_LineInterpolatePoint(dc.geometry, 0.5)                       AS midpoint
     FROM export.dam_line dc
     WHERE NOT EXISTS (
-        SELECT 1 FROM original_labels ol
+        SELECT 1 FROM dam.label_tmp_point_labels ol
         WHERE ST_Intersects(dc.geometry, ol.geometry)
     )
 ),
@@ -185,29 +214,33 @@ supplemental_curve_points AS (
         COALESCE(cm.name_en, 'Unnamed Dam')                             AS name_en,
         cm.fclass,
         cm.surface,
-        CASE WHEN wp.hit IS NOT NULL OR wl.hit IS NOT NULL THEN 'Y' ELSE 'N' END
-                                                                        AS water_intersect,
+        CASE WHEN EXISTS (
+                 SELECT 1 FROM osm.osm_water_polygon w
+                 WHERE ST_Intersects(cm.line_geometry, w.geometry)
+                   AND w.subclass NOT IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
+             )
+             OR EXISTS (
+                 SELECT 1 FROM osm.osm_waterway_linestring ww
+                 WHERE ST_DWithin(cm.line_geometry, ww.geometry, 0.005)
+                   AND ww.subclass NOT IN ('dam', 'weir', 'sluice_gate', 'flood_gate')
+             )
+             THEN 'Y' ELSE 'N' END                                      AS water_intersect,
         'Y'                                                             AS dam_srf_crv_intersect,
         cm.midpoint                                                     AS geometry
     FROM curve_midpoints cm
-    LEFT JOIN LATERAL (
-        SELECT 1 AS hit FROM osm.osm_water_polygon w
-        WHERE ST_Intersects(cm.line_geometry, w.geometry) LIMIT 1
-    ) wp ON true
-    LEFT JOIN LATERAL (
-        SELECT 1 AS hit FROM osm.osm_waterway_linestring ww
-        WHERE ST_DWithin(cm.line_geometry, ww.geometry, 0.005) LIMIT 1
-    ) wl ON true
     WHERE NOT EXISTS (
         SELECT 1 FROM dam.label_tmp_surface_points ssp
         WHERE ST_DWithin(cm.midpoint, ssp.geometry, 0.0001)
     )
 )
-SELECT * FROM original_labels
+SELECT fid, name, name_en, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
+FROM dam.label_tmp_point_labels
 UNION ALL
-SELECT * FROM dam.label_tmp_surface_points
+SELECT fid, name, name_en, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
+FROM dam.label_tmp_surface_points
 UNION ALL
-SELECT * FROM supplemental_curve_points;
+SELECT fid, name, name_en, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
+FROM supplemental_curve_points;
 
 CREATE INDEX idx_dam_label_geometry ON export.dam_label USING gist(geometry);
 COMMIT;
