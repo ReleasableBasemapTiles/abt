@@ -342,7 +342,12 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
--- water.valid_ocean — validated, exploded ocean polygons
+-- water.valid_ocean — validated ocean polygons, subdivided to ≤1024 vertices.
+--                     OSM coastline polygons can carry 500k+ vertices and
+--                     thousands of rings in marshland; tile-side clipping and
+--                     simplification of those produces self-intersection
+--                     rendering artifacts. Subdivision edges are invisible
+--                     because the ocean style has no fill outline.
 -- -----------------------------------------------------------------------------
 
 BEGIN;
@@ -350,15 +355,23 @@ DROP TABLE IF EXISTS water.valid_ocean CASCADE;
 CREATE TABLE water.valid_ocean AS
 SELECT
     'ocean'                                                         AS subclass,
-    (ST_Dump(
-        ST_SimplifyPreserveTopology(
-            ST_MakeValid(geometry, 'method=structure'),
-            0.000001
+    s.geom::geometry(Polygon, 4326)                                 AS geometry
+FROM (
+    SELECT (ST_Dump(
+        ST_MakeValid(
+            ST_SimplifyPreserveTopology(
+                ST_MakeValid(geometry, 'method=structure'),
+                0.000001
+            ),
+            'method=structure'
         )
-    )).geom::geometry(Polygon, 4326)                                AS geometry
-FROM aux_data.osm_ocean
-WHERE geometry IS NOT NULL
-  AND NOT ST_IsEmpty(geometry);
+    )).geom AS geom
+    FROM aux_data.osm_ocean
+    WHERE geometry IS NOT NULL
+      AND NOT ST_IsEmpty(geometry)
+) d,
+LATERAL ST_Subdivide(d.geom, 1024) AS s(geom)
+WHERE ST_Dimension(d.geom) = 2;
 
 CREATE INDEX idx_valid_ocean_geometry ON water.valid_ocean USING gist(geometry);
 COMMIT;

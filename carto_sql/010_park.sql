@@ -29,8 +29,8 @@ SELECT
     geometry
 FROM osm.osm_park_polygon
 WHERE subclass IN (
-    'District', 'Regional', 'aboriginal_lands', 'city_park',
-    'community', 'county_park', 'dog_park', 'golf_course',
+    'District', 'Regional', 'aboriginal_lands', 'bunker', 'city_park',
+    'community', 'county_park', 'dog_park', 'fairway', 'golf_course', 'green',
     'national_park', 'natural_area', 'nature_reserve',
     'neighbourhood', 'park', 'pitch', 'private_park',
     'protected_area', 'recreation_ground', 'regional',

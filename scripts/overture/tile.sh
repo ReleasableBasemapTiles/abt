@@ -14,11 +14,11 @@ tippecanoe \
   -l building_polygon \
   -P \
   --temporary-directory "$OUTDIR/tippe_temp" \
-  -y area -y subtype -y has_parts \
-  -T area:int -T has_parts:bool \
+  -y area -y subtype -y has_parts -y height \
+  -T area:int -T has_parts:bool -T height:int \
   --minimum-zoom=11 \
   --maximum-zoom=13 \
-  --simplify-only-low-zooms \
+  --extra-detail=14 \
   --no-tiny-polygon-reduction-at-maximum-zoom \
   --no-feature-limit \
   --no-tile-size-limit \
