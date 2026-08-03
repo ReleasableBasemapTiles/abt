@@ -16,7 +16,7 @@
 -- session-scoped and survives the BEGIN/COMMIT blocks)
 -- -----------------------------------------------------------------------------
 
-# NOTE: HARD CODED TEST SETTINGS. REVISIT POSTGRES TUNING IF THIS WORKS.
+-- NOTE: HARD CODED TEST SETTINGS. REVISIT POSTGRES TUNING IF THIS WORKS.
 
 SET work_mem = '2GB';
 SET maintenance_work_mem = '16GB';
