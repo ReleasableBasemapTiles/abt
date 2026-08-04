@@ -3,6 +3,8 @@
     "description": "",
     "geometry_type": "linestring",
     "attributes": [
+        {"name": "brunnel",      "type": "string",  "description": "bridge or tunnel"},
+        {"name": "culvert",      "type": "bool",    "description": "true if tunnel=culvert"},
         {"name": "intermittent", "type": "string", "description": ""},
         {"name": "name",         "type": "string", "description": ""},
         {"name": "subclass",     "type": "string", "description": ""},

@@ -21,6 +21,9 @@
     - name: is_tunnel
       key: tunnel
       type: bool
+    - name: tunnel_type
+      key: tunnel
+      type: string
     - name: is_bridge
       key: bridge
       type: bool

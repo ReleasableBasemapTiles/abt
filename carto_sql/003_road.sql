@@ -68,11 +68,19 @@ WITH highway_routes AS (
     FROM osm.osm_highway_relation
     WHERE route = 'road'
       AND NULLIF(TRIM(network), '') IS NOT NULL
+      -- Historic alignments (e.g. US:US:Historic) don't get current shields
+      AND network NOT LIKE '%:Historic'
     ORDER BY member,
+        -- OSM network convention: US:I = Interstate, US:US = US highway,
+        -- US:<state> = state route. 'US:I:%'/'US:US:%' cover bannered
+        -- variants (e.g. US:I:Business). Exact/colon-delimited matching is
+        -- required: LIKE 'US:I%' would also match US:IA/ID/IL/IN.
         CASE
-            WHEN network = 'US:interstate' THEN 1
-            WHEN network = 'US:us'         THEN 2
-            WHEN network LIKE 'US:%'       THEN 3
+            WHEN network IN ('US:I', 'US:interstate')
+              OR network LIKE 'US:I:%'                 THEN 1
+            WHEN network IN ('US:US', 'US:us')
+              OR network LIKE 'US:US:%'                THEN 2
+            WHEN network LIKE 'US:%'                   THEN 3
             ELSE 4
         END
 ),
@@ -236,13 +244,15 @@ base AS (
             WHEN is_us AND NOT ref_multi THEN
                 CASE
                     -- relation network fallback
-                    WHEN rel_network = 'US:interstate'              THEN
+                    WHEN rel_network IN ('US:I', 'US:interstate')
+                      OR rel_network LIKE 'US:I:%'                  THEN
                         CASE
                             WHEN ref_raw ILIKE '%Bus%' THEN 'Interstate Business'
                             WHEN ref_raw LIKE '% % %'  THEN 'Interstate Other'
                             ELSE                            'Interstate'
                         END
-                    WHEN rel_network = 'US:us'                      THEN
+                    WHEN rel_network IN ('US:US', 'US:us')
+                      OR rel_network LIKE 'US:US:%'                 THEN
                         CASE
                             WHEN ref_raw LIKE '%Bus%'  THEN 'US Hwy Business'
                             WHEN ref_raw LIKE '% % %'  THEN 'US Hwy Other'

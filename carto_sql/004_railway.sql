@@ -51,7 +51,7 @@ SELECT
         ELSE 1
     END                                                             AS electrified,
     CASE
-        WHEN tracks IN ('1', 'single', 'tram', 'monorail') OR tracks IS NULL THEN 'single'
+        WHEN tracks IN ('1', 'single', 'tram', 'monorail') OR NULLIF(TRIM(tracks), '') IS NULL THEN 'single'
         ELSE 'multiple'
     END                                                             AS tracks,
     CASE
@@ -152,7 +152,17 @@ SELECT
         WHEN r.is_tunnel THEN 'tunnel'
         WHEN r.is_ford   THEN 'ford'
     END                                                             AS brunnel,
-    r.subclass,
+    CASE lower(r.subclass)
+        WHEN 'construction' THEN COALESCE(NULLIF(TRIM(LOWER(r.construction)), ''), 'unknown')
+        WHEN 'proposed'     THEN COALESCE(NULLIF(TRIM(LOWER(r.proposed)),     ''), 'unknown')
+        WHEN 'planned'      THEN COALESCE(NULLIF(TRIM(LOWER(r.planned)),      ''), 'unknown')
+        WHEN 'disused'      THEN COALESCE(NULLIF(TRIM(LOWER(r.disused)),      ''), 'unknown')
+        WHEN 'abandoned'    THEN COALESCE(NULLIF(TRIM(LOWER(r.abandoned)),    ''), 'unknown')
+        WHEN 'demolished'   THEN COALESCE(NULLIF(TRIM(LOWER(r.demolished)),   ''), 'unknown')
+        WHEN 'razed'        THEN COALESCE(NULLIF(TRIM(LOWER(r.razed)),        ''), 'unknown')
+        WHEN 'removed'      THEN COALESCE(NULLIF(TRIM(LOWER(r.removed)),      ''), 'unknown')
+        ELSE r.subclass
+    END                                                                 AS subclass,
     COALESCE(NULLIF(TRIM(r.name_en), ''), NULLIF(TRIM(r.name), '')) AS name,
     NULLIF(TRIM(r.ref), '')                                         AS ref,
     NULLIF(TRIM(r.network), '')                                     AS network,
@@ -166,7 +176,6 @@ SELECT
     n.electrified,
     n.tracks,
     n.lifecycle_type,
-    n.lifecycle_desc,
     r.layer,
     r.level,
     r.is_oneway,

@@ -5,7 +5,6 @@
     "attributes": [
         {"name": "brunnel",        "type": "string", "description": ""},
         {"name": "dps_type",       "type": "string", "description": ""},
-        {"name": "lifecycle_desc", "type": "string", "description": ""},
         {"name": "lifecycle_type", "type": "string", "description": ""},
         {"name": "name",           "type": "string", "description": ""},
         {"name": "service",        "type": "string", "description": ""},

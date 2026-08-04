@@ -64,11 +64,15 @@ SELECT
 FROM osm.osm_builtup_area
 WHERE geometry IS NOT NULL
   AND (
-    -- Place polygons: city/town/village/hamlet outlines
-    (class = 'place' AND subclass IN ('city', 'town', 'village', 'hamlet'))
+    (class = 'landuse' AND subclass IN (
+        'residential', 'commercial', 'retail', 'industrial',
+        'railway', 'brownfield', 'depot', 'garages', 'civic_admin',
+        'construction', 'education', 'fairground', 'institutional'
+    ))
     OR
-    -- Landuse: excludes cemetery and religious (have dedicated layers)
-    (class = 'landuse' AND subclass NOT IN ('cemetery', 'religious'))
+    (class = 'amenity' AND subclass IN (
+        'school', 'university', 'kindergarten', 'college', 'library'
+    ))
   );
 
 CREATE INDEX idx_builtuparea_osm_geometry ON landuse.builtuparea_osm USING gist(geometry);

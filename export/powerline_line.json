@@ -17,6 +17,11 @@
             "name": "subclass",
             "type": "string",
             "description": ""
+        },
+        {
+            "name": "lifecycle_type",
+            "type": "string",
+            "description": "intact, construction, proposed, disused, abandoned, demolished, razed, or removed"
         }
     ],
     "source_attribution": "",

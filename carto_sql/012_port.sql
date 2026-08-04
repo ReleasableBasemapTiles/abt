@@ -34,47 +34,24 @@ WITH base_ports AS (
         NULLIF(b.access, '')                                            AS access,
         NULLIF(b.port_type, '')                                         AS port_type,
         ST_Area(ST_Transform(b.geometry, 3857))::real                   AS area,
-        unnest(ST_ClusterWithin(
-            ST_MakeValid(b.geometry),
-            100
-        ))                                                              AS clustered_geom
+        (ST_Dump(
+            ST_CollectionExtract(ST_MakeValid(b.geometry), 3)
+        )).geom::geometry(Polygon, 4326)                                AS geometry
     FROM osm.osm_builtup_area AS b
     WHERE (b.subclass IN ('port', 'harbour'))
        OR (b.subclass = 'industrial' AND b.industrial = 'port')
-    GROUP BY
-        b.osm_id, b.name, b.class, b.subclass,
-        b.industrial, b.port, b.cargo, b.access, b.port_type,
-        ST_Area(ST_Transform(b.geometry, 3857))::real
-),
-union_ports AS (
-    SELECT
-        osm_id,
-        name,
-        class,
-        subclass,
-        industrial,
-        port,
-        cargo,
-        access,
-        port_type,
-        area,
-        (ST_Dump(
-            ST_Union(clustered_geom)
-        )).geom::geometry(Polygon, 4326)                                AS geometry
-    FROM base_ports
-    GROUP BY osm_id, name, class, subclass, industrial, port, cargo, access, port_type, area
 ),
 ports_with_fid AS (
     SELECT
         ROW_NUMBER() OVER (ORDER BY osm_id, area DESC)                  AS fid,
         ST_Area(ST_Transform(geometry, 3857))::real                     AS area_part,
         *
-    FROM union_ports
+    FROM base_ports
 ),
 ranked_ports AS (
     SELECT
         *,
-        RANK() OVER (PARTITION BY osm_id ORDER BY area DESC)            AS rank_value
+        RANK() OVER (PARTITION BY osm_id ORDER BY area_part DESC)       AS rank_value
     FROM ports_with_fid
 ),
 ports_with_overlap AS (
@@ -93,13 +70,22 @@ ports_with_overlap AS (
             ) THEN 1
             ELSE 0
         END                                                             AS overlap,
+        -- contained: ≥95% of this feature's area lies within a larger
+        -- feature. An area-fraction test instead of ST_Contains/
+        -- ST_ContainsProperly: OSM way-vs-relation boundaries misalign by
+        -- slivers, so morally-contained features fail binary DE-9IM
+        -- predicates (e.g. 99.8% inside still reports ST_Overlaps).
+        -- The fid tiebreak keeps one of two exact duplicates visible.
         CASE
             WHEN EXISTS (
                 SELECT 1
                 FROM ranked_ports b
                 WHERE a.fid != b.fid
+                  AND (b.area_part > a.area_part
+                       OR (b.area_part = a.area_part AND b.fid < a.fid))
                   AND a.geometry && b.geometry
-                  AND ST_ContainsProperly(b.geometry, a.geometry)
+                  AND ST_Area(ST_Intersection(a.geometry, b.geometry))
+                      >= 0.95 * ST_Area(a.geometry)
             ) THEN 1
             ELSE 0
         END                                                             AS contained

@@ -12,6 +12,11 @@
             "name": "subclass",
             "type": "string",
             "description": ""
+        },
+        {
+            "name": "contained",
+            "type": "int",
+            "description": "1 = feature lies >=95% within a larger port feature; style/tiling can suppress to avoid doubled outlines"
         }
     ],
     "source_attribution": "",

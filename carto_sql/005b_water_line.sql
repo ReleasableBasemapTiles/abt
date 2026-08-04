@@ -9,6 +9,22 @@
 
 
 -- -----------------------------------------------------------------------------
+-- waterway_brunnel — computes brunnel value from bridge/tunnel flags
+-- -----------------------------------------------------------------------------
+
+BEGIN;
+CREATE OR REPLACE FUNCTION water.waterway_brunnel(is_bridge bool, is_tunnel bool)
+RETURNS text AS $$
+SELECT CASE
+    WHEN is_bridge  THEN 'bridge'
+    WHEN is_tunnel  THEN 'tunnel'
+    ELSE NULL
+END;
+$$ LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
+COMMIT;
+
+
+-- -----------------------------------------------------------------------------
 -- water.waterway_relation_union — relation members merged into full river lines
 --
 -- Unions waterway_relation member geometries by osm_id + name, keeping only
@@ -54,6 +70,8 @@ SELECT
     name,
     CASE WHEN is_intermittent THEN true ELSE NULL END               AS intermittent,
     'river'::text                                                   AS subclass,
+    NULL::text                                                      AS brunnel,
+    NULL::boolean                                                   AS culvert,
     geom_len,
     geometry,
     CASE
@@ -71,6 +89,8 @@ SELECT
     NULLIF(name, '')                                                AS name,
     CASE WHEN is_intermittent THEN true ELSE NULL END               AS intermittent,
     water.classify_water_type(subclass)                             AS subclass,
+    water.waterway_brunnel(is_bridge, is_tunnel)                    AS brunnel,
+    CASE WHEN tunnel_type = 'culvert' THEN true ELSE NULL END       AS culvert,
     ST_Length(ST_Transform(geometry, 3857))::real                   AS geom_len,
     geometry,
     CASE

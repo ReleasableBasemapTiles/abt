@@ -16,7 +16,7 @@
     "tippecanoe_options": {
         "minimum_zoom": 4,
         "maximum_zoom": 13,
-        "additional_flags": "--base-zoom=5",
+        "additional_flags": "--base-zoom=5 --no-feature-limit",
         "filter": {
             "*": [
                 "any",

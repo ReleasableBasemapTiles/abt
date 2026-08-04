@@ -103,15 +103,50 @@
     - name: is_area
       key: area
       type: bool
+    - name: construction
+      key: construction
+      type: string
+    - name: proposed
+      key: proposed
+      type: string
+    - name: disused
+      key: disused
+      type: string
+    - name: abandoned
+      key: abandoned
+      type: string
+    - name: demolished
+      key: demolished
+      type: string
+    - name: razed
+      key: razed
+      type: string
+    - name: removed
+      key: removed
+      type: string
     - name: tags
       type: hstore_tags
     mapping:
       man_made:
       - pipeline
+      - construction
+      - proposed
+      - disused
+      - abandoned
+      - demolished
+      - razed
+      - removed
       power:
       - line
       - minor_line
       - cable
+      - construction
+      - proposed
+      - disused
+      - abandoned
+      - demolished
+      - razed
+      - removed
       communication:
       - line
       - cable
