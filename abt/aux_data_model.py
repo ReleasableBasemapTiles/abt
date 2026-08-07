@@ -67,7 +67,7 @@ class AuxLayer(BaseModel):
         )
         layers = []
         for line in result.stdout.splitlines():
-            match = re.match(r'^\d+:\s+(.+?)\s+\(', line.strip())
+            match = re.match(r'^(?:\d+|Layer):\s+(.+?)\s+\(', line.strip())
             if match:
                 layers.append(match.group(1))
         matched = fnmatch.filter(layers, name)
