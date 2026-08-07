@@ -1,5 +1,5 @@
 {
-    "layer_id": "transportation_station",
+    "layer_id": "transportation_station_polygon",
     "description": "",
     "geometry_type": "polygon",
     "attributes": [

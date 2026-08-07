@@ -233,7 +233,8 @@ COMMIT;
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.rail_station CASCADE;
 DROP MATERIALIZED VIEW IF EXISTS export.transportation_station CASCADE;
-CREATE MATERIALIZED VIEW export.transportation_station AS
+DROP MATERIALIZED VIEW IF EXISTS export.transportation_station_polygon CASCADE;
+CREATE MATERIALIZED VIEW export.transportation_station_polygon AS
 SELECT
     osm_id,
     class,
@@ -248,10 +249,10 @@ SELECT
 FROM osm.osm_transportation_polygon
 WHERE subclass IN ('station', 'bus_station', 'ferry_terminal', 'rest_area', 'services', 'platform');
 
-CREATE INDEX idx_transportation_station_geometry ON export.transportation_station USING gist(geometry);
-CREATE INDEX idx_transportation_station_osm_id   ON export.transportation_station USING btree(osm_id);
-CREATE INDEX idx_transportation_station_subclass ON export.transportation_station USING btree(subclass);
-CREATE INDEX idx_transportation_station_name     ON export.transportation_station USING btree(name) WHERE name IS NOT NULL;
+CREATE INDEX idx_transportation_station_geometry ON export.transportation_station_polygon USING gist(geometry);
+CREATE INDEX idx_transportation_station_osm_id   ON export.transportation_station_polygon USING btree(osm_id);
+CREATE INDEX idx_transportation_station_subclass ON export.transportation_station_polygon USING btree(subclass);
+CREATE INDEX idx_transportation_station_name     ON export.transportation_station_polygon USING btree(name) WHERE name IS NOT NULL;
 COMMIT;
 
 
