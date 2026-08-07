@@ -305,7 +305,7 @@ base AS (
 SELECT * FROM base
 WHERE geometry IS NOT NULL
   AND subclass IN (
-      'demolished', 'abandoned', 'bridleway','bus_guideway','cycleway','footway',
+      'demolished', 'abandoned', 'bridleway','bus_guideway','corridor','cycleway','footway',
       'living_street','motorway','motorway_link','path','pedestrian','primary',
       'primary_link','raceway','residential','road','secondary','secondary_link',
       'service','steps','tertiary','tertiary_link','track','trunk','trunk_link',

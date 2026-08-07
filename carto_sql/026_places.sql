@@ -61,6 +61,11 @@ SELECT
     NULLIF(o.name, '')                                                  AS name,
     NULLIF(o.name_en, '')                                               AS name_en,
     o.place                                                             AS class,
+    CASE o.place
+        WHEN 'city'    THEN 1
+        WHEN 'town'    THEN 2
+        ELSE                3
+    END                                                                 AS class_rank,
     CASE
         WHEN o.capital = 'yes'                  THEN 2
         WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
@@ -158,6 +163,13 @@ SELECT
     NULLIF(o.name, '')                                                  AS name,
     NULLIF(o.name_en, '')                                               AS name_en,
     o.place                                                             AS class,
+    CASE o.place
+        WHEN 'village'       THEN 3
+        WHEN 'suburb'        THEN 4
+        WHEN 'neighbourhood' THEN 5
+        WHEN 'hamlet'        THEN 6
+        ELSE                      7
+    END                                                                 AS class_rank,
     CASE
         WHEN o.capital = 'yes'                  THEN 2
         WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
@@ -182,6 +194,7 @@ SELECT
     NULLIF(name, '')                                                    AS name,
     NULLIF(name_en, '')                                                 AS name_en,
     'island'::text                                                      AS class,
+    NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
     CASE
         WHEN ST_Area(geometry::geography) >= 1e12 THEN 1
@@ -207,6 +220,7 @@ SELECT
     NULLIF(name, '')                                                    AS name,
     NULLIF(name_en, '')                                                 AS name_en,
     'island'::text                                                      AS class,
+    NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
     7                                                                   AS rank,
     geometry
@@ -228,6 +242,7 @@ SELECT
     NULLIF(name, '')                                                    AS name,
     NULLIF(name_en, '')                                                 AS name_en,
     'island_group'::text                                                AS class,
+    NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
     scalerank + 1                                                       AS rank,
     ST_PointOnSurface(

@@ -153,14 +153,30 @@ SELECT
         WHEN r.is_ford   THEN 'ford'
     END                                                             AS brunnel,
     CASE lower(r.subclass)
-        WHEN 'construction' THEN COALESCE(NULLIF(TRIM(LOWER(r.construction)), ''), 'unknown')
-        WHEN 'proposed'     THEN COALESCE(NULLIF(TRIM(LOWER(r.proposed)),     ''), 'unknown')
-        WHEN 'planned'      THEN COALESCE(NULLIF(TRIM(LOWER(r.planned)),      ''), 'unknown')
-        WHEN 'disused'      THEN COALESCE(NULLIF(TRIM(LOWER(r.disused)),      ''), 'unknown')
-        WHEN 'abandoned'    THEN COALESCE(NULLIF(TRIM(LOWER(r.abandoned)),    ''), 'unknown')
-        WHEN 'demolished'   THEN COALESCE(NULLIF(TRIM(LOWER(r.demolished)),   ''), 'unknown')
-        WHEN 'razed'        THEN COALESCE(NULLIF(TRIM(LOWER(r.razed)),        ''), 'unknown')
-        WHEN 'removed'      THEN COALESCE(NULLIF(TRIM(LOWER(r.removed)),      ''), 'unknown')
+        WHEN 'construction' THEN COALESCE(NULLIF(TRIM(LOWER(r.construction)),           ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'construction:railway')), ''),
+                                          'unknown')
+        WHEN 'proposed'     THEN COALESCE(NULLIF(TRIM(LOWER(r.proposed)),               ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'proposed:railway')),     ''),
+                                          'unknown')
+        WHEN 'planned'      THEN COALESCE(NULLIF(TRIM(LOWER(r.planned)),                ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'planned:railway')),      ''),
+                                          'unknown')
+        WHEN 'disused'      THEN COALESCE(NULLIF(TRIM(LOWER(r.disused)),                ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'disused:railway')),      ''),
+                                          'unknown')
+        WHEN 'abandoned'    THEN COALESCE(NULLIF(TRIM(LOWER(r.abandoned)),              ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'abandoned:railway')),    ''),
+                                          'unknown')
+        WHEN 'demolished'   THEN COALESCE(NULLIF(TRIM(LOWER(r.demolished)),             ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'demolished:railway')),   ''),
+                                          'unknown')
+        WHEN 'razed'        THEN COALESCE(NULLIF(TRIM(LOWER(r.razed)),                  ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'razed:railway')),        ''),
+                                          'unknown')
+        WHEN 'removed'      THEN COALESCE(NULLIF(TRIM(LOWER(r.removed)),                ''),
+                                          NULLIF(TRIM(LOWER(r.tags -> 'removed:railway')),      ''),
+                                          'unknown')
         ELSE r.subclass
     END                                                                 AS subclass,
     COALESCE(NULLIF(TRIM(r.name_en), ''), NULLIF(TRIM(r.name), '')) AS name,
@@ -202,7 +218,8 @@ SELECT
     END                                                             AS dps_type
 FROM osm.osm_railway_linestring r
 LEFT JOIN transportation.railway_normalized n ON r.osm_id = n.osm_id
-WHERE NOT r.is_area;
+WHERE NOT r.is_area
+  AND COALESCE(n.lifecycle_type, 'intact') != 'abandoned';
 
 CREATE INDEX idx_railway_geometry ON export.rail_line USING gist(geometry);
 CREATE UNIQUE INDEX idx_railway_osm_id ON export.rail_line USING btree(osm_id);

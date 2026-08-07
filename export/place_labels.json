@@ -10,6 +10,11 @@
             "description": ""
         },
         {
+            "name": "class_rank",
+            "type": "int",
+            "description": "Numeric priority within the same rank: 1=city, 2=town, 3=village, 4=suburb, 5=neighbourhood, 6=hamlet"
+        },
+        {
             "name": "capital",
             "type": "int",
             "description": ""
