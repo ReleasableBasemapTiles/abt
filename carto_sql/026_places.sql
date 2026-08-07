@@ -85,7 +85,12 @@ SELECT
             WHEN ne.rank_max = 12 AND ne.pop_max >= 1500000
                 AND o.name_en NOT ILIKE 'Irvine'                          THEN 3
             WHEN ne.rank_max = 12                                        THEN 4
-            WHEN ne.rank_max IN (10, 11)                                 THEN 5
+            WHEN ne.rank_max IN (10, 11)                                 THEN
+                CASE
+                    WHEN o.place = 'city'      THEN 5
+                    WHEN ne.pop_max >= 400000  THEN 5
+                    ELSE                            6
+                END
             WHEN ne.rank_max IN (8, 9)                                   THEN 6
             WHEN ne.rank_max IN (6, 7)                                   THEN 7
             WHEN ne.rank_max = 5                                         THEN 8
