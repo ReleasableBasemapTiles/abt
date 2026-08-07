@@ -1,6 +1,6 @@
 {
     "folder_name": "disdi",
-    "url": "https://datacollects.blob.core.usgovcloudapi.net/abt-data/installations_ranges.zip",
+    "url": "https://www.acq.osd.mil/eie/imr/rpid/disdi/Downloads/installations_ranges.zip",
     "type": "gdb",
     "zipped":true,
     "aux_load": [
