@@ -378,11 +378,15 @@ COMMIT;
 -- Run all ten level dissolves in parallel worker connections (they are
 -- independent once the cascade tables exist, which are committed above).
 -- A failure in any worker propagates to this session and aborts the script.
+-- temp_buffers must ride in the connection string: workers are fresh sessions
+-- that inherit nothing from this one, and the setting only takes effect if set
+-- before a session first touches a temp table. dissolve_level's temp tables
+-- and GiST build overrun the 8MB default on large extracts.
 DO $$
 DECLARE
     zooms CONSTANT int[] := ARRAY[13, 12, 11, 10, 9, 8, 7, 6, 5, 4];
     connstr CONSTANT text := format(
-        'dbname=%s options=''-c work_mem=2GB -c synchronous_commit=off -c jit=off''',
+        'dbname=%s options=''-c work_mem=2GB -c temp_buffers=4GB -c synchronous_commit=off -c jit=off''',
         current_database());
     z int;
     n int;
