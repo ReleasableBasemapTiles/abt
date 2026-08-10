@@ -2,7 +2,8 @@
 -- LAYER: Land Cover
 -- Schema:        export
 -- Intermediates: landcover.preprocessed, landcover.leveled,
---                landcover.z13_source .. landcover.z4_simplified (transient)
+--                landcover.z13_source .. landcover.z4_simplified (transient),
+--                landcover.dissolve_src / dissolve_pass1 / dissolve_touch (transient)
 -- Sources:       osm.osm_landcover_polygon
 -- =============================================================================
 
@@ -219,6 +220,8 @@ COMMIT;
 -- -----------------------------------------------------------------------------
 
 BEGIN;
+-- Retired by the sharded dissolve below; drop leftovers from earlier runs.
+DROP PROCEDURE IF EXISTS landcover.dissolve_level(int);
 DROP TABLE IF EXISTS landcover.leveled CASCADE;
 CREATE TABLE landcover.leveled (
     subclass     text,
@@ -278,140 +281,172 @@ INSERT INTO landcover.dissolve_jobs VALUES
      NULL);
 COMMIT;
 
--- Two-phase grid dissolve for one zoom level (same pattern as the water
--- dissolve in 005a): whole polygons binned into 100 km cells, unioned per cell
--- and attribute combination, then the cross-cell touchers merged exactly.
--- Temp tables are session-local, so concurrent workers never collide.
-BEGIN;
-CREATE OR REPLACE PROCEDURE landcover.dissolve_level(p_z int)
-LANGUAGE plpgsql
-AS $proc$
-DECLARE
-    cell CONSTANT int := 100000;    -- metres, EPSG:3857
-    job  landcover.dissolve_jobs%ROWTYPE;
-BEGIN
-    SELECT * INTO STRICT job FROM landcover.dissolve_jobs WHERE z_level = p_z;
-    RAISE NOTICE 'z% dissolve start %', p_z, clock_timestamp();
+-- Two-phase grid dissolve, one zoom level at a time (same pattern as the
+-- water dissolve in 005a): whole polygons binned into 100 km cells, unioned
+-- per cell and attribute combination, then the cross-cell touchers merged
+-- exactly.
+--
+-- The per-cell unions of each level are sharded by cell hash across 16 dblink
+-- worker connections, so every level gets the whole machine. (The previous
+-- level-per-worker layout serialised on z13: ~4 of its ~5.5 hours ran on a
+-- single core while the other levels' workers sat finished.) Levels run
+-- sequentially, largest first, and the passthrough insert of each level
+-- overlaps its sharded unions since neither depends on the other.
+--
+-- Scratch tables are shared UNLOGGED tables, not temp tables. Every DDL and
+-- phase-2 step runs on the 'lc_ctl' dblink connection, which autocommits each
+-- statement so the tables become visible to the shard workers (this session
+-- may itself be inside a surrounding transaction, so it cannot expose them).
 
-    EXECUTE 'DROP TABLE IF EXISTS _dis_src, _dis_p1, _dis_touch';
-
-    EXECUTE format($q$
-        CREATE TEMP TABLE _dis_src AS
-        SELECT subclass, leaf_type, leaf_cycle, intermittent,
-               floor((ST_XMin(geometry) + ST_XMax(geometry)) / 2.0 / %1$s)::int AS cell_x,
-               floor((ST_YMin(geometry) + ST_YMax(geometry)) / 2.0 / %1$s)::int AS cell_y,
-               ST_CollectionExtract(geometry, 3) AS geometry
-        FROM %2$s
-        WHERE (%3$s)
-          AND NOT ST_IsEmpty(geometry)
-    $q$, cell, job.src, job.cluster_pred);
-
-    EXECUTE $q$
-        CREATE TEMP TABLE _dis_p1 AS
-        SELECT row_number() OVER () AS id,
-               subclass, leaf_type, leaf_cycle, intermittent, cell_x, cell_y,
-               d.geom AS geometry
-        FROM (
-            SELECT subclass, leaf_type, leaf_cycle, intermittent, cell_x, cell_y,
-                   ST_Union(geometry, 0.001) AS merged
-            FROM _dis_src
-            GROUP BY subclass, leaf_type, leaf_cycle, intermittent, cell_x, cell_y
-        ) g, LATERAL ST_Dump(g.merged) d
-        WHERE ST_Dimension(d.geom) = 2
-    $q$;
-    EXECUTE 'CREATE INDEX ON _dis_p1 USING gist(geometry)';
-    EXECUTE 'ANALYZE _dis_p1';
-
-    EXECUTE $q$
-        CREATE TEMP TABLE _dis_touch AS
-        SELECT DISTINCT unnest(ARRAY[a.id, b.id]) AS id
-        FROM _dis_p1 a
-        JOIN _dis_p1 b
-          ON a.id < b.id
-         AND a.subclass = b.subclass
-         AND a.leaf_type    IS NOT DISTINCT FROM b.leaf_type
-         AND a.leaf_cycle   IS NOT DISTINCT FROM b.leaf_cycle
-         AND a.intermittent IS NOT DISTINCT FROM b.intermittent
-         AND a.geometry && b.geometry
-         AND ST_Intersects(a.geometry, b.geometry)
-        WHERE (a.cell_x <> b.cell_x OR a.cell_y <> b.cell_y)
-    $q$;
-
-    EXECUTE format($q$
-        INSERT INTO landcover.leveled (subclass, leaf_type, leaf_cycle, intermittent, z_level, geometry)
-        SELECT p.subclass, p.leaf_type, p.leaf_cycle, p.intermittent, %1$s, p.geometry
-        FROM _dis_p1 p
-        WHERE NOT EXISTS (SELECT 1 FROM _dis_touch t WHERE t.id = p.id)
-        UNION ALL
-        SELECT subclass, leaf_type, leaf_cycle, intermittent, %1$s, d.geom
-        FROM (
-            SELECT subclass, leaf_type, leaf_cycle, intermittent,
-                   ST_Union(geometry, 0.001) AS merged
-            FROM (
-                SELECT p.*,
-                       ST_ClusterIntersectingWin(p.geometry) OVER (
-                           PARTITION BY p.subclass, p.leaf_type, p.leaf_cycle, p.intermittent
-                       ) AS cid
-                FROM _dis_p1 p JOIN _dis_touch t USING (id)
-            ) c
-            GROUP BY subclass, leaf_type, leaf_cycle, intermittent, cid
-        ) m, LATERAL ST_Dump(m.merged) d
-        WHERE ST_Dimension(d.geom) = 2
-    $q$, p_z);
-
-    IF job.passthrough_pred IS NOT NULL THEN
-        EXECUTE format($q$
-            INSERT INTO landcover.leveled (subclass, leaf_type, leaf_cycle, intermittent, z_level, geometry)
-            SELECT subclass, leaf_type, leaf_cycle, intermittent, %1$s, d.geom
-            FROM %2$s s, LATERAL ST_Dump(ST_CollectionExtract(s.geometry, 3)) d
-            WHERE (%3$s)
-              AND ST_Dimension(d.geom) = 2
-        $q$, p_z, job.src, job.passthrough_pred);
-    END IF;
-
-    EXECUTE 'DROP TABLE IF EXISTS _dis_src, _dis_p1, _dis_touch';
-    RAISE NOTICE 'z% dissolve done %', p_z, clock_timestamp();
-END;
-$proc$;
-COMMIT;
-
--- Run all ten level dissolves in parallel worker connections (they are
--- independent once the cascade tables exist, which are committed above).
--- A failure in any worker propagates to this session and aborts the script.
--- temp_buffers must ride in the connection string: workers are fresh sessions
--- that inherit nothing from this one, and the setting only takes effect if set
--- before a session first touches a temp table. dissolve_level's temp tables
--- and GiST build overrun the 8MB default on large extracts.
+-- A failure in any worker or control statement propagates to this session and
+-- aborts the script.
 DO $$
 DECLARE
-    zooms CONSTANT int[] := ARRAY[13, 12, 11, 10, 9, 8, 7, 6, 5, 4];
+    nshards CONSTANT int := 16;
+    cell    CONSTANT int := 100000;    -- metres, EPSG:3857
     connstr CONSTANT text := format(
-        'dbname=%s options=''-c work_mem=2GB -c temp_buffers=4GB -c synchronous_commit=off -c jit=off''',
+        'dbname=%s options=''-c work_mem=2GB -c maintenance_work_mem=16GB -c max_parallel_workers_per_gather=10 -c parallel_setup_cost=100 -c parallel_tuple_cost=0.01 -c synchronous_commit=off -c jit=off''',
         current_database());
-    z int;
+    job record;
+    i int;
     n int;
 BEGIN
-    FOREACH z IN ARRAY zooms LOOP
-        PERFORM dblink_connect('lc_w' || z, connstr);
-        PERFORM dblink_send_query('lc_w' || z,
-            format('CALL landcover.dissolve_level(%s)', z));
+    PERFORM dblink_connect('lc_ctl', connstr);
+    FOR i IN 0 .. nshards - 1 LOOP
+        PERFORM dblink_connect('lc_w' || i, connstr);
     END LOOP;
 
-    FOREACH z IN ARRAY zooms LOOP
-        LOOP
-            PERFORM * FROM dblink_get_result('lc_w' || z) AS t(res text);
-            GET DIAGNOSTICS n = ROW_COUNT;
-            EXIT WHEN n = 0;
+    FOR job IN SELECT * FROM landcover.dissolve_jobs ORDER BY z_level DESC LOOP
+        RAISE NOTICE 'z% dissolve start %', job.z_level, clock_timestamp();
+
+        PERFORM dblink_exec('lc_ctl',
+            'DROP TABLE IF EXISTS landcover.dissolve_src, landcover.dissolve_pass1, landcover.dissolve_touch');
+        PERFORM dblink_exec('lc_ctl', format($q$
+            CREATE UNLOGGED TABLE landcover.dissolve_src AS
+            SELECT subclass, leaf_type, leaf_cycle, intermittent,
+                   floor((ST_XMin(geometry) + ST_XMax(geometry)) / 2.0 / %1$s)::int AS cell_x,
+                   floor((ST_YMin(geometry) + ST_YMax(geometry)) / 2.0 / %1$s)::int AS cell_y,
+                   ST_CollectionExtract(geometry, 3) AS geometry
+            FROM %2$s
+            WHERE (%3$s)
+              AND NOT ST_IsEmpty(geometry)
+        $q$, cell, job.src, job.cluster_pred));
+        PERFORM dblink_exec('lc_ctl', $q$
+            CREATE UNLOGGED TABLE landcover.dissolve_pass1 (
+                id           bigint GENERATED ALWAYS AS IDENTITY,
+                subclass     text,
+                leaf_type    text,
+                leaf_cycle   text,
+                intermittent boolean,
+                cell_x       int,
+                cell_y       int,
+                geometry     geometry(Polygon, 3857)
+            )
+        $q$);
+
+        -- Phase 1: per-cell unions, sharded across the workers. The
+        -- passthrough insert rides along on the control connection meanwhile.
+        FOR i IN 0 .. nshards - 1 LOOP
+            PERFORM dblink_send_query('lc_w' || i, format($q$
+                INSERT INTO landcover.dissolve_pass1
+                    (subclass, leaf_type, leaf_cycle, intermittent, cell_x, cell_y, geometry)
+                SELECT subclass, leaf_type, leaf_cycle, intermittent, cell_x, cell_y, d.geom
+                FROM (
+                    SELECT subclass, leaf_type, leaf_cycle, intermittent, cell_x, cell_y,
+                           ST_Union(geometry, 0.001) AS merged
+                    FROM landcover.dissolve_src
+                    WHERE abs(cell_x * 92821 + cell_y) %% %s = %s
+                    GROUP BY subclass, leaf_type, leaf_cycle, intermittent, cell_x, cell_y
+                ) g, LATERAL ST_Dump(g.merged) d
+                WHERE ST_Dimension(d.geom) = 2
+            $q$, nshards, i));
         END LOOP;
-        PERFORM dblink_disconnect('lc_w' || z);
+        IF job.passthrough_pred IS NOT NULL THEN
+            PERFORM dblink_send_query('lc_ctl', format($q$
+                INSERT INTO landcover.leveled (subclass, leaf_type, leaf_cycle, intermittent, z_level, geometry)
+                SELECT subclass, leaf_type, leaf_cycle, intermittent, %1$s, d.geom
+                FROM %2$s s, LATERAL ST_Dump(ST_CollectionExtract(s.geometry, 3)) d
+                WHERE (%3$s)
+                  AND ST_Dimension(d.geom) = 2
+            $q$, job.z_level, job.src, job.passthrough_pred));
+        END IF;
+
+        FOR i IN 0 .. nshards - 1 LOOP
+            LOOP
+                PERFORM * FROM dblink_get_result('lc_w' || i) AS t(res text);
+                GET DIAGNOSTICS n = ROW_COUNT;
+                EXIT WHEN n = 0;
+            END LOOP;
+        END LOOP;
+        IF job.passthrough_pred IS NOT NULL THEN
+            LOOP
+                PERFORM * FROM dblink_get_result('lc_ctl') AS t(res text);
+                GET DIAGNOSTICS n = ROW_COUNT;
+                EXIT WHEN n = 0;
+            END LOOP;
+        END IF;
+
+        -- Phase 2: exact merge of the (small) cross-cell-touching subset.
+        PERFORM dblink_exec('lc_ctl', 'CREATE INDEX ON landcover.dissolve_pass1 USING gist(geometry)');
+        PERFORM dblink_exec('lc_ctl', 'ANALYZE landcover.dissolve_pass1');
+        PERFORM dblink_exec('lc_ctl', $q$
+            CREATE UNLOGGED TABLE landcover.dissolve_touch AS
+            SELECT DISTINCT unnest(ARRAY[a.id, b.id]) AS id
+            FROM landcover.dissolve_pass1 a
+            JOIN landcover.dissolve_pass1 b
+              ON a.id < b.id
+             AND a.subclass = b.subclass
+             AND a.leaf_type    IS NOT DISTINCT FROM b.leaf_type
+             AND a.leaf_cycle   IS NOT DISTINCT FROM b.leaf_cycle
+             AND a.intermittent IS NOT DISTINCT FROM b.intermittent
+             AND a.geometry && b.geometry
+             AND ST_Intersects(a.geometry, b.geometry)
+            WHERE (a.cell_x <> b.cell_x OR a.cell_y <> b.cell_y)
+        $q$);
+        PERFORM dblink_exec('lc_ctl', 'ANALYZE landcover.dissolve_touch');
+        PERFORM dblink_exec('lc_ctl', format($q$
+            INSERT INTO landcover.leveled (subclass, leaf_type, leaf_cycle, intermittent, z_level, geometry)
+            SELECT p.subclass, p.leaf_type, p.leaf_cycle, p.intermittent, %1$s, p.geometry
+            FROM landcover.dissolve_pass1 p
+            WHERE NOT EXISTS (SELECT 1 FROM landcover.dissolve_touch t WHERE t.id = p.id)
+            UNION ALL
+            SELECT subclass, leaf_type, leaf_cycle, intermittent, %1$s, d.geom
+            FROM (
+                SELECT subclass, leaf_type, leaf_cycle, intermittent,
+                       ST_Union(geometry, 0.001) AS merged
+                FROM (
+                    SELECT p.*,
+                           ST_ClusterIntersectingWin(p.geometry) OVER (
+                               PARTITION BY p.subclass, p.leaf_type, p.leaf_cycle, p.intermittent
+                           ) AS cid
+                    FROM landcover.dissolve_pass1 p
+                    JOIN landcover.dissolve_touch t USING (id)
+                ) c
+                GROUP BY subclass, leaf_type, leaf_cycle, intermittent, cid
+            ) m, LATERAL ST_Dump(m.merged) d
+            WHERE ST_Dimension(d.geom) = 2
+        $q$, job.z_level));
+
+        PERFORM dblink_exec('lc_ctl',
+            'DROP TABLE landcover.dissolve_src, landcover.dissolve_pass1, landcover.dissolve_touch');
+        RAISE NOTICE 'z% dissolve done %', job.z_level, clock_timestamp();
     END LOOP;
+
+    FOR i IN 0 .. nshards - 1 LOOP
+        PERFORM dblink_disconnect('lc_w' || i);
+    END LOOP;
+    PERFORM dblink_disconnect('lc_ctl');
 EXCEPTION WHEN OTHERS THEN
-    FOREACH z IN ARRAY zooms LOOP
+    FOR i IN 0 .. nshards - 1 LOOP
         BEGIN
-            PERFORM dblink_disconnect('lc_w' || z);
+            PERFORM dblink_disconnect('lc_w' || i);
         EXCEPTION WHEN OTHERS THEN NULL;
         END;
     END LOOP;
+    BEGIN
+        PERFORM dblink_disconnect('lc_ctl');
+    EXCEPTION WHEN OTHERS THEN NULL;
+    END;
     RAISE;
 END;
 $$;
