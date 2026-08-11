@@ -6,7 +6,17 @@
         {
             "name": "status",
             "type": "string",
-            "description": ""
+            "description": "DOS boundary status: International Boundary, Other Line of International Separation, Special Line"
+        },
+        {
+            "name": "label",
+            "type": "string",
+            "description": "Named designation for the boundary line (e.g. 1972 Line of Control, 1949 Armistice Line)"
+        },
+        {
+            "name": "notes",
+            "type": "string",
+            "description": "Additional boundary notes from Fieldmaps"
         }
     ],
     "source_attribution": "",

@@ -28,6 +28,7 @@ SELECT
     NULLIF(f.country1, '')                                              AS country1,
     NULLIF(f.country2, '')                                              AS country2,
     NULLIF(f.label, '')                                                 AS label,
+    NULLIF(f.notes, '')                                                 AS notes,
     f.rank,
     NULLIF(f.status, '')                                                AS status,
     f.geometry
@@ -125,7 +126,17 @@ CREATE MATERIALIZED VIEW export.adm1_line AS
 SELECT
     iso_3,
     geometry
-FROM aux_data.fieldmaps_adm1_lines;
+FROM aux_data.fieldmaps_adm1_lines
+WHERE NOT (
+    EXISTS (
+        SELECT 1 FROM aux_data.fieldmaps_adm0_lines l
+        WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+    )
+    AND NOT EXISTS (
+        SELECT 1 FROM export.adm0_line l
+        WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+    )
+);
 
 CREATE INDEX idx_adm1_line_geometry ON export.adm1_line USING gist(geometry);
 CREATE INDEX idx_adm1_line_iso_3    ON export.adm1_line USING btree(iso_3);
@@ -148,7 +159,17 @@ SELECT
     NULLIF(src_lang1, '')                                               AS src_lang1,
     geometry                                                                AS geometry
 FROM aux_data.fieldmaps_adm1_points
-WHERE geometry IS NOT NULL;
+WHERE geometry IS NOT NULL
+  AND NOT (
+      EXISTS (
+          SELECT 1 FROM aux_data.fieldmaps_adm0_lines l
+          WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM export.adm0_line l
+          WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+      )
+  );
 
 CREATE INDEX idx_adm1_label_geometry ON export.adm1_label USING gist(geometry);
 CREATE INDEX idx_adm1_label_iso_3    ON export.adm1_label USING btree(iso_3);
@@ -166,7 +187,17 @@ CREATE MATERIALIZED VIEW export.adm2_line AS
 SELECT
     iso_3,
     geometry
-FROM aux_data.fieldmaps_adm2_lines;
+FROM aux_data.fieldmaps_adm2_lines
+WHERE NOT (
+    EXISTS (
+        SELECT 1 FROM aux_data.fieldmaps_adm0_lines l
+        WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+    )
+    AND NOT EXISTS (
+        SELECT 1 FROM export.adm0_line l
+        WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+    )
+);
 
 CREATE INDEX idx_adm2_line_geometry ON export.adm2_line USING gist(geometry);
 CREATE INDEX idx_adm2_line_iso_3    ON export.adm2_line USING btree(iso_3);
@@ -189,7 +220,17 @@ SELECT
     NULLIF(src_lang1, '')                                               AS src_lang1,
     geometry                                                                AS geometry
 FROM aux_data.fieldmaps_adm2_points
-WHERE geometry IS NOT NULL;
+WHERE geometry IS NOT NULL
+  AND NOT (
+      EXISTS (
+          SELECT 1 FROM aux_data.fieldmaps_adm0_lines l
+          WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+      )
+      AND NOT EXISTS (
+          SELECT 1 FROM export.adm0_line l
+          WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+      )
+  );
 
 CREATE INDEX idx_adm2_label_geometry ON export.adm2_label USING gist(geometry);
 CREATE INDEX idx_adm2_label_iso_3    ON export.adm2_label USING btree(iso_3);

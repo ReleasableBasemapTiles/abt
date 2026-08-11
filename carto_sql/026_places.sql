@@ -67,6 +67,7 @@ SELECT
         ELSE                3
     END                                                                 AS class_rank,
     CASE
+        WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
         WHEN o.capital = 'yes'                  THEN 2
         WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
     END                                                                 AS capital,
@@ -176,6 +177,7 @@ SELECT
         ELSE                      7
     END                                                                 AS class_rank,
     CASE
+        WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
         WHEN o.capital = 'yes'                  THEN 2
         WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
     END                                                                 AS capital,
