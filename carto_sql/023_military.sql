@@ -106,7 +106,21 @@ SELECT
     sitename,
     state,
     ST_PointOnSurface(geometry)                                         AS geometry
-FROM export.us_military_installations_polygon;
+FROM export.us_military_installations_polygon
+
+UNION ALL
+
+-- Guantanamo Bay is not in MIRTA (CONUS only). Area approximated from real-world
+-- footprint (~45 sq mi) so the label appears at zoom 10 per the layer visibility style.
+SELECT
+    116500000::real                                                      AS area,
+    NULL::text                                                           AS component,
+    'Cuba'::text                                                         AS country,
+    NULL::text                                                           AS jointbase,
+    NULL::text                                                           AS operstatus,
+    'US Naval Base Guantanamo Bay'::text                                 AS sitename,
+    NULL::text                                                           AS state,
+    ST_SetSRID(ST_MakePoint(-75.16, 19.9175), 4326)                     AS geometry;
 
 CREATE INDEX idx_us_mil_inst_labels_geometry ON export.us_military_installations_label USING gist(geometry);
 COMMIT;

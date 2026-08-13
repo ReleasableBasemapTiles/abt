@@ -73,6 +73,7 @@ SELECT
     END                                                                 AS capital,
     COALESCE(
         CASE
+            WHEN o.name_en = 'Taipei'                                    THEN 1  -- DOS Bulletin 37: capital suppressed but prominence preserved
             WHEN ne.rank_max >= 14                                       THEN 1
             WHEN g.desig_cd = 'PPLC' AND ne.rank_max >= 13               THEN 1
             WHEN ne.rank_max = 13                                        THEN 2
@@ -160,6 +161,7 @@ LEFT JOIN LATERAL (
     LIMIT 1
 ) ne ON true
 WHERE o.place IN ('city', 'town')
+  AND o.osm_id != 12350920517  -- Greater Tunb: island polygon (160056026) takes precedence
 
 UNION ALL
 
@@ -199,7 +201,13 @@ UNION ALL
 SELECT
     osm_id,
     NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    CASE osm_id
+        WHEN  468798441 THEN 'Abu Musa'    -- NGA Guide: drop "Island" suffix
+        WHEN   -2103185 THEN 'Etorofu'     -- NGA Guide: Japanese name for Iturup
+        WHEN   -2409701 THEN 'Kunashiri'   -- NGA Guide: Japanese name for Kunashir
+        WHEN   -9687998 THEN 'Habomai'     -- NGA Guide: Japanese name for Ostrov Zelenyy
+        ELSE NULLIF(name_en, '')
+    END                                                                 AS name_en,
     'island'::text                                                      AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
@@ -237,7 +245,7 @@ WHERE NULLIF(name, '') IS NOT NULL
       SELECT 1
       FROM osm.osm_island_polygon poly
       WHERE NULLIF(poly.name, '') IS NOT NULL
-        AND lower(poly.name) = lower(p.name)
+        AND (lower(poly.name) = lower(p.name) OR lower(poly.name_en) = lower(p.name_en))
         AND ST_DWithin(poly.geometry, p.geometry, 0.1)
   )
 
