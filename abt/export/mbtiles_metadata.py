@@ -22,6 +22,18 @@ BTIS_CHANGELOG_URL_PLACEHOLDER = "TBD"
 TOOL_COMPUTED_METADATA_KEYS = {"bounds", "center", "format"}
 OVERRIDE_ONLY_DROPPED_METADATA_KEYS = {"antimeridian_adjusted_bounds"}
 
+# Build-provenance rows tippecanoe/tile-join leave behind that are never
+# useful in a shipped package -- generator_options in particular can run
+# into the megabytes, since it's tippecanoe's full command line (every input
+# file path). Stripped from the joined bundle unconditionally, regardless of
+# --projection-override.
+TIPPECANOE_BUILD_METADATA_KEYS = {
+    "generator",
+    "generator_options",
+    "strategies",
+    "antimeridian_adjusted_bounds",
+}
+
 DEFAULT_CENTER_ZOOM = 2
 
 
@@ -94,6 +106,26 @@ def delete_mbtiles_metadata(mbtiles_path: Path, keys: List[str]) -> None:
     con = sqlite3.connect(mbtiles_path)
     try:
         con.executemany("DELETE FROM metadata WHERE name = ?", [(k,) for k in keys])
+        con.commit()
+    finally:
+        con.close()
+
+
+def strip_json_tilestats(mbtiles_path: Path) -> None:
+    """
+    Removes the `tilestats` object from the `json` metadata row, if present.
+    tippecanoe writes tilestats for its own data-inspection tooling (e.g. the
+    Maputnik data browser); no downstream client reads it, and on datasets
+    with many distinct attribute values it can run into hundreds of KB. The
+    `vector_layers` array in the same row (used by MapLibre and friends) is
+    left untouched.
+    """
+    con = sqlite3.connect(mbtiles_path)
+    try:
+        con.execute(
+            "UPDATE metadata SET value = json_remove(value, '$.tilestats') "
+            "WHERE name = 'json' AND json_extract(value, '$.tilestats') IS NOT NULL"
+        )
         con.commit()
     finally:
         con.close()

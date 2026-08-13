@@ -15,10 +15,12 @@ from .mbtiles_metadata import (
     BTIS_CHANGELOG_URL_PLACEHOLDER,
     TOOL_COMPUTED_METADATA_KEYS,
     OVERRIDE_ONLY_DROPPED_METADATA_KEYS,
+    TIPPECANOE_BUILD_METADATA_KEYS,
     crs_area_of_use_bounds,
     resolve_crs_from_files,
     write_mbtiles_metadata,
     delete_mbtiles_metadata,
+    strip_json_tilestats,
 )
 
 
@@ -58,6 +60,14 @@ def export_bundled(bundle: Bundler) -> None:
 
     set_pragma_options(bundle)
 
+    # tile-join always writes its own build-provenance rows (generator,
+    # generator_options -- its full command line, one path per input layer,
+    # which can run into the megabytes -- and strategies) into the joined
+    # output. None of it is useful in a shipped package, so it's stripped
+    # unconditionally here rather than left for a manual cleanup pass.
+    delete_mbtiles_metadata(bundle.bundled_mbtiles_path, list(TIPPECANOE_BUILD_METADATA_KEYS))
+    strip_json_tilestats(bundle.bundled_mbtiles_path)
+
     if crs is not None:
         # tile-join's own computed bounds/center (and
         # antimeridian_adjusted_bounds) are only meaningful for real Web
@@ -77,6 +87,14 @@ def export_bundled(bundle: Bundler) -> None:
             "changelog_url": BTIS_CHANGELOG_URL_PLACEHOLDER,
         })
         delete_mbtiles_metadata(bundle.bundled_mbtiles_path, list(OVERRIDE_ONLY_DROPPED_METADATA_KEYS))
+    elif bundle.metadata and "center" in bundle.metadata:
+        # No projection override, so tile-join's own bounds are legitimate
+        # Web Mercator math and are left alone. Its computed *center*,
+        # though, is just wherever the densest tile content happened to
+        # land (e.g. a random z13 tile) -- not a meaningful default view for
+        # a released package. When the schema declares one, it wins.
+        declared_center = ",".join(str(v) for v in bundle.metadata["center"])
+        write_mbtiles_metadata(bundle.bundled_mbtiles_path, {"center": declared_center})
 
     # tile-join only accepts a -n name via its CLI; everything else in
     # `metadata` (description, attribution, tags, license, etc.) has to be
