@@ -1,14 +1,13 @@
 import json
 import sqlite3
-from datetime import datetime
-
+from datetime import datetime, timezone
 
 datetime_format = "%Y-%m-%dT%H:%M:%S.%fZ"
-production_date = datetime.strptime("2023-10-01T00:00:00.000Z", datetime_format).strftime(datetime_format)
+production_date = datetime.now(timezone.utc).strftime(datetime_format)
 
 metadata = {
     "name": "Releasable Basemap Tiles (RBT)",
-    "version": "2.0-dev",
+    "version": "2.0.0",
     "production_date": production_date,
     "description": "",
     "attribution": (
@@ -58,5 +57,6 @@ metadata = {
     },
     "format": "pbf",
     "bounds": [-179.99999999999997, -60.0, 179.99999999999997, 83.0],
-    "center": [0.0, 0.0, 2],
+    "center": [-77.0365, 38.8977, 10],
+    "type": "baselayer",
 }
