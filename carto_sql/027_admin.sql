@@ -32,7 +32,7 @@
 -- Verified against LSIB v11.4 / fieldmaps 2026-08: all rows 100.0% at 100 m.
 
 BEGIN;
-DROP TABLE IF EXISTS aux_data.adm0_line_supplements;
+DROP TABLE IF EXISTS aux_data.adm0_line_supplements CASCADE;
 CREATE TABLE aux_data.adm0_line_supplements (
     cc1        varchar NOT NULL,
     cc2        varchar NOT NULL,
@@ -222,9 +222,11 @@ FROM aux_data.fieldmaps_adm0_points a
 LEFT JOIN aux_data.fieldmaps_adm0_polygon poly
     ON poly.adm0_id = a.adm0_id
 LEFT JOIN gns_short s
-    ON s.cc_ft = a.iso_2
+    ON s.cc_ft = LEFT(a.adm0_id, 3)
 LEFT JOIN aux_data.nga_geonames_administrative_regions g
     ON g.full_nm_nd = a.adm0_name1
+   AND g.name_rank::text = '1'
+   AND g.cc_ft = LEFT(a.adm0_id, 3)
 LEFT JOIN aux_data.ne_10m_admin_0_countries n
     ON n.name = a.adm0_name1
 WHERE a.geometry IS NOT NULL
@@ -253,7 +255,10 @@ BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.adm1_line CASCADE;
 CREATE MATERIALIZED VIEW export.adm1_line AS
 SELECT
+    iso_2,
     iso_3,
+    NULLIF(adm0_name, '')                                                AS adm0_name,
+    status_cd,
     geometry
 FROM aux_data.fieldmaps_adm1_lines
 WHERE NOT (
@@ -314,7 +319,11 @@ BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.adm2_line CASCADE;
 CREATE MATERIALIZED VIEW export.adm2_line AS
 SELECT
+    iso_2,
     iso_3,
+    NULLIF(adm0_name, '')                                                AS adm0_name,
+    NULLIF(adm1_name, '')                                                AS adm1_name,
+    status_cd,
     geometry
 FROM aux_data.fieldmaps_adm2_lines
 WHERE NOT (

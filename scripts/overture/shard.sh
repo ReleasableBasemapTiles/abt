@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Export ONE Overture parquet file to ONE FlatGeobuf.
 # Called once per input file by xargs/parallel.
+#
+# bash shard.sh <partsdir> <infile>
+# Env: SHARD_THREADS, TARGET_SRS (4326|3395) -- see README.md
 set -euo pipefail
 
 partsdir="${1:-parts}"
@@ -15,6 +18,15 @@ if [[ -s "$out" ]]; then
   exit 0
 fi
 rm -rf "$tmp"
+
+TARGET_SRS="${TARGET_SRS:-4326}"
+if [[ "$TARGET_SRS" == "3395" ]]; then
+  geom_expr="ST_Transform(geometry, 'EPSG:4326', 'EPSG:3395')"
+  out_srs="EPSG:3857"
+else
+  geom_expr="geometry"
+  out_srs="EPSG:4326"
+fi
 
 duckdb -bail -dark-mode -c "
 INSTALL spatial; LOAD spatial;
@@ -31,14 +43,14 @@ COPY (
             class,
             has_parts,
             height,
-            ST_Area_Spheroid(geometry)  AS area,       -- true ground area, m^2
-            ST_Multi(geometry)          AS geometry     -- uniform MultiPolygon
+            ST_Area_Spheroid(geometry)  AS area,               -- true ground area, m^2 (always from source WGS84 geometry)
+            ST_Multi(${geom_expr})      AS geometry             -- uniform MultiPolygon, possibly reprojected
         FROM read_parquet('${infile}')
     )
     SELECT * FROM b
     WHERE area >= 1                                      -- drop degenerate sub-meter polygons
 ) TO '${tmp}'
-WITH (FORMAT GDAL, DRIVER 'FlatGeobuf', SRS 'EPSG:4326', LAYER_CREATION_OPTIONS 'SPATIAL_INDEX=NO');
+WITH (FORMAT GDAL, DRIVER 'FlatGeobuf', SRS '${out_srs}', LAYER_CREATION_OPTIONS 'SPATIAL_INDEX=NO');
 "
 
 # DuckDB's GDAL FlatGeobuf writer creates $tmp as a directory containing the

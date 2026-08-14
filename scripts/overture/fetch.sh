@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 #./fetch.sh /path/to/data_dir [jobs] [shard_threads]
+# See README.md for pipeline order and tuning guidance.
 
 set -euo pipefail
 cd "$(dirname "$0")"

@@ -3,11 +3,11 @@
     "description": "",
     "geometry_type": "linestring",
     "attributes": [
-        {
-            "name": "iso_3",
-            "type": "string",
-            "description": ""
-        }
+        {"name": "iso_2",      "type": "string",  "description": ""},
+        {"name": "iso_3",      "type": "string",  "description": ""},
+        {"name": "adm0_name",  "type": "string",  "description": ""},
+        {"name": "adm1_name",  "type": "string",  "description": ""},
+        {"name": "status_cd",  "type": "number",  "description": ""}
     ],
     "source_attribution": "",
     "tippecanoe_options": {
