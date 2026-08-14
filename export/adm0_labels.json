@@ -3,6 +3,8 @@
     "description": "",
     "geometry_type": "point",
     "attributes": [
+        {"name": "iso_3",          "type": "string", "description": ""},
+        {"name": "iso_2",          "type": "string", "description": ""},
         {
             "name": "area",
             "type": "float",

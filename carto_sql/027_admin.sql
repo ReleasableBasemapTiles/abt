@@ -192,6 +192,8 @@ WITH gns_short AS (
 )
 SELECT
     a.adm0_id,
+    LEFT(a.adm0_id, 3)                                                  AS iso_3,
+    a.iso_2,
     CASE LEFT(a.adm0_id, 3)
         WHEN 'XAB' THEN 'Abyei Area'
         WHEN 'XKK' THEN 'Area in dispute'
@@ -261,7 +263,8 @@ SELECT
     status_cd,
     geometry
 FROM aux_data.fieldmaps_adm1_lines
-WHERE NOT (
+WHERE iso_2 IS NOT NULL
+  AND NOT (
     EXISTS (
         SELECT 1 FROM aux_data.fieldmaps_adm0_lines l
         WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
@@ -326,14 +329,15 @@ SELECT
     status_cd,
     geometry
 FROM aux_data.fieldmaps_adm2_lines
-WHERE NOT (
+WHERE iso_2 IS NOT NULL
+  AND NOT (
     EXISTS (
         SELECT 1 FROM aux_data.fieldmaps_adm0_lines l
-        WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+            WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
     )
     AND NOT EXISTS (
         SELECT 1 FROM export.adm0_line l
-        WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
+            WHERE l.cc1 = iso_2 OR l.cc2 = iso_2
     )
 );
 
