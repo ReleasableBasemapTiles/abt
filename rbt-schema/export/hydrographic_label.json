@@ -1,0 +1,55 @@
+{
+    "layer_id": "hydrographic_label",
+    "description": "",
+    "geometry_type": "point",
+    "attributes": [
+        {
+            "name": "class",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "desig_cd",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "name",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "scalerank",
+            "type": "int",
+            "description": ""
+        },
+        {
+            "name": "min_label",
+            "type": "float",
+            "description": ""
+        }
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 0,
+        "maximum_zoom": 13,
+        "additional_flags": "--drop-rate=1",
+        "filter": {
+            "*": [
+                "any",
+                ["all", [">=", "$zoom", 0], ["<=", "min_label", 1]],
+                ["all", [">=", "$zoom", 2], ["<=", "min_label", 2]],
+                ["all", [">=", "$zoom", 3], ["<=", "min_label", 3]],
+                ["all", [">=", "$zoom", 4], ["<=", "min_label", 4]],
+                ["all", [">=", "$zoom", 5], ["<=", "min_label", 5]],
+                ["all", [">=", "$zoom", 6], ["<=", "min_label", 6]],
+                ["all", [">=", "$zoom", 7], ["<=", "min_label", 7]],
+                ["all", [">=", "$zoom", 8], ["<=", "min_label", 8]],
+                [">=", "$zoom", 9]
+            ]
+        }
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

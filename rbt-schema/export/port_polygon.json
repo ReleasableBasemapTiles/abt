@@ -1,0 +1,32 @@
+{
+    "layer_id": "port_polygon",
+    "description": "",
+    "geometry_type": "polygon",
+    "attributes": [
+        {
+            "name": "area",
+            "type": "float",
+            "description": ""
+        },
+        {
+            "name": "subclass",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "contained",
+            "type": "int",
+            "description": "1 = feature lies >=95% within a larger port feature; style/tiling can suppress to avoid doubled outlines"
+        }
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 9,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO -nlt PROMOTE_TO_MULTI"
+    }
+}

@@ -1,0 +1,14 @@
+{
+    "folder_name": "osm_ocean",
+    "url": "https://osmdata.openstreetmap.de/download/water-polygons-split-4326.zip",
+    "type": "shp",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_folder_name": "osm_ocean",
+            "aux_file_name": "water_polygons.shp",
+            "aux_layer_name": null,
+            "aux_load_options": "-nlt MULTIPOLYGON -overwrite -t_srs EPSG:4326"
+        }
+    ]
+}

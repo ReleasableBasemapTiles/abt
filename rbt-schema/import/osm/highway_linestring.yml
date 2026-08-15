@@ -1,0 +1,187 @@
+  highway_linestring:
+    type: linestring
+    _resolve_wikidata: false
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: ref
+      key: ref
+      type: string
+    - name: network
+      key: network
+      type: string
+    - name: surface
+      key: surface
+      type: string
+    - name: lanes
+      key: lane
+      type: string
+    - name: service
+      key: service
+      type: string
+    - name: usage
+      key: usage
+      type: string
+    - name: access
+      key: access
+      type: string
+    - name: toll
+      key: toll
+      type: bool
+    - name: expressway
+      key: expressway
+      type: bool
+    - name: bicycle
+      key: bicycle
+      type: string
+    - name: foot
+      key: foot
+      type: string
+    - name: horse
+      key: horse
+      type: string
+    - name: mtb_scale
+      key: mtb:scale
+      type: string
+    - name: sac_scale
+      key: sac_scale
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: is_tunnel
+      key: tunnel
+      type: bool
+    - name: is_bridge
+      key: bridge
+      type: bool
+    - name: is_ramp
+      key: ramp
+      type: bool
+    - name: is_ford
+      key: ford
+      type: bool
+    - name: is_oneway
+      key: oneway
+      type: direction
+    - name: is_area
+      key: area
+      type: bool
+    - name: is_floating
+      key: floating
+      type: bool
+    - name: bridge_name
+      key: bridge:name
+      type: string
+    - name: tunnel_name
+      key: tunnel:name
+      type: string
+    - name: construction
+      key: construction
+      type: string
+    - name: proposed
+      key: proposed
+      type: string
+    - name: planned
+      key: planned
+      type: string
+    - name: destroyed
+      key: destroyed
+      type: string
+    - name: destroyed_bridge
+      key: destroyed:bridge
+      type: string
+    - name: destroyed_highway
+      key: destroyed:highway
+      type: string
+    - name: demolished
+      key: demolished
+      type: string
+    - name: razed
+      key: razed
+      type: string
+    - name: removed
+      key: removed
+      type: string
+    - name: disused
+      key: disused
+      type: string
+    - name: abandoned
+      key: abandoned
+      type: string
+    - name: lifecycle_desc
+      key: construction
+      type: string
+    - name: lifecycle_type
+      key: proposed
+      type: string
+    - name: damage_event
+      key: damage:event
+      type: string
+    - name: damage_type
+      key: damage:type
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      highway:
+      - motorway
+      - motorway_link
+      - trunk
+      - trunk_link
+      - primary
+      - primary_link
+      - secondary
+      - secondary_link
+      - tertiary
+      - tertiary_link
+      - unclassified
+      - residential
+      - living_street
+      - road
+      - pedestrian
+      - path
+      - footway
+      - steps
+      - cycleway
+      - bridleway
+      - corridor
+      - service
+      - track
+      - raceway
+      - busway
+      - bus_guideway
+      - construction
+      - proposed
+      - planned
+      - destroyed
+      - demolished
+      - razed
+      - removed
+      - disused
+      - abandoned
+      route:
+      - road
+      route_master:
+      - road
+      man_made:
+      - pier
+      - breakwater
+      - groyne
+      public_transport:
+      - platform

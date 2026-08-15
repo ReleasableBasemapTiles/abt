@@ -1,0 +1,139 @@
+  landuse_polygon:
+    type: polygon
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: cemetery
+      key: cemetery
+      type: string
+    - name: resource
+      key: resource
+      type: string
+    - name: industrial
+      key: industrial
+      type: string
+    - name: residential
+      key: residential
+      type: string
+    - name: craft
+      key: craft
+      type: string
+    - name: product
+      key: product
+      type: string
+    - name: port
+      key: port
+      type: string
+    - name: port_type
+      key: port:type
+      type: string
+    - name: cargo
+      key: cargo
+      type: string
+    - name: access
+      key: access
+      type: string
+    - name: religion
+      key: religion
+      type: string
+    - name: denomination
+      key: denomination
+      type: string
+    - name: area
+      type: area
+    - name: tags
+      type: hstore_tags
+    mapping:
+      landuse:
+      - railway
+      - cemetery
+      - religious
+      - military
+      - landfill
+      - quarry
+      - brownfield
+      - depot
+      - port
+      - greenfield
+      - residential
+      - commercial
+      - industrial
+      - garages
+      - retail
+      - construction
+      - education
+      - fairground
+      - institutional
+      - civic_admin
+      - hospital
+      - university
+      - school
+      amenity:
+      - bus_station
+      - place_of_worship
+      - school
+      - university
+      - kindergarten
+      - college
+      - library
+      - hospital
+      - clinic
+      - fuel 
+      - ferry_terminal
+      - grave_yard
+      - police
+      - fire_station
+      - post_office
+      - townhall
+      - embassy
+      - consulate
+      - prison
+      - courthouse
+      - crematorium
+      cemetery:
+      - __any__
+      memorial:
+      - graveyard
+      leisure:
+      - stadium
+      - pitch
+      - playground
+      - track
+      - sports_centre
+      place:
+      - suburb
+      - quarter
+      - neighbourhood
+      - city
+      - borough
+      - city_block
+      - plot
+      - town
+      - village
+      - hamlet
+      - isolated_dwelling
+      - farm
+      - allotments
+      man_made:
+      - works
+      seamark:type:
+      - harbour
+      - anchorage
+      - radar_station
+      tourism:
+      - theme_park
+      - zoo
+      waterway:
+      - dam

@@ -1,0 +1,154 @@
+  utility_linestring:
+    type: linestring
+    _resolve_wikidata: false
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: seamark_type
+      key: seamark:type
+      type: string
+    - name: content
+      key: content
+      type: string
+    - name: voltage
+      key: voltage
+      type: string
+    - name: cables
+      key: cables
+      type: string
+    - name: wires
+      key: wires
+      type: string
+    - name: line
+      key: line
+      type: string
+    - name: diameter
+      key: diameter
+      type: string
+    - name: flow_direction
+      key: flow_direction
+      type: string
+    - name: substance
+      key: substance
+      type: string
+    - name: product
+      key: product
+      type: string
+    - name: operator
+      key: operator
+      type: string
+    - name: usage
+      key: usage
+      type: string
+    - name: location
+      key: location
+      type: string
+    - name: pumping_station
+      key: pumping_station
+      type: string
+    - name: ref
+      key: ref
+      type: string
+    - name: height
+      key: height
+      type: string
+    - name: ele
+      key: ele
+      type: integer
+    - name: operational_status
+      key: operational_status
+      type: string
+    - name: condition
+      key: condition
+      type: string
+    - name: cable_overhead_category
+      key: seamark:cable_overhead:category
+      type: string
+    - name: cable_submarine_category
+      key: seamark:cable_submarine:category
+      type: string
+    - name: pipeline_overhead_category
+      key: seamark:pipeline_overhead:category
+      type: string
+    - name: pipeline_overhead_product
+      key: seamark:pipeline_overhead:product
+      type: string
+    - name: pipeline_submarine_category
+      key: seamark:pipeline_submarine:category
+      type: string
+    - name: pipeline_submarine_product
+      key: seamark:pipeline_submarine:product
+      type: string
+    - name: surface_type
+      key: surface
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: is_area
+      key: area
+      type: bool
+    - name: construction
+      key: construction
+      type: string
+    - name: proposed
+      key: proposed
+      type: string
+    - name: disused
+      key: disused
+      type: string
+    - name: abandoned
+      key: abandoned
+      type: string
+    - name: demolished
+      key: demolished
+      type: string
+    - name: razed
+      key: razed
+      type: string
+    - name: removed
+      key: removed
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      man_made:
+      - pipeline
+      - construction
+      - proposed
+      - disused
+      - abandoned
+      - demolished
+      - razed
+      - removed
+      power:
+      - line
+      - minor_line
+      - cable
+      - construction
+      - proposed
+      - disused
+      - abandoned
+      - demolished
+      - razed
+      - removed
+      communication:
+      - line
+      - cable
+      seamark:type:
+      - __any__

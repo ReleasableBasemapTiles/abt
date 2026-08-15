@@ -1,0 +1,32 @@
+{
+    "layer_id": "adm0_line",
+    "description": "",
+    "geometry_type": "linestring",
+    "attributes": [
+        {
+            "name": "status",
+            "type": "string",
+            "description": "DOS boundary status: International Boundary, Other Line of International Separation, Special Line"
+        },
+        {
+            "name": "label",
+            "type": "string",
+            "description": "Named designation for the boundary line (e.g. 1972 Line of Control, 1949 Armistice Line)"
+        },
+        {
+            "name": "notes",
+            "type": "string",
+            "description": "Additional boundary notes from Fieldmaps"
+        }
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 0,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms -pS",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

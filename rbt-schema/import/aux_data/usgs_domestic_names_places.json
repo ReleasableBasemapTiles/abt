@@ -1,0 +1,13 @@
+{
+    "folder_name": "usgs_domestic_names",
+    "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_National_Text.zip",
+    "type": "txt",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "DomesticNames_National.txt",
+            "aux_folder_name": "usgs_domestic_names",
+            "aux_load_options": "-oo X_POSSIBLE_NAMES=prim_long_dec -oo Y_POSSIBLE_NAMES=prim_lat_dec -overwrite -s_srs EPSG:4326 -t_srs EPSG:4326 -lco GEOMETRY_NAME=geometry"
+        }
+    ]
+}

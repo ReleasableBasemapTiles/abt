@@ -1,0 +1,52 @@
+  barrier_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: access
+      key: access
+      type: string
+    - name: maxwidth
+      key: maxwidth
+      type: string
+    - name: width
+      key: width
+      type: string
+    - name: maxheight
+      key: maxheight
+      type: string
+    - name: height
+      key: height
+      type: string
+    - name: wheelchair
+      key: wheelchair
+      type: string
+    - name: operator
+      key: operator
+      type: string
+    - name: locked
+      key: locked
+      type: string
+    - name: material
+      key: material
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: tags
+      type: hstore_tags
+    mapping:
+      barrier:
+      - __any__

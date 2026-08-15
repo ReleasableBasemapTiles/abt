@@ -1,0 +1,47 @@
+{
+    "layer_id": "physical_labels",
+    "description": "",
+    "geometry_type": "linestring",
+    "attributes": [
+        {
+            "name": "featurecla",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "max_label",
+            "type": "float",
+            "description": ""
+        },
+        {
+            "name": "min_label",
+            "type": "float",
+            "description": ""
+        },
+        {
+            "name": "name",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "name_en",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "scalerank",
+            "type": "int",
+            "description": ""
+        }
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 3,
+        "maximum_zoom": 13,
+        "additional_flags": "--drop-rate=1",
+        "filter": {"*":["any",["all",[">=","$zoom",3],["<=","min_label",3]],["all",[">=","$zoom",5],["<=","min_label",5]],["all",[">=","$zoom",7],["<=","min_label",7]],["all",[">=","$zoom",9],["<=","min_label",9]],["all",[">=","$zoom",11],["has","min_label"]]]}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

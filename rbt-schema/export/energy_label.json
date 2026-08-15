@@ -1,0 +1,26 @@
+{
+    "layer_id": "energy_label",
+    "description": "",
+    "geometry_type": "point",
+    "attributes": [
+        {"name": "name",          "type": "string",  "description": ""},
+        {"name": "name_en",       "type": "string",  "description": ""},
+        {"name": "subclass",      "type": "string",  "description": ""},
+        {"name": "operator",      "type": "string",  "description": ""},
+        {"name": "substance",     "type": "string",  "description": ""},
+        {"name": "resource",      "type": "string",  "description": "resource= tag (mineshaft)"},
+        {"name": "mineshaft_type","type": "string",  "description": "mineshaft:type= tag"},
+        {"name": "disused",       "type": "bool",    "description": "true if disused=yes"},
+        {"name": "area",          "type": "float",   "description": "area in m² (polygon features only)"}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 9,
+        "maximum_zoom": 13,
+        "additional_flags": "--drop-rate=1",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

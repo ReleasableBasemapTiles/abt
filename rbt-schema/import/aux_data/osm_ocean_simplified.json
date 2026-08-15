@@ -1,0 +1,14 @@
+{
+    "folder_name": "osm_ocean_simplified",
+    "url": "https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip",
+    "type": "shp",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_folder_name": "osm_ocean_simplified",
+            "aux_file_name": "simplified_water_polygons.shp",
+            "aux_layer_name": null,
+            "aux_load_options": "-nlt MULTIPOLYGON -overwrite -t_srs EPSG:4326"
+        }
+    ]
+}

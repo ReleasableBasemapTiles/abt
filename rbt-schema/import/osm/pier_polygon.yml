@@ -1,0 +1,24 @@
+pier_polygon:
+  columns:
+  - name: osm_id
+    type: id
+  - name: geometry
+    type: geometry
+  - name: class
+    type: mapping_key
+  - name: subclass
+    type: mapping_value
+  - key: floating
+    name: is_floating
+    type: bool
+  - name: name
+    key: name
+    type: string
+  - name: tags
+    type: hstore_tags
+  mapping:
+    man_made:
+    - pier
+    - breakwater
+    - groyne
+  type: polygon

@@ -1,0 +1,63 @@
+aerialway_linestring:
+  type: linestring
+  columns:
+  - name: osm_id
+    type: id
+  - name: geometry
+    type: geometry
+  - key: aerialway
+    name: aerialway
+    type: string
+  - name: z_order
+    type: wayzorder
+  - key: layer
+    name: layer
+    type: integer
+  - key: name
+    name: name
+    type: string
+  - key: name:en
+    name: name_en
+    type: string
+  - key: name:de
+    name: name_de
+    type: string
+  - name: tags
+    type: hstore_tags
+  - key: short_name
+    name: short_name
+    type: string
+  - key: tunnel
+    name: is_tunnel
+    type: bool
+  - key: bridge
+    name: is_bridge
+    type: bool
+  - key: ramp
+    name: is_ramp
+    type: bool
+  - key: ford
+    name: is_ford
+    type: bool
+  - key: oneway
+    name: is_oneway
+    type: direction
+  - key: area
+    name: is_area
+    type: bool
+  - key: service
+    name: service
+    type: string
+  - key: usage
+    name: usage
+    type: string
+  mapping:
+    aerialway:
+    - chair_lift
+    - drag_lift
+    - platter
+    - t-bar
+    - gondola
+    - cable_car
+    - j-bar
+    - mixed_lift

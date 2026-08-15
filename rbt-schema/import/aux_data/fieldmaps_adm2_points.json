@@ -1,0 +1,14 @@
+{
+    "folder_name": "fieldmaps_adm2_points",
+    "url": "https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_points.gpkg.zip",
+    "type": "gpkg",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "adm2_points.gpkg",
+            "aux_source_name": "adm2_points",
+            "aux_layer_name": "fieldmaps_adm2_points",
+            "aux_load_options": ""
+        }
+    ]
+}

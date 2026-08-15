@@ -1,0 +1,12 @@
+{
+    "folder_name": "ne_physical_centerlines",
+    "local_path": "static_data/ne_physical_centerlines.fgb.zip",
+    "type": "fgb",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "ne_physical_centerlines.fgb",
+            "aux_layer_name": "ne_physical_centerlines"
+        }
+    ]
+}

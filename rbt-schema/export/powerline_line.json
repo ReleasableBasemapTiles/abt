@@ -1,0 +1,37 @@
+{
+    "layer_id": "powerline_line",
+    "description": "",
+    "geometry_type": "linestring",
+    "attributes": [
+        {
+            "name": "usage",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "location",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "subclass",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "lifecycle_type",
+            "type": "string",
+            "description": "intact, construction, proposed, disused, abandoned, demolished, razed, or removed"
+        }
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 9,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

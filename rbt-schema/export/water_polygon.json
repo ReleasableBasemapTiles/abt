@@ -1,0 +1,32 @@
+{
+    "layer_id": "water_polygon",
+    "description": "",
+    "geometry_type": "polygon",
+    "attributes": [
+        {"name": "subclass", "type": "string",  "description": ""},
+        {"name": "z_level",  "type": "int",     "description": ""}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 0,
+        "maximum_zoom": 13,
+        "additional_flags": "--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound",
+        "filter": {
+            "*": [
+                "any",
+                ["all", [">=", "$zoom", 0], ["<=", "$zoom", 4], ["==", "z_level", 1]],
+                ["all", [">=", "$zoom", 5],  ["==", "z_level", 5]],
+                ["all", [">=", "$zoom", 6],  ["==", "z_level", 6]],
+                ["all", [">=", "$zoom", 7],  ["==", "z_level", 7]],
+                ["all", [">=", "$zoom", 8],  ["==", "z_level", 8]],
+                ["all", [">=", "$zoom", 9],  ["==", "z_level", 9]],
+                ["all", [">=", "$zoom", 10], ["==", "z_level", 10]],
+                ["all", [">=", "$zoom", 11], ["==", "z_level", 11]],
+                ["all", [">=", "$zoom", 12], ["==", "z_level", 12]]
+            ]
+        }
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO -nlt PROMOTE_TO_MULTI"
+    }
+}

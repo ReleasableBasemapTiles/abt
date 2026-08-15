@@ -1,0 +1,59 @@
+  highway_polygon:
+    type: polygon
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: is_indoor
+      key: indoor
+      type: bool
+    - name: is_floating
+      key: floating
+      type: bool
+    - name: is_area
+      key: area
+      type: bool
+    - name: public_transport
+      key: public_transport
+      type: string
+    - name: man_made
+      key: man_made
+      type: string
+    - name: service
+      key: service
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      highway:
+      - path
+      - cycleway
+      - bridleway
+      - footway
+      - corridor
+      - pedestrian
+      - steps
+      man_made:
+      - bridge
+      - pier
+      - breakwater
+      - groyne
+      public_transport:
+      - platform

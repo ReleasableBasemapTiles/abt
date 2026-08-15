@@ -1,0 +1,32 @@
+{
+    "layer_id": "dam_label",
+    "description": "",
+    "geometry_type": "point",
+    "attributes": [
+        {
+            "name": "dam_srf_crv_intersect",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "surface",
+            "type": "string",
+            "description": ""
+        },
+        {
+            "name": "water_intersect",
+            "type": "string",
+            "description": ""
+        }
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 9,
+        "maximum_zoom": 13,
+        "additional_flags": "--drop-rate=1",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

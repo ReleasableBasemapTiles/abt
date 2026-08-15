@@ -1,0 +1,58 @@
+  waterway_linestring:
+    type: linestring
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: waterway
+      key: waterway
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: is_tunnel
+      key: tunnel
+      type: bool
+    - name: tunnel_type
+      key: tunnel
+      type: string
+    - name: is_bridge
+      key: bridge
+      type: bool
+    - name: is_intermittent
+      key: intermittent
+      type: bool
+    - name: lock
+      key: lock
+      type: string
+    - name: lock_name
+      key: lock_name
+      type: string
+    - name: landuse
+      key: landuse
+      type: string
+    - name: natural
+      key: natural
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      waterway:
+      - stream
+      - river
+      - canal
+      - drain
+      - ditch
+      - dam
+      - lock
+      - __any__
+      water:
+      - __any__

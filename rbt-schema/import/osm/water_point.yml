@@ -1,0 +1,45 @@
+  water_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: rank
+      key: rank
+      type: integer
+    - name: is_intermittent
+      key: intermittent
+      type: bool
+    - name: tunnel
+      key: tunnel
+      type: string
+    - name: tags
+      type: hstore_tags
+    mapping:
+      place:
+      - ocean
+      - sea
+      natural:
+      - bay
+      - strait
+      - spring
+      - water
+      waterway:
+      - __any__
+      water:
+      - __any__
+      landuse:
+      - reservoir
+      - basin
+      - salt_pond

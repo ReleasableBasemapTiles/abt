@@ -1,0 +1,22 @@
+{
+    "folder_name": "disdi",
+    "url": "https://www.acq.osd.mil/eie/imr/rpid/disdi/Downloads/installations_ranges.zip",
+    "type": "gdb",
+    "zipped":true,
+    "aux_load": [
+        {
+            "aux_folder_name": "disdi",
+            "aux_file_name": "disdi_extracted.gdb",
+            "aux_source_name": "*MirtaLocations",
+            "aux_layer_name": "MirtaLocations",
+            "aux_load_options": "-nlt MULTIPOINT -overwrite"
+        },
+        {
+            "aux_folder_name": "disdi",
+            "aux_file_name": "disdi_extracted.gdb",
+            "aux_source_name": "*MirtaLocations_A",
+            "aux_layer_name": "MirtaLocations_A",
+            "aux_load_options": "-nlt MULTIPOLYGON -overwrite"
+        }
+    ]
+}

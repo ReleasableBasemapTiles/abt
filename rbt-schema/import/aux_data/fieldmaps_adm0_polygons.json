@@ -1,0 +1,14 @@
+{
+    "folder_name": "fieldmaps_adm0_polygons",
+    "url": "https://data.fieldmaps.io/adm0/osm/all/adm0_polygons.gpkg.zip",
+    "type": "gpkg",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "adm0_polygons.gpkg",
+            "aux_source_name": "adm0_polygons",
+            "aux_layer_name": "fieldmaps_adm0_polygon",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        }
+    ]
+}

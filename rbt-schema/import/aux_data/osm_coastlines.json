@@ -1,0 +1,13 @@
+{
+    "folder_name": "osm_coastlines",
+    "url": "https://osmdata.openstreetmap.de/download/coastlines-split-4326.zip",
+    "type": "shp",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_folder_name": "osm_coastlines",
+            "aux_file_name": "lines.shp",
+            "aux_load_options": "-nlt MULTILINESTRING -overwrite -t_srs EPSG:4326"
+        }
+    ]
+}

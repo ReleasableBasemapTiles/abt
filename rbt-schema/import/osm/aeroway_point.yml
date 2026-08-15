@@ -1,0 +1,69 @@
+  aeroway_point:
+    type: point
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: ref
+      key: ref
+      type: string
+    - name: aerodrome_type
+      key: aerodrome:type
+      type: string
+    - name: military
+      key: military
+      type: string
+    - name: iata
+      key: iata
+      type: string
+    - name: icao
+      key: icao
+      type: string
+    - name: ele
+      key: ele
+      type: integer
+    - name: operator
+      key: operator
+      type: string
+    - name: amenity
+      key: amenity
+      type: string
+    - name: length
+      key: length
+      type: string
+    - name: surface
+      key: surface
+      type: string
+    - name: width
+      key: width
+      type: string
+    - name: layer
+      key: layer
+      type: integer
+    - name: level
+      key: level
+      type: integer
+    - name: tags
+      type: hstore_tags
+    mapping:
+      aeroway:
+      - aerodrome
+      - heliport
+      - helipad
+      - airstrip
+      - airfield
+      - spaceport
+      - gate
+      military:
+      - airfield

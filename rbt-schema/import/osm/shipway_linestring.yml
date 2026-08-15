@@ -1,0 +1,55 @@
+  shipway_linestring:
+    type: linestring
+    _resolve_wikidata: false
+    columns:
+    - name: osm_id
+      type: id
+    - name: geometry
+      type: geometry
+    - name: class
+      type: mapping_key
+    - name: subclass
+      type: mapping_value
+    - name: name
+      key: name
+      type: string
+    - name: name_en
+      key: name:en
+      type: string
+    - name: short_name
+      key: short_name
+      type: string
+    - name: shipway
+      key: route
+      type: string
+    - name: is_tunnel
+      key: tunnel
+      type: bool
+    - name: is_bridge
+      key: bridge
+      type: bool
+    - name: is_ramp
+      key: ramp
+      type: bool
+    - name: is_ford
+      key: ford
+      type: bool
+    - name: is_oneway
+      key: oneway
+      type: direction
+    - name: is_area
+      key: area
+      type: bool
+    - name: service
+      key: service
+      type: string
+    - name: usage
+      key: usage
+      type: string
+    - name: layer
+      type: integer
+    - name: tags
+      type: hstore_tags
+    mapping:
+      route:
+      - ferry
