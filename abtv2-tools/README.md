@@ -1,0 +1,206 @@
+# ABT Tools (abtv2-tools)
+
+Modular pipeline for building vector tilesets from OpenStreetMap and other open data. Chains together open-source utilities to produce Mapbox vector tilesets (.mbtiles) and Esri Vector Tile Packages (.vtpk).
+
+Entry point: `python abt-tools.py <command> [options]`
+
+This repo is one half of a two-repo workspace: it's the generic pipeline runner, paired with a schema/config repo (e.g. `rbt-schema`) passed in as `--schema-dir` -- see "Pipeline" below for what that directory needs to contain. If you're setting up a fresh host and/or want a full worked example (Ubuntu 26.04 provisioning, building a Norway extract end to end), see the parent workspace's [`README.md`](../README.md); this file is the standalone CLI/pipeline reference.
+
+## Dependencies
+
+ABT was developed in Python 3.13 (see `env.yaml`) and tested on Rocky Linux 9 and Ubuntu 26.04.
+
+- Python 3.13
+- PostgreSQL >=16 / PostGIS >=3.4
+- GDAL (ogr2ogr) >=3.9.2
+- imposm3 >=0.14
+- tippecanoe >=2.76
+
+Python packages: `env.yaml`. PostgreSQL connection: `PGHOST`/`PGPORT`/`PGDATABASE`/
+`PGUSER`/`PGPASSWORD` env vars, or `--pg-config`.
+
+`postgis`, `hstore`, `dblink`, and `pg_trgm` extensions must be created in the target
+database (`hstore` for imposm's `hstore_tags` column, `dblink` for the parallel-dissolve
+`carto_sql` scripts below, `pg_trgm` for the `%` fuzzy-match operator used throughout
+`carto_sql`); `dblink`'s password-less internal connections additionally require the
+pipeline's PostgreSQL role to be a superuser (or explicitly trusted via `pg_hba.conf`).
+
+For a from-scratch Ubuntu 26.04 host, [`setup_ubuntu.sh`](setup_ubuntu.sh) automates
+all of the above (packages, PostGIS, imposm3/tippecanoe builds, the Python env, and this
+database/role/extension setup) -- see "Ubuntu setup script" below.
+
+## Ubuntu setup script
+
+[`setup_ubuntu.sh`](setup_ubuntu.sh) is an idempotent bootstrap for a fresh Ubuntu
+26.04 host that installs everything under Dependencies above end to end: base build
+tooling, PostgreSQL 18 + PostGIS 3.6 (initialized directly via `initdb`/`pg_ctl` under
+a custom systemd unit rather than Debian's `postgresql-common` cluster tooling), the
+`postgis`/`hstore`/`dblink`/`pg_trgm` extensions plus a superuser role and database,
+`imposm3` and `tippecanoe` built from source (`master`/`main` by default), a
+`micromamba`-managed Python env from `env.yaml`, kernel/ulimit tuning for
+high-throughput I/O (`vm.swappiness`, dirty-page ratios, `nofile`/`nproc` limits), and
+optionally clones this repo plus a schema repo (e.g. `rbt-schema`) side by side.
+
+```bash
+./setup_ubuntu.sh
+```
+
+Safe to re-run: every stage checks whether its work is already done before repeating
+it (e.g. skips rebuilding `tippecanoe` if it's already on `PATH`, skips `initdb` if
+`PG_VERSION` already exists at `PG_DATA_DIR`). Output is mirrored to a timestamped log
+file under `$HOME` (override with `LOG_FILE`).
+
+Configuration is entirely via environment variables, all optional; a few of the more
+commonly overridden ones:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `ABT_WORKSPACE_DIR` | `/rbt` | Root dir for repo checkouts + run data |
+| `PG_DATA_DIR` | `/var/lib/postgresql/<major>/main` | PostgreSQL data directory (e.g. point at a mounted NVMe device) |
+| `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `abt_norway` / `abt` / `abt` / `5432` | Pipeline's database/role |
+| `IMPOSM_REF` / `TIPPECANOE_REF` | `master` / `main` | Git ref each tool is built from |
+| `CONDA_ENV_NAME` | `abtv2` | micromamba environment name |
+| `CLONE_REPOS` | `true` | Set `false` to skip cloning `ABT_TOOLS_REPO`/`ABT_SCHEMA_REPO` |
+| `INSTALL_POSTGRES` / `INSTALL_IMPOSM` / `INSTALL_TIPPECANOE` / `INSTALL_CONDA` | `true` | Set any to `false` to skip that stage entirely |
+
+For the complete list (every variable, its default, and inline comments explaining
+the reasoning), read the "Configuration" block at the top of the script itself. See
+the parent workspace's [`README.md`](../README.md) section 3 for the manual,
+step-by-step equivalent of what this automates, and section 5 for a full Norway
+extract walkthrough using the environment it sets up.
+
+## Pipeline
+
+```mermaid
+flowchart LR
+    downloadStage["download<br/>Geofabrik PBF + aux sources"] --> importStage["import<br/>imposm + ogr2ogr into PostGIS"]
+    importStage --> cartoStage["carto<br/>carto_sql/*.sql builds export schema"]
+    cartoStage --> exportStage["export<br/>PostGIS to FlatGeobuf to MBTiles"]
+    exportStage --> bundlerStage["bundler<br/>tile-join into joined.mbtiles"]
+    bundlerStage --> vundlerStage["vundler, optional<br/>converts to Esri Compact Cache V2"]
+```
+
+| Stage | Tool(s) invoked | Reads | Writes |
+|---|---|---|---|
+| `download` | `requests`, `boto3` (anonymous S3) | Geofabrik/planet index, aux source URLs | `<working_dir>/osm/pbf/`, `<working_dir>/aux_downloads/` |
+| `import` | `imposm`, `ogr2ogr` | PBF + aux downloads | Postgres schemas `osm`, `aux_data` |
+| `carto` | raw SQL via `psycopg2` | Postgres schemas `osm`, `aux_data` | Postgres schema `export` |
+| `export` | `ogr2ogr`, `tippecanoe` | Postgres schema `export` | `<working_dir>/flatgeobuf/*.fgb`, `<working_dir>/mbtiles/*.mbtiles` |
+| `bundler` | `tile-join` | `<working_dir>/mbtiles/*` | `<working_dir>/bundled/joined.mbtiles` |
+| `vundler` | pure Python (sqlite3) | `bundled/joined.mbtiles` | `<working_dir>/bundled/vundled/p12/` |
+
+All commands take `-w/--working-dir` (output) and `-s/--schema-dir` (input config).
+
+`--schema-dir` (you provide this):
+```
+import/osm/        imposm mapping YAML
+import/aux_data/   aux data JSON configs
+export/            per-layer export JSON configs
+carto_sql/         SQL scripts, run in filename order
+tile-metadata/     metadata.py, defines a `metadata` dict (name, description,
+                   attribution, tags, license, etc.) written into the bundled
+                   mbtiles -- required by `bundler`
+```
+
+## Sizing
+
+`carto_sql` scripts can hardcode aggressive session tuning and a fixed degree of
+parallelism (e.g. `SET work_mem = '2GB'`, 10-way `max_parallel_workers_per_gather`),
+independent of whatever `-s/--schema-dir` you point at. Some also open many parallel
+`dblink` worker connections (e.g. 16, in `rbt-schema`'s water/land-cover dissolve
+scripts) to fan out a global polygon dissolve -- this cost is the same whether you're
+building a small extract or the full planet, since it's driven by the *source* data's
+global extent, not your `-k`/`--osm-key` selection.
+
+As a rough guide for a single-country/small-extract build: 8 vCPUs, 32 GB RAM, and
+100 GB SSD is comfortable. A full-planet build needs meaningfully more (32+ vCPUs,
+128+ GB RAM, 2+ TB NVMe) and the `import` step alone can take 24+ hours. Tune
+Postgres's own `shared_buffers`/`effective_cache_size` in `postgresql.conf` well below
+what `carto_sql`'s per-session `work_mem`/`maintenance_work_mem` overrides request,
+since those are additive per concurrent `dblink` worker, not shared.
+
+## Commands
+
+```
+download -w <dir> -s <dir> -d {osm,aux,all} [-n workers] [-k osm_key]
+```
+Downloads OSM PBF and/or aux files. Skips files that already exist.
+`-k/--osm-key` **defaults to `planet`** when omitted -- always pass an explicit
+Geofabrik key (e.g. `-k norway`) unless a full-planet download is actually intended.
+
+```
+import -w <dir> -s <dir> -d {osm,aux,all} -n <workers> [-p pg_config] [-k osm_key] [-f] [-c]
+```
+Imports OSM (imposm) and/or aux data (ogr2ogr) into PostgreSQL. Always full re-run.
+If OSM data already exists, the whole command aborts with an error rather than
+overwriting it (a full re-import can take 24+ hours) -- pass `-f/--force` to proceed
+anyway. `-c/--clip-aux` clips aux data imports to the `-k` GeoFabrik extract's
+bounding box (both a `-spat` pre-filter and a real `-clipsrc` clip, since a
+bbox filter alone won't shrink a globally-dissolved layer) -- for fast test
+builds; ignored when `-k` is `planet` or omitted.
+
+```
+carto -w <dir> -s <dir> [-p pg_config]
+```
+Runs every `carto_sql/*.sql` file in order. Always re-runs everything; scripts must
+be safe to re-run.
+
+```
+export -w <dir> -s <dir> [-n workers] [-p pg_config] [-z max_zoom] [--projection-override EPSG:code]
+```
+Per layer: PostgreSQL -> FlatGeobuf (ogr2ogr) -> MBTiles (tippecanoe). Skips either
+step if its output file already exists. `--projection-override` is advanced/
+non-standard (`export --help` for details); output becomes `.btis` instead of
+`.mbtiles`.
+
+```
+bundler -w <dir> -s <dir> [-p pg_config] [-q path ...] [-o output_name]
+```
+Joins all `mbtiles/*.mbtiles`/`.btis` into one package via tile-join. Always
+rebuilds from scratch. Fails on mismatched projections across inputs. Output
+defaults to `joined.mbtiles` (`joined.btis` under `--projection-override`);
+`-o/--output-name` overrides this and is used exactly as given (no auto-renaming).
+`-q/--additional-mbtiles` folds in an externally-produced mbtiles file (e.g.
+contours); repeatable for more than one.
+
+```
+vundler -w <dir> [-i input_path] [-o output_dir] [-z max_zoom]
+```
+Converts a bundled mbtiles file into Esri Compact Cache V2 tile bundles
+(`.bundle` files per zoom level, plus a bare `metadata.json`). Not a complete
+`.vtpk` -- no `conf.xml`/`root.json`/styles. `-i/--input-path` defaults to
+`bundled/joined.mbtiles` or `joined.btis`; `-o/--output-dir` defaults to
+`bundled/vundled/p12`.
+
+## Reuse
+
+Only `export` and `download` skip existing outputs. `import`, `carto`,
+`bundler`, and `vundler` always redo the full operation.
+
+To rebuild one layer: delete its `flatgeobuf/<layer>.fgb` and/or
+`mbtiles/<layer>.mbtiles`/`.btis`, then re-run `export`. Deleting only the mbtiles
+file (keeping the fgb) skips straight to the tippecanoe step.
+
+## Troubleshooting
+
+**`carto` aborts entirely after one script fails.**
+This is expected: [`abt/carto_processing_model.py`](abt/carto_processing_model.py)
+runs `carto_sql/*.sql` in filename order and stops at the first exception. Fix the
+root cause, then simply re-run `carto` -- every script drops/recreates its own
+tables, so re-running from the start is safe.
+
+**Confirming a Geofabrik key.**
+The full list of valid `-k`/`--osm-key` values is Geofabrik's live index at
+`https://download.geofabrik.de/index-v1.json` (each entry's `id` field is a valid
+key); the corresponding PBF lives at `https://download.geofabrik.de/<id>-latest.osm.pbf`.
+
+**`ERROR: password is required` / `dblink_connect` fails in `carto`.**
+The configured PostgreSQL role isn't a superuser, or `pg_hba.conf` doesn't trust its
+local connections -- see the `dblink`/`pg_trgm` note under Dependencies above.
+
+## Debug
+
+```
+debug_aux_import -w <dir> -s <dir> -a <aux_file> [-p pg_config]
+```
+Imports a single aux file in isolation.
