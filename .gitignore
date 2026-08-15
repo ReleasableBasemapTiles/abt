@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+
+# Local Cursor IDE state (plans, chat artifacts) -- not project config
+.cursor/
