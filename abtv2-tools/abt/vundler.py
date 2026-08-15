@@ -7,6 +7,7 @@ standalone `Vundler` tool. Produces the raw tile-bundle folder structure and a
 bare metadata.json -- not a complete, packaged .vtpk (no conf.xml/root.json).
 """
 
+import concurrent.futures
 import json
 import sqlite3
 import struct
@@ -90,16 +91,26 @@ class BundleWriter:
         self._name = None
 
 
-def _convert_level(converter: VundlerConverter, con: sqlite3.Connection, zoom: int) -> None:
-    writer = BundleWriter(converter.output_dir / "tile" / f"L{zoom:02d}")
-    rows = con.execute(
-        "SELECT tile_column, tile_row, tile_data FROM tiles "
-        "WHERE zoom_level = ? ORDER BY tile_row DESC, tile_column ASC",
-        (zoom,),
-    )
-    for x, y, tile_data in rows:
-        writer.add_tile(flip_y(zoom, y), x, tile_data)
-    writer.close()
+def _convert_level(converter: VundlerConverter, zoom: int) -> None:
+    """Converts one zoom level. Runs in its own worker process (see `convert`
+    below), so it opens its own read-only connection rather than sharing one
+    across the process boundary -- SQLite allows any number of concurrent
+    readers, and each zoom level reads/writes disjoint data (its own
+    `WHERE zoom_level = ?` slice, its own `L{zoom:02d}` output directory).
+    """
+    con = sqlite3.connect(f"file:{converter.mbtiles_path}?mode=ro", uri=True)
+    try:
+        writer = BundleWriter(converter.output_dir / "tile" / f"L{zoom:02d}")
+        rows = con.execute(
+            "SELECT tile_column, tile_row, tile_data FROM tiles "
+            "WHERE zoom_level = ? ORDER BY tile_row DESC, tile_column ASC",
+            (zoom,),
+        )
+        for x, y, tile_data in rows:
+            writer.add_tile(flip_y(zoom, y), x, tile_data)
+        writer.close()
+    finally:
+        con.close()
 
 
 def _write_metadata(converter: VundlerConverter, con: sqlite3.Connection) -> None:
@@ -112,15 +123,35 @@ def _write_metadata(converter: VundlerConverter, con: sqlite3.Connection) -> Non
     )
 
 
-def convert(converter: VundlerConverter) -> None:
+def convert(converter: VundlerConverter, max_workers: Optional[int] = None) -> None:
+    """Converts every zoom level up to `converter.max_zoom`, then writes
+    metadata.json. Zoom levels are converted concurrently in separate
+    processes (CPU-bound struct packing, not I/O-bound, so a process pool
+    parallelizes across cores where a thread pool would be limited by the
+    GIL) -- `max_workers` defaults to one per available core, naturally
+    capped by however many zoom levels actually exist (rarely more than
+    ~15), so it won't over-spawn on a large host.
+    """
     con = sqlite3.connect(converter.mbtiles_path)
     try:
         levels = [
             row[0] for row in con.execute("SELECT DISTINCT zoom_level FROM tiles")
             if row[0] <= converter.max_zoom
         ]
-        for zoom in levels:
-            _convert_level(converter, con, zoom)
+    finally:
+        con.close()
+
+    if levels:
+        # Create the shared parent dir up front so concurrent workers don't
+        # race to create it while making their own L{zoom:02d} subdirectory.
+        (converter.output_dir / "tile").mkdir(parents=True, exist_ok=True)
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(_convert_level, converter, zoom) for zoom in levels]
+            for future in concurrent.futures.as_completed(futures):
+                future.result()  # re-raises any worker exception here
+
+    con = sqlite3.connect(converter.mbtiles_path)
+    try:
         _write_metadata(converter, con)
     finally:
         con.close()

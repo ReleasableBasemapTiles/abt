@@ -9,6 +9,8 @@ from ..utils.fields import (
     max_zoom_field,
     vundler_input_field,
     vundler_output_dir_field,
+    num_workers_field,
+    default_num_workers,
 )
 
 
@@ -27,7 +29,8 @@ def init_vundler(
     working_dir: Path,
     input_path: Optional[Path] = None,
     output_dir: Optional[Path] = None,
-    max_zoom: int = 13
+    max_zoom: int = 13,
+    num_workers: Optional[int] = None
 ):
     """Converts a bundled mbtiles file into Esri Compact Cache V2 tile bundles.
 
@@ -38,16 +41,22 @@ def init_vundler(
         output_dir: Output package directory. Defaults to
             working_dir/bundled/vundled/p12.
         max_zoom: Highest zoom level to convert.
+        num_workers: Number of zoom levels to convert concurrently. Defaults
+            to one per available core (see `default_num_workers`), naturally
+            capped by however many zoom levels exist.
     """
     mbtiles_path = resolve_input(working_dir, input_path)
     package_dir = output_dir or working_dir / "bundled" / "vundled" / "p12"
 
     print(f"--- Converting {mbtiles_path} to {package_dir} ---")
-    convert(VundlerConverter(
-        mbtiles_path=mbtiles_path,
-        output_dir=package_dir,
-        max_zoom=max_zoom
-    ))
+    convert(
+        VundlerConverter(
+            mbtiles_path=mbtiles_path,
+            output_dir=package_dir,
+            max_zoom=max_zoom
+        ),
+        max_workers=num_workers
+    )
     print("--- Vundler complete ---")
 
 
@@ -58,7 +67,8 @@ def cli_vundler(
     working_dir: Annotated[Path, working_dir_field],
     input_path: Annotated[Path, vundler_input_field] = None,
     output_dir: Annotated[Path, vundler_output_dir_field] = None,
-    max_zoom: Annotated[int, max_zoom_field] = 13
+    max_zoom: Annotated[int, max_zoom_field] = 13,
+    num_workers: Annotated[int, num_workers_field] = default_num_workers(divisor=1),
 ):
     """CLI command to convert a bundled mbtiles file into Esri Compact Cache V2 tile bundles.
 
@@ -70,7 +80,8 @@ def cli_vundler(
             working_dir=working_dir,
             input_path=input_path,
             output_dir=output_dir,
-            max_zoom=max_zoom
+            max_zoom=max_zoom,
+            num_workers=num_workers
         )
     except Exception as e:
         typer.echo(f"Error during vundler process: {e}. Check logs for details.", err=True)
