@@ -45,6 +45,7 @@ pg_config_aliases = ['-p', '--pg-config']
 max_zoom_aliases = ['-z', '--max-zoom']
 additional_mbtiles_aliases = ['-q', '--additional-mbtiles']
 num_workers_aliases = ['-n', '--num-workers']
+carto_concurrency_aliases = ['-n', '--carto-concurrency']
 data_type_aliases = ['-d', '--data-type']
 osm_key_aliases = ['-k', '--osm-key']
 force_aliases = ['-f', '--force']
@@ -96,6 +97,18 @@ num_workers_field = typer.Option(
     ..., # Default computed per-command by default_num_workers(); see each command
     *num_workers_aliases,
     help="Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host's CPU count (minimum 4); pass explicitly to override.",
+)
+
+carto_concurrency_field = typer.Option(
+    ..., # Default computed by default_num_workers(); see cli_carto_runner
+    *carto_concurrency_aliases,
+    help="Number of independent carto_sql script groups to run concurrently "
+         "against Postgres -- see rbt-schema/carto_sql/execution_plan.yml "
+         "for how scripts are grouped. Defaults to a value scaled to this "
+         "host's CPU count (1, i.e. fully sequential, on the documented "
+         "8 vCPU tier). Falls back to today's fully sequential, one-script-"
+         "at-a-time behavior if execution_plan.yml is absent from "
+         "--schema-dir, or if this is set to 1.",
 )
 
 data_type_field = typer.Option(

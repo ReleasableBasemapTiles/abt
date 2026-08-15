@@ -19,10 +19,12 @@ from ..utils.fields import (
     schema_dir_field,
     data_type_field,
     pg_config_field,
-    num_workers_field
+    num_workers_field,
+    carto_concurrency_field,
+    default_num_workers,
 )
 
-def init_carto_runer(working_dir: Path, schema_dir: Path, pg_config_type: str):
+def init_carto_runer(working_dir: Path, schema_dir: Path, pg_config_type: str, carto_concurrency: int = 1):
     """Initializes and runs the SQL processing scripts.
 
     This function orchestrates the execution of SQL scripts defined in the data
@@ -33,6 +35,9 @@ def init_carto_runer(working_dir: Path, schema_dir: Path, pg_config_type: str):
         working_dir: The root directory for all data processing and storage.
         schema_dir: The directory containing the data schema definitions.
         pg_config_type: The method for obtaining the PostgreSQL config ('env' or path).
+        carto_concurrency: Number of independent carto_sql groups to run
+            concurrently (see rbt-schema/carto_sql/execution_plan.yml). 1
+            reproduces today's fully sequential behavior.
     """
     data_schema = DataSchema(base_schema_dir=schema_dir)
     processing_directory = ProcessingDirectorySchema.init_working_directories(working_dir=working_dir)
@@ -45,7 +50,9 @@ def init_carto_runer(working_dir: Path, schema_dir: Path, pg_config_type: str):
     carto = CartoProcessingModel(
         sql_files=data_schema.carto_sql_layers,
         pg_config=pg_config,
-        log_dir=processing_directory.carto_log_dir
+        log_dir=processing_directory.carto_log_dir,
+        execution_plan_path=data_schema.carto_execution_plan_path,
+        concurrency=carto_concurrency
     )
 
     print("--- Processing SQL files ---")
@@ -68,7 +75,8 @@ app = typer.Typer()
 def cli_carto_runner(
     working_dir: Annotated[Path, working_dir_field],
     schema_dir: Annotated[Path, schema_dir_field],
-    pg_config: Annotated[str, pg_config_field] = 'env'
+    pg_config: Annotated[str, pg_config_field] = 'env',
+    carto_concurrency: Annotated[int, carto_concurrency_field] = default_num_workers(divisor=6, floor=1),
 ):
     """CLI command to run SQL data transformation scripts.
 
@@ -79,12 +87,14 @@ def cli_carto_runner(
         working_dir: The root directory for all processing tasks.
         schema_dir: The directory where schema definitions are located.
         pg_config: Specifies how to get the PG connection string ('env' or file path).
+        carto_concurrency: Number of independent carto_sql groups to run concurrently.
     """
     try:
         init_carto_runer(
             working_dir=working_dir,
             schema_dir=schema_dir,
-            pg_config_type=pg_config
+            pg_config_type=pg_config,
+            carto_concurrency=carto_concurrency
         )
     except Exception as e:
         typer.echo(f"Error in Carto SQL Runner: {e}. Check logs for details.", err=True)

@@ -1,0 +1,97 @@
+# execution_plan.yml
+#
+# Declares which carto_sql/*.sql scripts must run sequentially and which are
+# independent enough to run concurrently against Postgres. Read by
+# abtv2-tools' CartoProcessingModel (see abt/carto_processing_model.py);
+# if this file is absent, carto falls back to running every *.sql file
+# sequentially in filename order, as it always has.
+#
+# Derived from a full read-through of every script (not just grep) as of
+# rbt-schema commit 258418c. Re-verify this file whenever a carto_sql script
+# is added, removed, or changed to read/write a different schema/table --
+# see "How to update this file" at the bottom.
+#
+# Shape:
+#   custom_schemas: schemas created once, sequentially, before any group
+#     runs. Every script below still contains its own
+#     `CREATE SCHEMA IF NOT EXISTS <name>` -- that's fine and left alone:
+#     once the schema already exists (created here), a later `IF NOT EXISTS`
+#     from a concurrent script is just a fast, safe no-op. The problem this
+#     avoids is the *first* creation racing across concurrent sessions.
+#   extensions: same idea, for `CREATE EXTENSION IF NOT EXISTS` (005a and 009
+#     both declare dblink).
+#   prefix: run sequentially, in this order, before any group starts.
+#   groups: each inner list runs sequentially on one connection; different
+#     groups run concurrently with each other (up to --carto-concurrency).
+#   suffix: run sequentially, after every group has completed successfully.
+
+custom_schemas:
+  - water           # 005a_water_polygon.sql
+  - transportation  # 003_road.sql
+  - landuse         # 007_builtup_area.sql
+  - landcover       # 008_glacier.sql
+  - infrastructure  # 012_port.sql
+  - aeroway         # 021_aeroway.sql
+  - dam             # 022_dam.sql
+  - poi             # 032_poi.sql
+
+extensions:
+  - dblink
+
+prefix:
+  - 000_update_aux_geom.sql
+  - 001_set_schema.sql
+
+groups:
+  # 005b reads water.classify_water_type(), a function created by 005a --
+  # a real execution-order dependency, not just a shared schema name.
+  - [005a_water_polygon.sql, 005b_water_line.sql]
+
+  # Everything else only ever shared a *schema name* with another script
+  # (e.g. 004_railway.sql creates transportation.railway_normalized, but
+  # never reads 003_road.sql's transportation.usa_boundary) -- now that
+  # custom_schemas above are created up front, each of these is independent.
+  - [003_road.sql]
+  - [004_railway.sql]
+  - [006_geonames_hydrographic.sql]
+  - [007_builtup_area.sql]
+  - [008_glacier.sql]
+  - [009_land_cover.sql]
+  - [010_park.sql]
+  - [011_lock.sql]
+  - [012_port.sql]
+  - [013_pipeline.sql]
+  - [014_energy.sql]
+  - [015_grain_storage.sql]
+  - [017_utility_point.sql]
+  - [018_powerline.sql]
+  - [019_power_station.sql]
+  - [020_pumping_station.sql]
+  - [021_aeroway.sql]
+  - [022_dam.sql]
+  - [023_military.sql]
+  - [024_cemetery.sql]
+  - [025_sports.sql]
+  - [026_places.sql]
+  - [027_admin.sql]
+  - [028_ferry.sql]
+  - [029_physical_labels.sql]
+  - [030_pier.sql]
+  - [032_poi.sql]
+  - [033_culvert.sql]
+
+suffix:
+  - 099_update_geometry.sql
+
+# How to update this file when carto_sql changes:
+#   1. New script with no custom schema, reading only osm.*/aux_data.* and
+#      writing its own export.* tables: add it as its own single-item group.
+#   2. New script that creates a *new* custom schema: add the schema name to
+#      custom_schemas, add the script as its own group.
+#   3. New script that reads/writes a table (not just a schema name) created
+#      by another script: add it to that script's group, after it, in the
+#      same inner list.
+#   4. Deleted/renamed script: remove/update its entry above.
+#   5. When in doubt, add it as a new single-item group and grep the rest of
+#      carto_sql for its schema/table names to confirm nothing else depends
+#      on it.

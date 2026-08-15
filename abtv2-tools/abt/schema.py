@@ -174,6 +174,17 @@ class DataSchema(BaseModel):
         return sql_files
 
     @property
+    def carto_execution_plan_path(self) -> Path:
+        """Path to the optional carto_sql/execution_plan.yml.
+
+        Declares which carto_sql scripts may run concurrently -- see
+        CartoProcessingModel. This is just the conventional path; it may not
+        exist (older/other --schema-dir directories won't have one), in
+        which case carto falls back to fully sequential execution.
+        """
+        return self.base_schema_dir / "carto_sql" / "execution_plan.yml"
+
+    @property
     def export_layers(self) -> List[Path]:
         """Returns a list of all tile layer export JSON configuration files."""
         export_layers_dir = self.base_schema_dir / "export"

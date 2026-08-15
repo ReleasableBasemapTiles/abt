@@ -14,11 +14,18 @@
 -- -----------------------------------------------------------------------------
 -- SESSION TUNING — applies to every statement below (plain SET is
 -- session-scoped and survives the BEGIN/COMMIT blocks)
+--
+-- max_parallel_workers_per_gather is read from the abt.parallel_workers_per_gather
+-- custom GUC when set (e.g. by the carto orchestrator scaling it down for
+-- concurrent carto_sql execution -- see rbt-schema/carto_sql/execution_plan.yml),
+-- falling back to this historical single-script-at-a-time value otherwise.
 -- -----------------------------------------------------------------------------
 
 SET work_mem = '2GB';
 SET maintenance_work_mem = '16GB';
-SET max_parallel_workers_per_gather = 10;
+SELECT set_config('max_parallel_workers_per_gather',
+                   COALESCE(current_setting('abt.parallel_workers_per_gather', true), '10'),
+                   false);
 SET parallel_setup_cost = 100;
 SET parallel_tuple_cost = 0.01;
 SET jit = off;

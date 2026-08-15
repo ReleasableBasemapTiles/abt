@@ -37,6 +37,7 @@ class PGConfig(BaseModel):
     password: str
     database: str
     log_path: Path
+    extra_options: str = ""
 
     @classmethod
     def from_env(cls, log_path: Path) -> "PGConfig":
@@ -91,7 +92,22 @@ class PGConfig(BaseModel):
     @property
     def conn_str(self) -> str:
         """Returns the connection string in the format required by psycopg2."""
-        return f"host={self.host} port={self.port} user='{self.user}' password='{self.password}' dbname='{self.database}'"
+        base = f"host={self.host} port={self.port} user='{self.user}' password='{self.password}' dbname='{self.database}'"
+        if not self.extra_options:
+            return base
+        # Same 'options=<libpq -c key=value ...>' shape carto_sql's own dblink
+        # connstrs use, so a session opened this way starts with those GUCs
+        # already set -- no separate SET statement needed after connecting.
+        escaped = self.extra_options.replace("'", "''")
+        return f"{base} options='{escaped}'"
+
+    def with_options(self, extra_options: str) -> "PGConfig":
+        """Returns a copy of this config that opens connections with extra
+        libpq '-c key=value' startup options (e.g. to scale down a carto
+        group's GUCs for concurrent execution -- see CartoProcessingModel).
+        Leaves this instance untouched.
+        """
+        return self.model_copy(update={"extra_options": extra_options})
 
     @property
     def uri(self) -> str:
@@ -166,6 +182,28 @@ class PGConfig(BaseModel):
             logger.error(f"Error testing PostgreSQL connection: {e}")
             raise
 
+    def execute_sql(self, sql: str, description: str):
+        """
+        Executes an arbitrary SQL string against the configured database, in
+        its own connection/transaction. Used both by runSQLScript (for a
+        whole file's contents) and directly for short statements like
+        `CREATE SCHEMA IF NOT EXISTS` (see CartoProcessingModel).
+
+        Args:
+            sql: The SQL text to execute.
+            description: Short label for logging (e.g. a filename).
+        """
+        logger = self.get_logger()
+        logger.info(f"Running SQL: {description}")
+        try:
+            with self.conn as conn, conn.cursor() as cur:
+                cur.execute(sql)
+                conn.commit()
+            logger.info(f"SQL '{description}' executed successfully.")
+        except Exception as e:
+            logger.error(f"SQL failed: {description} - {e}")
+            raise
+
     def runSQLScript(self, sql_script: Path):
         """
         Executes a SQL script file against the configured database.
@@ -173,14 +211,4 @@ class PGConfig(BaseModel):
         Args:
             sql_script: The path to the .sql file to be executed.
         """
-        logger = self.get_logger()
-        logger.info(f"Running SQL script: {sql_script.name}")
-        sql = sql_script.read_text()
-        try:
-            with self.conn as conn, conn.cursor() as cur:
-                cur.execute(sql)
-                conn.commit()
-            logger.info(f"SQL script '{sql_script.name}' executed successfully.")
-        except Exception as e:
-            logger.error(f"SQL script failed: {sql_script.name} - {e}")
-            raise
+        self.execute_sql(sql_script.read_text(), description=sql_script.name)
