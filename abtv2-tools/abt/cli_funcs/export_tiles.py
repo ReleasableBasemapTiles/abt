@@ -16,7 +16,8 @@ from ..utils.fields import (
     pg_config_field,
     num_workers_field,
     max_zoom_field,
-    projection_override_field
+    projection_override_field,
+    default_num_workers,
 )
 
 def init_exporter(
@@ -111,7 +112,7 @@ app = typer.Typer()
 def cli_export(
     working_dir: Annotated[Path, working_dir_field],
     schema_dir: Annotated[Path, schema_dir_field],
-    num_workers: Annotated[int, num_workers_field] = 4,
+    num_workers: Annotated[int, num_workers_field] = default_num_workers(divisor=3),
     pg_config: Annotated[str, pg_config_field] = 'env',
     max_zoom: Annotated[int, max_zoom_field] = 13,
     projection_override: Annotated[str, projection_override_field] = None

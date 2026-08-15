@@ -289,6 +289,7 @@ python abt-tools.py download \
 - `-d all` downloads both the Norway PBF and every auxiliary dataset (Natural Earth, NGA GeoNames, OurAirports, FieldMaps boundaries, USGS names, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts).
 - Output: `~/abt/run-norway/osm/pbf/norway-latest.osm.pbf` and `~/abt/run-norway/aux_downloads/`.
 - This step skips files that already exist, so it's safe to re-run if it's interrupted.
+- `-n/--num-workers` is shown explicitly (`4`) here since it matches this doc's 8 vCPU tier's auto-computed default; it's optional everywhere it appears below and scales up on its own on bigger hosts (see Sizing) -- pass it explicitly to override either way.
 
 ### 5.3 Import
 

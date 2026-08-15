@@ -15,7 +15,8 @@ from ..utils.fields import (
     CliDataType,
     pg_config_field,
     num_workers_field,
-    osm_key_field
+    osm_key_field,
+    default_num_workers,
 )
 
 def prep_aux(
@@ -144,7 +145,7 @@ def cli_download(
     working_dir: Annotated[Path, working_dir_field],
     schema_dir: Annotated[Path, schema_dir_field],
     data_type: Annotated[CliDataType, data_type_field],
-    num_workers: Annotated[int, num_workers_field]=4,
+    num_workers: Annotated[int, num_workers_field] = default_num_workers(divisor=4),
     osm_key: Annotated[str, osm_key_field]="planet"
 ):
     """CLI command to download and prepare geographic data.

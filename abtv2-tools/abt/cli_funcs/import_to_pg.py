@@ -19,7 +19,8 @@ from ..utils.fields import (
     num_workers_field,
     osm_key_field,
     force_field,
-    clip_aux_field
+    clip_aux_field,
+    default_num_workers,
 )
 
 
@@ -181,7 +182,7 @@ def cli_impoter(
     working_dir: Annotated[Path, working_dir_field],
     schema_dir: Annotated[Path, schema_dir_field],
     data_type: Annotated[CliDataType, data_type_field],
-    num_workers: Annotated[int, num_workers_field],
+    num_workers: Annotated[int, num_workers_field] = default_num_workers(divisor=2),
     pg_config: Annotated[str, pg_config_field] = 'env',
     osm_key: Annotated[str, osm_key_field] = "planet",
     force: Annotated[bool, force_field] = False,

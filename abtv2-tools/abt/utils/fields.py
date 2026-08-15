@@ -10,8 +10,24 @@ for various commands related to data processing.
 from typing import Annotated, Optional
 from enum import Enum
 from pathlib import Path
+import os
 import re
 import typer
+
+
+def default_num_workers(divisor: int = 3, floor: int = 4) -> int:
+    """Computes a parallelism default scaled to the host's core count.
+
+    Returns `floor` on small hosts -- matching this tool's historical fixed
+    default of 4, tuned for the 8 vCPU tier documented in the READMEs -- and
+    scales up on larger hosts, so a big single-host server doesn't need an
+    explicit -n/--num-workers just to make use of its cores. `divisor` lets
+    each call site leave more headroom for tasks that already spawn their
+    own multi-threaded subprocess per worker (e.g. tippecanoe in `export`).
+    Always overridable via -n/--num-workers.
+    """
+    cpu_count = os.cpu_count() or floor
+    return max(floor, cpu_count // divisor)
 
 
 class CliDataType(str, Enum):
@@ -77,9 +93,9 @@ additional_mbtiles_field = typer.Option(
 )
 
 num_workers_field = typer.Option(
-    ..., # Default value 4
+    ..., # Default computed per-command by default_num_workers(); see each command
     *num_workers_aliases,
-    help="Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. The default is 4 where applicable.",
+    help="Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host's CPU count (minimum 4); pass explicitly to override.",
 )
 
 data_type_field = typer.Option(

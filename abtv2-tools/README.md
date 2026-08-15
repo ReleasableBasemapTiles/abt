@@ -147,7 +147,7 @@ Downloads OSM PBF and/or aux files. Skips files that already exist.
 Geofabrik key (e.g. `-k norway`) unless a full-planet download is actually intended.
 
 ```
-import -w <dir> -s <dir> -d {osm,aux,all} -n <workers> [-p pg_config] [-k osm_key] [-f] [-c]
+import -w <dir> -s <dir> -d {osm,aux,all} [-n workers] [-p pg_config] [-k osm_key] [-f] [-c]
 ```
 Imports OSM (imposm) and/or aux data (ogr2ogr) into PostgreSQL. Always full re-run.
 If OSM data already exists, the whole command aborts with an error rather than
