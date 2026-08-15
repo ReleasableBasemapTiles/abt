@@ -1,11 +1,11 @@
 # ABT (Releasable/Army Basemap Tiles) — Ubuntu Setup & Norway Walkthrough
 
-This workspace holds two independent git repositories used together:
+This monorepo contains two components used together:
 
 - [`abtv2-tools/`](abtv2-tools/) — the Python CLI/orchestration engine (`abt-tools.py`). This is the code that chains external geo tools together.
 - [`rbt-schema/`](rbt-schema/) — the schema/config content (imposm mappings, aux-data source configs, SQL transforms, tile export configs) that gets passed to the CLI as `--schema-dir`.
 
-Neither repo is useful without the other: `abtv2-tools` is a generic pipeline runner, and `rbt-schema` defines the specific dataset it builds.
+Neither is useful without the other: `abtv2-tools` is a generic pipeline runner, and `rbt-schema` defines the specific dataset it builds. They used to be two separate git repositories (`abtv2-tools`, `rbt-schema`) and were merged into this single repo with their full commit history preserved -- see each subdirectory's own history via `git log -- abtv2-tools/` / `git log -- rbt-schema/`.
 
 This document covers:
 
@@ -202,49 +202,42 @@ echo "tile-join:   $(tile-join --version)"
 
 You'll be prompted for the `abt` role's password by the `psql` line above unless you export `PGPASSWORD` first.
 
-## 4. Clone both repos
+## 4. Clone the repo
 
-`--schema-dir` must point at an `rbt-schema`-shaped directory, so clone both repos side by side:
+`abtv2-tools/` and `rbt-schema/` are both subdirectories of this one repo, at
+the same fixed relative path to each other that the CLI expects, so a single
+clone is all `abt-tools.py` needs -- `--schema-dir ../rbt-schema` (used
+throughout this doc) resolves correctly from inside `abtv2-tools/` without
+any extra setup:
 
 ```bash
 mkdir -p ~/abt && cd ~/abt
-git clone git@github.com:ReleaseableBasemapTiles/abtv2-tools.git
-git clone git@github.com:ReleaseableBasemapTiles/rbt-schema.git
+git clone git@github.com:ReleaseableBasemapTiles/abt.git .
 ```
 
-(Use HTTPS clone URLs instead if you don't have SSH keys configured for GitHub.)
+(Use the HTTPS clone URL, `https://github.com/ReleaseableBasemapTiles/abt.git`,
+instead if you don't have SSH keys configured for GitHub.)
 
-If these are private repos and you're using per-repo deploy keys rather than
-a single GitHub-wide SSH key, add a `Host` alias per repo to `~/.ssh/config`
-instead of relying on the default `github.com` host, since a deploy key can
-only authenticate for the one repo it's attached to:
+If this is a private repo and you're using a deploy key rather than a
+GitHub-wide SSH key, add a `Host` alias to `~/.ssh/config`:
 
 ```
-Host abtv2-tools
+Host abt
     HostName ssh.github.com
     Port 443
     User git
     IdentityFile ~/.ssh/id_ed25519_abt
-    IdentitiesOnly yes
-
-Host rbt-schema
-    HostName ssh.github.com
-    Port 443
-    User git
-    IdentityFile ~/.ssh/id_ed25519_rbt
     IdentitiesOnly yes
 ```
 
 ...then clone using the alias as the hostname instead of `github.com`:
 
 ```bash
-git clone git@abtv2-tools:ReleaseableBasemapTiles/abtv2-tools.git
-git clone git@rbt-schema:ReleaseableBasemapTiles/rbt-schema.git
+git clone git@abt:ReleaseableBasemapTiles/abt.git .
 ```
 
-`setup_ubuntu.sh` defaults `ABT_TOOLS_REPO`/`ABT_SCHEMA_REPO` to exactly these
-alias-based URLs; override them if you're using a different SSH setup or the
-plain HTTPS URLs.
+`setup_ubuntu.sh` defaults `ABT_REPO` to exactly this alias-based URL;
+override it if you're using a different SSH setup or the plain HTTPS URL.
 
 ## 5. Norway walkthrough
 

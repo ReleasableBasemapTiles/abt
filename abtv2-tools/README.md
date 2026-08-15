@@ -4,7 +4,7 @@ Modular pipeline for building vector tilesets from OpenStreetMap and other open 
 
 Entry point: `python abt-tools.py <command> [options]`
 
-This repo is one half of a two-repo workspace: it's the generic pipeline runner, paired with a schema/config repo (e.g. `rbt-schema`) passed in as `--schema-dir` -- see "Pipeline" below for what that directory needs to contain. If you're setting up a fresh host and/or want a full worked example (Ubuntu 26.04 provisioning, building a Norway extract end to end), see the parent workspace's [`README.md`](../README.md); this file is the standalone CLI/pipeline reference.
+This directory is one half of the monorepo: it's the generic pipeline runner, paired with the sibling [`../rbt-schema/`](../rbt-schema/) schema/config directory passed in as `--schema-dir` -- see "Pipeline" below for what that directory needs to contain. If you're setting up a fresh host and/or want a full worked example (Ubuntu 26.04 provisioning, building a Norway extract end to end), see the parent workspace's [`README.md`](../README.md); this file is the standalone CLI/pipeline reference.
 
 ## Dependencies
 
@@ -39,7 +39,7 @@ a custom systemd unit rather than Debian's `postgresql-common` cluster tooling),
 `imposm3` and `tippecanoe` built from source (`master`/`main` by default), a
 `micromamba`-managed Python env from `env.yaml`, kernel/ulimit tuning for
 high-throughput I/O (`vm.swappiness`, dirty-page ratios, `nofile`/`nproc` limits), and
-optionally clones this repo plus a schema repo (e.g. `rbt-schema`) side by side.
+optionally clones the monorepo (this directory plus its `../rbt-schema/` sibling).
 
 ```bash
 ./setup_ubuntu.sh
@@ -55,12 +55,12 @@ commonly overridden ones:
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `ABT_WORKSPACE_DIR` | `/rbt` | Root dir for repo checkouts + run data |
+| `ABT_WORKSPACE_DIR` | `/rbt` | Root dir for the repo checkout + run data |
 | `PG_DATA_DIR` | `/var/lib/postgresql/<major>/main` | PostgreSQL data directory (e.g. point at a mounted NVMe device) |
 | `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `abt_norway` / `abt` / `abt` / `5432` | Pipeline's database/role |
 | `IMPOSM_REF` / `TIPPECANOE_REF` | `master` / `main` | Git ref each tool is built from |
 | `CONDA_ENV_NAME` | `abtv2` | micromamba environment name |
-| `CLONE_REPOS` | `true` | Set `false` to skip cloning `ABT_TOOLS_REPO`/`ABT_SCHEMA_REPO` |
+| `CLONE_REPO` | `true` | Set `false` to skip cloning `ABT_REPO` |
 | `INSTALL_POSTGRES` / `INSTALL_IMPOSM` / `INSTALL_TIPPECANOE` / `INSTALL_CONDA` | `true` | Set any to `false` to skip that stage entirely |
 
 For the complete list (every variable, its default, and inline comments explaining

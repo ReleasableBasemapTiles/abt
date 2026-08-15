@@ -41,20 +41,21 @@ echo "Logging full output to ${LOG_FILE}"
 
 # --- Configuration (env vars, all overridable) ------------------------------
 
-# Everything the pipeline touches -- the abtv2-tools/rbt-schema checkouts and
-# the working/data directories used for download+import+export runs -- lives
-# under this one root rather than being split across $HOME and wherever this
-# script happens to live. Override to relocate the whole tree, e.g. onto a
-# dedicated data disk mounted elsewhere.
+# Everything the pipeline touches -- the monorepo checkout (abtv2-tools/ and
+# rbt-schema/ as subdirectories) and the working/data directories used for
+# download+import+export runs -- lives under this one root rather than being
+# split across $HOME and wherever this script happens to live. Override to
+# relocate the whole tree, e.g. onto a dedicated data disk mounted elsewhere.
 ABT_WORKSPACE_DIR="${ABT_WORKSPACE_DIR:-/rbt}"
 ABT_RUN_DIR="${ABT_RUN_DIR:-$ABT_WORKSPACE_DIR/run-norway}"
+ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$ABT_WORKSPACE_DIR/abt}"
 
-# These are private repos, cloned over SSH using per-repo deploy keys rather
-# than HTTPS. The hostnames below ("abtv2-tools", "rbt-schema") are not
-# github.com itself -- they're expected to be Host aliases in ~/.ssh/config
-# that each point at ssh.github.com with their own IdentityFile, e.g.:
+# This is a private repo, cloned over SSH using a deploy key rather than
+# HTTPS. The hostname below ("abt") is not github.com itself -- it's expected
+# to be a Host alias in ~/.ssh/config that points at ssh.github.com with its
+# own IdentityFile, e.g.:
 #
-#   Host abtv2-tools
+#   Host abt
 #       HostName ssh.github.com
 #       Port 443
 #       User git
@@ -62,12 +63,11 @@ ABT_RUN_DIR="${ABT_RUN_DIR:-$ABT_WORKSPACE_DIR/run-norway}"
 #       IdentitiesOnly yes
 #
 # Cloning via git@github.com:... directly would skip that alias and fall
-# back to your default SSH identity, which a single-repo deploy key can't
-# authenticate as. Override to plain https://github.com/... URLs instead if
-# these become public, or if you're not using per-repo deploy keys.
-ABT_TOOLS_REPO="${ABT_TOOLS_REPO:-git@abtv2-tools:ReleaseableBasemapTiles/abtv2-tools.git}"
-ABT_SCHEMA_REPO="${ABT_SCHEMA_REPO:-git@rbt-schema:ReleaseableBasemapTiles/rbt-schema.git}"
-CLONE_REPOS="${CLONE_REPOS:-true}"
+# back to your default SSH identity, which a deploy key can't authenticate
+# as. Override to a plain https://github.com/... URL instead if this becomes
+# public, or if you're not using a deploy key.
+ABT_REPO="${ABT_REPO:-git@abt:ReleaseableBasemapTiles/abt.git}"
+CLONE_REPO="${CLONE_REPO:-true}"
 
 # The non-root user (and its primary group) that should own ABT_WORKSPACE_DIR/
 # ABT_RUN_DIR and everything cloned/written into them, since the script itself
@@ -618,25 +618,21 @@ else
     stage "Skipping tippecanoe install (INSTALL_TIPPECANOE=false)"
 fi
 
-# --- 8. Clone abtv2-tools / rbt-schema ---------------------------------------------
+# --- 8. Clone the abt monorepo (abtv2-tools/ + rbt-schema/) ------------------------
 
-if [[ "$CLONE_REPOS" == "true" ]]; then
-    stage "Cloning abtv2-tools and rbt-schema into ${ABT_WORKSPACE_DIR}"
-    if [[ ! -d "$ABT_WORKSPACE_DIR/abtv2-tools" ]]; then
-        git clone "$ABT_TOOLS_REPO" "$ABT_WORKSPACE_DIR/abtv2-tools"
+if [[ "$CLONE_REPO" == "true" ]]; then
+    stage "Cloning abt monorepo into ${ABT_MONOREPO_DIR}"
+    if [[ ! -d "$ABT_MONOREPO_DIR" ]]; then
+        git clone "$ABT_REPO" "$ABT_MONOREPO_DIR"
     else
-        echo "abtv2-tools already present at ${ABT_WORKSPACE_DIR}/abtv2-tools, skipping clone"
-    fi
-    if [[ ! -d "$ABT_WORKSPACE_DIR/rbt-schema" ]]; then
-        git clone "$ABT_SCHEMA_REPO" "$ABT_WORKSPACE_DIR/rbt-schema"
-    else
-        echo "rbt-schema already present at ${ABT_WORKSPACE_DIR}/rbt-schema, skipping clone"
+        echo "abt monorepo already present at ${ABT_MONOREPO_DIR}, skipping clone"
     fi
 else
-    stage "Skipping repo cloning (CLONE_REPOS=false)"
+    stage "Skipping repo cloning (CLONE_REPO=false)"
 fi
 
-ABT_TOOLS_DIR="$ABT_WORKSPACE_DIR/abtv2-tools"
+ABT_TOOLS_DIR="$ABT_MONOREPO_DIR/abtv2-tools"
+ABT_SCHEMA_DIR="$ABT_MONOREPO_DIR/rbt-schema"
 ENV_YAML="$ABT_TOOLS_DIR/env.yaml"
 
 # --- 9. micromamba + env ------------------------------------------------------------
@@ -695,7 +691,7 @@ EOF
 
     stage "Creating/updating environment '${CONDA_ENV_NAME}'"
     if [[ ! -f "$ENV_YAML" ]]; then
-        echo "Cannot find ${ENV_YAML} -- set ABT_WORKSPACE_DIR, or leave CLONE_REPOS=true so abtv2-tools gets checked out first." >&2
+        echo "Cannot find ${ENV_YAML} -- set ABT_WORKSPACE_DIR/ABT_MONOREPO_DIR, or leave CLONE_REPO=true so the monorepo gets checked out first." >&2
         exit 1
     fi
 
@@ -720,7 +716,7 @@ run_in_env() {
     fi
 }
 
-echo "abt_root:    ${ABT_WORKSPACE_DIR} (run dir: ${ABT_RUN_DIR})"
+echo "abt_root:    ${ABT_WORKSPACE_DIR} (monorepo: ${ABT_MONOREPO_DIR}, run dir: ${ABT_RUN_DIR})"
 echo "python:      $(run_in_env python --version 2>&1 || echo 'not available')"
 echo "psql:        $(psql --version 2>&1 || echo 'not available')"
 echo "initdb:      $("${PG_BIN_DIR}/initdb" --version 2>&1 || echo 'not available')"
@@ -762,10 +758,12 @@ Next steps (see README.md section 5 for the full Norway walkthrough):
   export PGPASSWORD=${PG_PASSWORD}
   export PGDATABASE=${PG_DB}
 
-  python abt-tools.py download -w /rbt/run-norway -s /rbt/rbt-schema -d all -k norway -n 4
-  python abt-tools.py import   -w /rbt/run-norway -s /rbt/rbt-schema -d all -n 4 -p env -k norway -c
-  python abt-tools.py carto    -w /rbt/run-norway -s /rbt/rbt-schema -p env
-  python abt-tools.py export   -w /rbt/run-norway -s /rbt/rbt-schema -n 4 -p env -z 13
-  python abt-tools.py bundler  -w /rbt/run-norway -s /rbt/rbt-schema -p env
+  # -n/--num-workers is optional -- it now defaults to a value scaled to
+  # this host's core count; pass it explicitly to override.
+  python abt-tools.py download -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -d all -k norway
+  python abt-tools.py import   -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -d all -p env -k norway -c
+  python abt-tools.py carto    -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env
+  python abt-tools.py export   -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env -z 13
+  python abt-tools.py bundler  -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env
 
 SUMMARY
