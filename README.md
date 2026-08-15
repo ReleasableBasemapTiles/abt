@@ -17,7 +17,7 @@ This document covers:
 
 ABT turns OpenStreetMap data plus a handful of auxiliary open datasets (Natural Earth, NGA GeoNames, OurAirports, FieldMaps admin boundaries, USGS domestic names, US Dept. of State LSIB, DISDI/MIRTA installations) into a bundled Mapbox vector tileset (`.mbtiles`), with an optional conversion to an Esri Compact Cache V2 tile bundle.
 
-The pipeline is a strict sequence of CLI subcommands — there is no DAG engine, Makefile, or scheduler. Each stage reads from and writes to a `--working-dir` you choose, and reads pipeline configuration from a `--schema-dir` (in practice, your `rbt-schema` checkout):
+The pipeline is a strict sequence of CLI subcommands — there is no DAG engine, Makefile, or scheduler. Each stage reads from and writes to a `--working-dir` you choose, and reads pipeline configuration from a `--schema-dir` (in practice, your `rbt-schema` checkout). Within the `carto` stage itself, independent `carto_sql/*.sql` scripts can run concurrently against Postgres -- see "Parallelism and carto concurrency" below:
 
 ```mermaid
 flowchart LR
@@ -32,12 +32,20 @@ flowchart LR
 |---|---|---|---|
 | `download` | `requests`, `boto3` (anonymous S3) | Geofabrik/planet index, aux source URLs | `<working_dir>/osm/pbf/`, `<working_dir>/aux_downloads/` |
 | `import` | `imposm`, `ogr2ogr` | PBF + aux downloads | Postgres schemas `osm`, `aux_data` |
-| `carto` | raw SQL via `psycopg2` | Postgres schemas `osm`, `aux_data` | Postgres schema `export` |
+| `carto` | raw SQL via `psycopg2`, optionally several scripts at once | Postgres schemas `osm`, `aux_data` | Postgres schema `export` |
 | `export` | `ogr2ogr`, `tippecanoe` | Postgres schema `export` | `<working_dir>/flatgeobuf/*.fgb`, `<working_dir>/mbtiles/*.mbtiles` |
 | `bundler` | `tile-join` | `<working_dir>/mbtiles/*` | `<working_dir>/bundled/joined.mbtiles` |
-| `vundler` | pure Python (sqlite3) | `bundled/joined.mbtiles` | `<working_dir>/bundled/vundled/p12/` |
+| `vundler` | pure Python (sqlite3), concurrent per zoom level | `bundled/joined.mbtiles` | `<working_dir>/bundled/vundled/p12/` |
 
 Only `download` and `export` skip work that's already done (they check for existing output files). `import`, `carto`, `bundler`, and `vundler` always redo the full operation, so the SQL in `carto_sql/` is written to be safely re-runnable.
+
+### Parallelism and carto concurrency
+
+`carto` groups `carto_sql/*.sql` scripts by [`rbt-schema/carto_sql/execution_plan.yml`](rbt-schema/carto_sql/execution_plan.yml): a small sequential prefix (`000_update_aux_geom.sql`, `001_set_schema.sql`) creates the `export` schema and every carto-owned custom schema up front, then independent script groups run concurrently against Postgres (up to `-n/--carto-concurrency` at a time, one Postgres connection per group), then a sequential suffix (`099_update_geometry.sql`) normalizes everything once every group has finished. `--carto-concurrency` defaults to a value scaled to the host's CPU count -- 1 (fully sequential, today's historical behavior) on the 8 vCPU tier documented in this guide, higher automatically on a bigger host.
+
+This changes carto's failure behavior: previously any script failing aborted the entire run immediately. Now, a script failing aborts only its own group -- every other independent group still runs to completion -- and the sequential suffix only runs if every group succeeded. Check `logs/<run_id>/carto/` for which specific group failed; independent groups are safe to re-run on their own since (per the Reuse section below) every carto_sql script drops/recreates its own tables.
+
+If `rbt-schema/carto_sql/execution_plan.yml` is missing (an older or third-party `--schema-dir`) or `--carto-concurrency 1` is passed explicitly, `carto` falls back to running every script sequentially in filename order, exactly as before.
 
 For the full CLI reference (every flag), see [`abtv2-tools/README.md`](abtv2-tools/README.md).
 
@@ -317,7 +325,7 @@ python abt-tools.py carto \
   -p env
 ```
 
-Runs every file in `rbt-schema/carto_sql/*.sql` in filename order, building the `export` schema from `osm`/`aux_data`. This always re-runs from scratch and aborts on the first script that fails — see §6 for the most likely failure here.
+Runs every file in `rbt-schema/carto_sql/*.sql`, building the `export` schema from `osm`/`aux_data` -- by default several independent scripts run concurrently rather than strictly in filename order (see "Parallelism and carto concurrency" in §1); pass `-n 1` for the old one-at-a-time behavior. This always re-runs from scratch and aborts on the first prefix/suffix failure, or if any concurrent group fails — see §6 for the most likely failure here.
 
 ### 5.5 Export to tiles
 
@@ -378,8 +386,8 @@ The `abt` role isn't a superuser, or `pg_hba.conf` doesn't trust its local conne
 **`carto` fails partway through, referencing `aux_data.mirtalocations_a` (in `023_military.sql`) or another `aux_data.*` table that "doesn't exist".**
 This means the corresponding aux source failed to download or import — check `~/abt/run-norway/logs/<run_id>/download/` and `.../import/` for that source's log. The MIRTA/DISDI installations dataset in particular is fetched from `datacollects.blob.core.usgovcloudapi.net` (see [`rbt-schema/import/aux_data/disdi_mirta.json`](rbt-schema/import/aux_data/disdi_mirta.json)) and may be unreachable from some networks; a failed download here doesn't surface as an error until `carto` runs `023_military.sql` and finds the table missing. `carto_sql` scripts are idempotent, so once the underlying aux data is fixed (re-run `download`/`import` for just that source, or use `debug_aux_import`), just re-run `carto` — it always starts from `000_*.sql` again.
 
-**`carto` aborts entirely after one script fails.**
-This is expected: [`carto_processing_model.py`](abtv2-tools/abt/carto_processing_model.py) runs `carto_sql/*.sql` in order and stops at the first exception. Fix the root cause, then simply re-run `python abt-tools.py carto ...` — every script drops/recreates its own tables, so re-running is safe.
+**One `carto` script/group fails; does the whole run abort?**
+The sequential prefix (`000`/`001`) and suffix (`099`) still abort the whole run if they fail. In between, each independent group (see "Parallelism and carto concurrency" above) fails on its own — other groups still run to completion, and the error names the failing group, e.g. `1 of 29 carto group(s) failed, suffix not run: 023_military: ...`. Fix the root cause, then simply re-run `python abt-tools.py carto ...` — every script drops/recreates its own tables, so re-running the whole stage (including groups that already succeeded) is safe, just not the cheapest option if only one layer needs a fix.
 
 **A `download` or `import` run appears to be pulling the entire planet.**
 `-k`/`--osm-key` defaults to `planet` when omitted. Always pass `-k norway` (or your target Geofabrik key) explicitly.
