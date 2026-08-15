@@ -11,11 +11,20 @@
 -- -----------------------------------------------------------------------------
 -- SESSION TUNING — applies to every statement below (plain SET is
 -- session-scoped and survives the BEGIN/COMMIT blocks)
+--
+-- max_parallel_workers_per_gather and the per-level dissolve's dblink shard
+-- count (below) are read from the abt.parallel_workers_per_gather /
+-- abt.dissolve_shards custom GUCs when set (e.g. by the carto orchestrator
+-- scaling them down for concurrent carto_sql execution -- see
+-- rbt-schema/carto_sql/execution_plan.yml), falling back to these historical
+-- single-script-at-a-time values otherwise.
 -- -----------------------------------------------------------------------------
 
 SET work_mem = '2GB';
 SET maintenance_work_mem = '16GB';
-SET max_parallel_workers_per_gather = 10;
+SELECT set_config('max_parallel_workers_per_gather',
+                   COALESCE(current_setting('abt.parallel_workers_per_gather', true), '10'),
+                   false);
 SET parallel_setup_cost = 100;
 SET parallel_tuple_cost = 0.01;
 SET jit = off;
@@ -302,11 +311,12 @@ COMMIT;
 -- aborts the script.
 DO $$
 DECLARE
-    nshards CONSTANT int := 16;
-    cell    CONSTANT int := 100000;    -- metres, EPSG:3857
-    connstr CONSTANT text := format(
-        'dbname=%s options=''-c work_mem=2GB -c maintenance_work_mem=16GB -c max_parallel_workers_per_gather=10 -c parallel_setup_cost=100 -c parallel_tuple_cost=0.01 -c synchronous_commit=off -c jit=off''',
-        current_database());
+    nshards          CONSTANT int  := COALESCE(current_setting('abt.dissolve_shards', true)::int, 16);
+    parallel_workers CONSTANT int  := COALESCE(current_setting('abt.parallel_workers_per_gather', true)::int, 10);
+    cell             CONSTANT int  := 100000;    -- metres, EPSG:3857
+    connstr          CONSTANT text := format(
+        'dbname=%s options=''-c work_mem=2GB -c maintenance_work_mem=16GB -c max_parallel_workers_per_gather=%s -c parallel_setup_cost=100 -c parallel_tuple_cost=0.01 -c synchronous_commit=off -c jit=off''',
+        current_database(), parallel_workers);
     job record;
     i int;
     n int;

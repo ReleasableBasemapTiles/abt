@@ -14,13 +14,21 @@
 -- -----------------------------------------------------------------------------
 -- SESSION TUNING — applies to every statement below (plain SET is
 -- session-scoped and survives the BEGIN/COMMIT blocks)
+--
+-- max_parallel_workers_per_gather and the dissolve's dblink shard count
+-- (below) are read from the abt.parallel_workers_per_gather / abt.dissolve_shards
+-- custom GUCs when set (e.g. by the carto orchestrator scaling them down
+-- for concurrent carto_sql execution -- see rbt-schema/carto_sql/execution_plan.yml),
+-- falling back to these historical single-script-at-a-time values otherwise.
 -- -----------------------------------------------------------------------------
 
 -- NOTE: HARD CODED TEST SETTINGS. REVISIT POSTGRES TUNING IF THIS WORKS.
 
 SET work_mem = '2GB';
 SET maintenance_work_mem = '16GB';
-SET max_parallel_workers_per_gather = 10;
+SELECT set_config('max_parallel_workers_per_gather',
+                   COALESCE(current_setting('abt.parallel_workers_per_gather', true), '10'),
+                   false);
 SET parallel_setup_cost = 100;
 SET parallel_tuple_cost = 0.01;
 SET jit = off;
@@ -244,7 +252,7 @@ COMMIT;
 -- any worker propagates to this session and aborts the script.
 DO $$
 DECLARE
-    nshards CONSTANT int := 16;
+    nshards CONSTANT int := COALESCE(current_setting('abt.dissolve_shards', true)::int, 16);
     connstr CONSTANT text := format(
         'dbname=%s options=''-c work_mem=1GB -c synchronous_commit=off -c jit=off''',
         current_database());
