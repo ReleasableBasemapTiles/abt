@@ -60,9 +60,25 @@ These scripts also open 16 parallel `dblink` worker connections to dissolve glob
 | Tier | vCPUs | RAM | Disk | Use case |
 |---|---|---|---|---|
 | **Documented in this guide** | 8 | 32 GB | 100 GB SSD | Norway-sized extracts, single-country test builds |
+| **Large single host** | 48 | 384 GB | 2+ TB NVMe | This is the tier `setup_ubuntu.sh`'s `PG_*` overrides below and `abt-tools.py`'s auto-scaled `-n/--num-workers`/`--carto-concurrency` defaults (see abtv2-tools' README Sizing section) are aimed at — enough headroom to run several `carto` script groups concurrently and use large `-n` values for `import`/`export` on the same box |
 | Planet-scale (not covered here) | 32+ | 128 GB+ | 2+ TB NVMe | Full-planet builds; expect the `import` step alone to take 24+ hours per the tool's own README |
 
 On the 32 GB tier, Postgres itself should be configured with a much smaller `shared_buffers`/`effective_cache_size` than the `carto_sql` scripts' own per-session `work_mem`/`maintenance_work_mem` overrides — see the `postgresql.conf` block in the next section. The 16 concurrent `dblink` workers each requesting up to 1 GB of `work_mem` (set inside the SQL itself, not from `postgresql.conf`) is comfortably inside 32 GB for a Norway-sized dataset, since the dissolve operates on a small, already-clipped set of polygons.
+
+For the 48 vCPU / 384 GB tier, override `setup_ubuntu.sh`'s Postgres tuning before running it:
+
+```bash
+export PG_SHARED_BUFFERS=96GB              # ~25% of RAM
+export PG_EFFECTIVE_CACHE_SIZE=288GB       # ~75% of RAM
+export PG_MAINTENANCE_WORK_MEM=8GB
+export PG_MAX_WORKER_PROCESSES=44          # leave a few cores for the OS/other daemons
+export PG_MAX_PARALLEL_WORKERS=40
+export PG_MAX_PARALLEL_WORKERS_PER_GATHER=8
+export PG_MAX_CONNECTIONS=300              # covers concurrent carto groups' dblink fan-out + import/export worker pools
+./setup_ubuntu.sh
+```
+
+`PG_MAX_CONNECTIONS` in particular matters more on this tier than the 32 GB one: running `carto` with `--carto-concurrency` greater than 1 means several script groups hold their own connection simultaneously, and the water/land-cover scripts each additionally fan out up to 16 `dblink` worker connections from within whichever group is running them — see "Parallelism and `carto` concurrency" below.
 
 ## 3. Ubuntu 26.04 setup
 

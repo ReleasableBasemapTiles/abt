@@ -119,6 +119,24 @@ Postgres's own `shared_buffers`/`effective_cache_size` in `postgresql.conf` well
 what `carto_sql`'s per-session `work_mem`/`maintenance_work_mem` overrides request,
 since those are additive per concurrent `dblink` worker, not shared.
 
+### Large single-host tier (48 vCPUs / 384 GB)
+
+On a big single box, both the CLI and `carto_sql` itself scale up automatically
+rather than needing to be babysat per invocation:
+
+- `-n/--num-workers` (`download`/`import`/`export`) defaults to a value derived
+  from `os.cpu_count()` instead of a flat `4` -- still fully overridable, but
+  sized so you don't need to pass `-n` by hand just to make use of the box.
+- `carto` accepts a `--carto-concurrency` flag (also auto-scaled by default) to
+  run independent `carto_sql` script groups concurrently instead of one script
+  at a time -- see "Carto concurrency" below. It scales down each concurrent
+  group's internal `dblink`/parallel-worker settings so groups don't fight each
+  other for the same cores; see the `abt.*` settings referenced there.
+- `setup_ubuntu.sh`'s `PG_*` tuning variables need overriding for this tier --
+  see the parent workspace [`README.md`](../README.md) Sizing section for a
+  copy-pasteable block (`shared_buffers`/`effective_cache_size` scaled to 384 GB,
+  `max_connections` raised to cover concurrent `carto` groups' `dblink` fan-out).
+
 ## Commands
 
 ```

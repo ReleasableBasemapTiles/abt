@@ -99,6 +99,10 @@ PG_DATA_DIR="${PG_DATA_DIR:-}"
 # of silently deleting data that happens to already live at that path.
 FORCE_REINIT_POSTGRES="${FORCE_REINIT_POSTGRES:-false}"
 
+# Defaults below target the 8 vCPU / 32 GB "small extract" tier documented
+# in README.md section 2 (Sizing). For a large single host (e.g. 48 vCPU /
+# 384 GB), override all of these -- README.md's Sizing section has a
+# copy-pasteable `export` block sized for that tier.
 PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-8GB}"
 PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-24GB}"
 PG_MAINTENANCE_WORK_MEM="${PG_MAINTENANCE_WORK_MEM:-2GB}"
@@ -106,6 +110,14 @@ PG_MAX_WORKER_PROCESSES="${PG_MAX_WORKER_PROCESSES:-10}"
 PG_MAX_PARALLEL_WORKERS="${PG_MAX_PARALLEL_WORKERS:-10}"
 PG_MAX_PARALLEL_WORKERS_PER_GATHER="${PG_MAX_PARALLEL_WORKERS_PER_GATHER:-4}"
 PG_MAX_FILES_PER_PROCESS="${PG_MAX_FILES_PER_PROCESS:-4096}"
+
+# Postgres's own factory default (100) is too low once carto runs multiple
+# concurrent script groups (see abt carto --carto-concurrency), each able to
+# open up to ~16 additional dblink worker connections for the water/land-cover
+# dissolves -- raised here unconditionally since headroom is cheap and a
+# too-low ceiling fails hard ("FATAL: sorry, too many clients already") deep
+# into a run rather than at startup.
+PG_MAX_CONNECTIONS="${PG_MAX_CONNECTIONS:-200}"
 
 # Set to "false" to skip the /etc/sysctl.d, /etc/security/limits.d, and
 # systemd LimitNOFILE tuning below entirely.
@@ -552,6 +564,7 @@ ALTER SYSTEM SET maintenance_work_mem = '${PG_MAINTENANCE_WORK_MEM}';
 ALTER SYSTEM SET max_worker_processes = ${PG_MAX_WORKER_PROCESSES};
 ALTER SYSTEM SET max_parallel_workers = ${PG_MAX_PARALLEL_WORKERS};
 ALTER SYSTEM SET max_parallel_workers_per_gather = ${PG_MAX_PARALLEL_WORKERS_PER_GATHER};
+ALTER SYSTEM SET max_connections = ${PG_MAX_CONNECTIONS};
 ALTER SYSTEM SET random_page_cost = 1.1;
 -- Complements the NOFILE_LIMIT ulimit raised via systemd LimitNOFILE above:
 -- Postgres itself still caps how many files each backend/worker keeps open.
