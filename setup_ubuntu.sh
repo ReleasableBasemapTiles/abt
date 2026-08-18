@@ -6,8 +6,8 @@
 # (Army/Releasable Basemap Tiles) pipeline. This automates README.md
 # section 3 (system dependencies), section 3.2's Postgres role/database/
 # tuning, and section 4's repo checkout. See README.md for the manual
-# walkthrough this codifies, and for the Norway example run this leaves
-# you ready to execute.
+# walkthrough this codifies, and for the full planet run this leaves you
+# ready to execute (section 6 covers a smaller single-extract variant).
 #
 # imposm3 and tippecanoe are compiled from source (from their "master"/
 # "main" branches by default, see IMPOSM_REF/TIPPECANOE_REF below) rather
@@ -166,6 +166,21 @@ TIPPECANOE_REF="${TIPPECANOE_REF:-main}"
 FORCE_REBUILD_IMPOSM="${FORCE_REBUILD_IMPOSM:-false}"
 FORCE_REBUILD_TIPPECANOE="${FORCE_REBUILD_TIPPECANOE:-false}"
 
+# abt-vundler (converts a bundled mbtiles into Esri Compact Cache V2 tile
+# bundles) lives in-tree at abtv2-tools/vundler-rs/ rather than a separate
+# upstream repo, so -- unlike imposm/tippecanoe above -- there's no _REF to
+# pick; it's built from whatever commit ABT_REPO was cloned at (section 9
+# below, after the monorepo clone in section 8). Rust toolchain via rustup
+# rather than `apt install cargo`, same rationale as tippecanoe above:
+# Ubuntu's packaged rustc lags behind, and the crate's 2024 edition needs a
+# reasonably recent compiler. RUSTUP_HOME/CARGO_HOME point at a shared
+# location under /opt rather than $HOME, mirroring MAMBA_ROOT_PREFIX below,
+# so this works regardless of which user runs the script.
+RUSTUP_HOME="${RUSTUP_HOME:-/opt/rust/rustup}"
+CARGO_HOME="${CARGO_HOME:-/opt/rust/cargo}"
+export RUSTUP_HOME CARGO_HOME
+FORCE_REBUILD_VUNDLER="${FORCE_REBUILD_VUNDLER:-false}"
+
 # /opt/micromamba rather than $HOME so it's a single well-known location
 # regardless of which user runs this script or later activates the env, and
 # so it can be shared/inspected system-wide (e.g. by a service account).
@@ -181,6 +196,7 @@ INSTALL_POSTGRES="${INSTALL_POSTGRES:-true}"
 CONFIGURE_POSTGRES="${CONFIGURE_POSTGRES:-true}"
 INSTALL_IMPOSM="${INSTALL_IMPOSM:-true}"
 INSTALL_TIPPECANOE="${INSTALL_TIPPECANOE:-true}"
+INSTALL_VUNDLER="${INSTALL_VUNDLER:-true}"
 INSTALL_CONDA="${INSTALL_CONDA:-true}"
 
 # --- Helpers -----------------------------------------------------------------
@@ -680,8 +696,63 @@ fi
 ABT_TOOLS_DIR="$ABT_MONOREPO_DIR/abtv2-tools"
 ABT_SCHEMA_DIR="$ABT_MONOREPO_DIR/rbt-schema"
 ENV_YAML="$ABT_TOOLS_DIR/env.yaml"
+VUNDLER_CRATE_DIR="$ABT_TOOLS_DIR/vundler-rs"
 
-# --- 9. micromamba + env ------------------------------------------------------------
+# --- 9. Rust toolchain + abt-vundler ---------------------------------------------
+#
+# Placed after the monorepo clone (section 8) rather than alongside
+# imposm/tippecanoe above, since -- unlike those -- there's nothing to
+# fetch from a separate upstream repo here: the source is ABT_REPO's own
+# abtv2-tools/vundler-rs/, so it can only be built once that clone exists.
+
+if [[ "$INSTALL_VUNDLER" == "true" ]]; then
+    stage "Installing Rust toolchain (rustup) for abt-vundler"
+
+    sudo mkdir -p "$(dirname "$RUSTUP_HOME")"
+    sudo chown "${PIPELINE_USER}:${PIPELINE_GROUP}" "$(dirname "$RUSTUP_HOME")"
+
+    export PATH="${CARGO_HOME}/bin:${PATH}"
+    sudo tee /etc/profile.d/99-abt-rust-path.sh >/dev/null <<EOF
+# Managed by setup_ubuntu.sh
+export RUSTUP_HOME="${RUSTUP_HOME}"
+export CARGO_HOME="${CARGO_HOME}"
+export PATH="${CARGO_HOME}/bin:\$PATH"
+EOF
+    sudo chmod 644 /etc/profile.d/99-abt-rust-path.sh
+
+    if command -v cargo >/dev/null 2>&1; then
+        echo "cargo already installed at $(command -v cargo), skipping rustup install"
+    else
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --default-toolchain stable --no-modify-path
+        cargo --version
+    fi
+
+    stage "Building abt-vundler from ${VUNDLER_CRATE_DIR}"
+    if [[ ! -d "$VUNDLER_CRATE_DIR" ]]; then
+        echo "Cannot find ${VUNDLER_CRATE_DIR} -- set ABT_WORKSPACE_DIR/ABT_MONOREPO_DIR, or leave CLONE_REPO=true so the monorepo gets checked out first." >&2
+        exit 1
+    fi
+
+    if command -v abt-vundler >/dev/null 2>&1 && [[ "$FORCE_REBUILD_VUNDLER" != "true" ]]; then
+        echo "abt-vundler already installed at $(command -v abt-vundler), skipping (set FORCE_REBUILD_VUNDLER=true to rebuild)"
+    else
+        # rusqlite's "bundled" feature compiles its own vendored SQLite from
+        # source instead of linking the system library, so build-essential
+        # (already installed in section 2) covers this crate's only native
+        # build dependency -- nothing further to install here.
+        (
+            cd "$VUNDLER_CRATE_DIR"
+            cargo build --release
+            sudo install -m 755 target/release/abt-vundler /usr/local/bin/abt-vundler
+        )
+        abt-vundler --version
+    fi
+else
+    stage "Skipping abt-vundler build (INSTALL_VUNDLER=false)"
+fi
+
+# --- 10. micromamba + env ------------------------------------------------------------
 
 if [[ "$INSTALL_CONDA" == "true" ]]; then
     stage "Installing micromamba"
@@ -750,7 +821,7 @@ else
     stage "Skipping micromamba install (INSTALL_CONDA=false)"
 fi
 
-# --- 10. Verification ----------------------------------------------------------------
+# --- 11. Verification ----------------------------------------------------------------
 
 stage "Verifying installation"
 
@@ -782,13 +853,14 @@ echo "aria2c:      $(aria2c --version 2>&1 | head -n1 || echo 'not available')"
 echo "imposm:      $(imposm version 2>&1 || echo 'not available')"
 echo "tippecanoe:  $(tippecanoe --version 2>&1 || echo 'not available')"
 echo "tile-join:   $(command -v tile-join 2>&1 || echo 'not available')"
+echo "abt-vundler: $(abt-vundler --version 2>&1 || echo 'not available')"
 
 stage "Setup complete"
 cat <<SUMMARY
 
 Full log saved to: ${LOG_FILE}
 
-Next steps (see README.md section 5 for the full Norway walkthrough):
+Next steps (see README.md section 5 for the full planet walkthrough):
 
   # Open a new shell (or reconnect SSH) so this session picks up the raised
   # ulimit -n from /etc/security/limits.d (confirm with: ulimit -n) and the
@@ -807,10 +879,13 @@ Next steps (see README.md section 5 for the full Norway walkthrough):
 
   # -n/--num-workers is optional -- it now defaults to a value scaled to
   # this host's core count; pass it explicitly to override.
-  python abt-tools.py download -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -d all -k norway
-  python abt-tools.py import   -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -d all -p env -k norway -c
+  python abt-tools.py download -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -d all -k planet
+  python abt-tools.py import   -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -d all -p env -k planet
   python abt-tools.py carto    -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env
   python abt-tools.py export   -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env -z 13
   python abt-tools.py bundler  -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env
+
+  # For a smaller single-extract test build instead (e.g. Norway), see
+  # README.md section 6 -- swap in -k norway -c and a separate database.
 
 SUMMARY

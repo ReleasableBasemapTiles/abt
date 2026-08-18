@@ -513,7 +513,7 @@ present.
 
 Validate any change with a small extract rather than a full planet
 build — see the workspace README's
-[Norway walkthrough](../README.md#5-norway-walkthrough) for a complete,
+[small extract walkthrough](../README.md#6-small-extract-walkthrough-norway) for a complete,
 copy-pasteable `download`/`import`/`carto`/`export` sequence, and
 `abt-tools.py debug_aux_import` to test one `import/aux_data/*.json` file in
 isolation.
@@ -536,5 +536,5 @@ USGS (Domestic Names), and the US Dept. of State (LSIB) — see
 
 ## See also
 
-- [Workspace `README.md`](../README.md) — pipeline overview, Ubuntu setup, full Norway walkthrough, troubleshooting.
+- [Workspace `README.md`](../README.md) — pipeline overview, Ubuntu setup, planet + small-extract walkthroughs, troubleshooting.
 - [`abtv2-tools/README.md`](../abtv2-tools/README.md) — CLI command/flag reference, sizing, carto concurrency internals.

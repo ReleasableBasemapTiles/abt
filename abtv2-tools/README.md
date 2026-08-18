@@ -4,7 +4,7 @@ Modular pipeline for building vector tilesets from OpenStreetMap and other open 
 
 Entry point: `python abt-tools.py <command> [options]`
 
-This directory is one half of the monorepo: it's the generic pipeline runner, paired with the sibling [`../rbt-schema/`](../rbt-schema/) schema/config directory passed in as `--schema-dir` -- see "Pipeline" below for what that directory needs to contain. If you're setting up a fresh host and/or want a full worked example (Ubuntu 26.04 provisioning, building a Norway extract end to end), see the parent workspace's [`README.md`](../README.md); this file is the standalone CLI/pipeline reference.
+This directory is one half of the monorepo: it's the generic pipeline runner, paired with the sibling [`../rbt-schema/`](../rbt-schema/) schema/config directory passed in as `--schema-dir` -- see "Pipeline" below for what that directory needs to contain. If you're setting up a fresh host and/or want a full worked example (Ubuntu 26.04 provisioning, a full planet build end to end, plus a smaller single-extract variant), see the parent workspace's [`README.md`](../README.md); this file is the standalone CLI/pipeline reference.
 
 ## Dependencies
 
@@ -58,7 +58,7 @@ commonly overridden ones:
 |---|---|---|
 | `ABT_WORKSPACE_DIR` | `/rbt` | Root dir for the repo checkout + run data |
 | `PG_DATA_DIR` | `/var/lib/postgresql/<major>/main` | PostgreSQL data directory (e.g. point at a mounted NVMe device) |
-| `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `abt_norway` / `abt` / `abt` / `5432` | Pipeline's database/role |
+| `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `rbt` / `rbt` / `rbt` / `5432` | Pipeline's database/role |
 | `IMPOSM_REF` / `TIPPECANOE_REF` | `master` / `main` | Git ref each tool is built from |
 | `CONDA_ENV_NAME` | `abtv2` | micromamba environment name |
 | `CLONE_REPO` | `true` | Set `false` to skip cloning `ABT_REPO` |
@@ -67,8 +67,9 @@ commonly overridden ones:
 For the complete list (every variable, its default, and inline comments explaining
 the reasoning), read the "Configuration" block at the top of the script itself. See
 the parent workspace's [`README.md`](../README.md) section 3 for the manual,
-step-by-step equivalent of what this automates, and section 5 for a full Norway
-extract walkthrough using the environment it sets up.
+step-by-step equivalent of what this automates, section 5 for a full planet
+walkthrough using the environment it sets up, and section 6 for a smaller
+single-extract variant.
 
 ## Pipeline
 
