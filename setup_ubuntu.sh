@@ -48,6 +48,15 @@ echo "Logging full output to ${LOG_FILE}"
 # relocate the whole tree, e.g. onto a dedicated data disk mounted elsewhere.
 ABT_WORKSPACE_DIR="${ABT_WORKSPACE_DIR:-/rbt}"
 ABT_RUN_DIR="${ABT_RUN_DIR:-$ABT_WORKSPACE_DIR/run-planet}"
+
+# Separate workspace for the EPSG:3395 (World Mercator) `export`/`bundler`
+# variant -- see init.sh's own comments for why this needs to be a distinct
+# directory from ABT_RUN_DIR rather than a subdirectory of it (the
+# intermediate .fgb filenames don't encode projection, so sharing a
+# workspace would make a --projection-override export silently reuse the
+# default build's Web Mercator .fgb files instead of reprojecting to 3395).
+ABT_RUN_DIR_3395="${ABT_RUN_DIR_3395:-${ABT_RUN_DIR}-3395}"
+
 ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$ABT_WORKSPACE_DIR/rbt}"
 
 # This is a private repo, cloned over SSH using a deploy key rather than
@@ -288,8 +297,8 @@ fi
 # micromamba, python abt-tools.py) can write there without sudo.
 
 stage "Ensuring ABT root directory ${ABT_WORKSPACE_DIR} exists"
-sudo mkdir -p "$ABT_WORKSPACE_DIR" "$ABT_RUN_DIR"
-sudo chown "${PIPELINE_USER}:${PIPELINE_GROUP}" "$ABT_WORKSPACE_DIR" "$ABT_RUN_DIR"
+sudo mkdir -p "$ABT_WORKSPACE_DIR" "$ABT_RUN_DIR" "$ABT_RUN_DIR_3395"
+sudo chown "${PIPELINE_USER}:${PIPELINE_GROUP}" "$ABT_WORKSPACE_DIR" "$ABT_RUN_DIR" "$ABT_RUN_DIR_3395"
 
 if ! mountpoint -q "$ABT_WORKSPACE_DIR" && ! mountpoint -q "$(dirname "$ABT_WORKSPACE_DIR")"; then
     echo "Warning: neither ${ABT_WORKSPACE_DIR} nor its parent directory is a separate mount point." >&2
@@ -833,7 +842,7 @@ run_in_env() {
     fi
 }
 
-echo "abt_root:    ${ABT_WORKSPACE_DIR} (monorepo: ${ABT_MONOREPO_DIR}, run dir: ${ABT_RUN_DIR})"
+echo "abt_root:    ${ABT_WORKSPACE_DIR} (monorepo: ${ABT_MONOREPO_DIR}, run dir: ${ABT_RUN_DIR}, run dir [3395]: ${ABT_RUN_DIR_3395})"
 echo "python:      $(run_in_env python --version 2>&1 || echo 'not available')"
 echo "psql:        $(psql --version 2>&1 || echo 'not available')"
 echo "initdb:      $("${PG_BIN_DIR}/initdb" --version 2>&1 || echo 'not available')"
@@ -884,6 +893,12 @@ Next steps (see README.md section 5 for the full planet walkthrough):
   python abt-tools.py carto    -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env
   python abt-tools.py export   -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env -z 13
   python abt-tools.py bundler  -w ${ABT_RUN_DIR} -s ${ABT_SCHEMA_DIR} -p env
+
+  # Optional EPSG:3395 (World Mercator) variant, reusing the same carto'd
+  # export schema -- written into its own workspace (${ABT_RUN_DIR_3395})
+  # rather than ${ABT_RUN_DIR} itself; see init.sh's comments for why.
+  python abt-tools.py export   -w ${ABT_RUN_DIR_3395} -s ${ABT_SCHEMA_DIR} -p env -z 13 --projection-override EPSG:3395
+  python abt-tools.py bundler  -w ${ABT_RUN_DIR_3395} -s ${ABT_SCHEMA_DIR} -p env
 
   # For a smaller single-extract test build instead (e.g. Norway), see
   # README.md section 6 -- swap in -k norway -c and a separate database.
