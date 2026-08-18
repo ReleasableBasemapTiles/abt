@@ -15,9 +15,12 @@ import json
 from pathlib import Path
 import yaml
 
-from .download.downloader import Downloader, DownloadFile
+from .download.downloader import Downloader, DownloadFile, DownloadAria2
+from .download.planet_mirrors import discover_planet_sources
 from .importer.importer import Importer, ImportImposm
 from .schema import DataSchema, ProcessingDirectorySchema
+
+PLANET_IDENTIFIER = "planet"
 
 
 def _geometry_bbox(geometry: Dict) -> Tuple[float, float, float, float]:
@@ -61,8 +64,8 @@ def getGeoFabrikIndex() -> Dict[str, "OSMData"]:
                 bbox=_geometry_bbox(f["geometry"]) if f.get("geometry") else None
             )
 
-    return_dict["planet"] = OSMData(
-        identifier="planet",
+    return_dict[PLANET_IDENTIFIER] = OSMData(
+        identifier=PLANET_IDENTIFIER,
         pbf_location="https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf",
         diff_location="https://planet.openstreetmap.org/replication/changesets/"
     )
@@ -222,11 +225,26 @@ class OSMProcessingModel(BaseModel):
     def init_download(self) -> Downloader:
         """Initializes a Downloader instance for the PBF file.
 
+        For the full planet file, this discovers every current mirror via
+        `discover_planet_sources` and downloads from all of them at once
+        via aria2c (see download/planet_mirrors.py and DownloadAria2) --
+        aggregating their bandwidth instead of being capped by a single
+        mirror, and mandatorily checksum-verifying the result. Every other
+        (Geofabrik) key keeps using the single-URL requests-based
+        DownloadFile path, since Geofabrik only ever publishes one URL per
+        extract -- there is nothing to mirror-race there.
+
         Returns:
             A configured Downloader object ready to start the download.
         """
+        if self.osm_data.identifier == PLANET_IDENTIFIER:
+            urls, md5 = discover_planet_sources(log_dir=self.download_log_dir)
+            downloader = DownloadAria2(urls=urls, md5=md5)
+        else:
+            downloader = DownloadFile(url=self.osm_data.pbf_location)
+
         return Downloader(
-            downloader=DownloadFile(url=self.osm_data.pbf_location),
+            downloader=downloader,
             output_dir=self.pbf_directory,
             filename=self.osm_data.filename,
             log_dir=self.download_log_dir

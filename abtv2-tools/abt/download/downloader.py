@@ -21,10 +21,16 @@ import datetime
 from time import perf_counter
 
 from ..utils.logger import get_logger
+from ..utils.subprocess_tools import run_subprocess
 from ..utils.zip_tools import extract_zip
 from .boto_configuration import s3, multipart_transfer_config
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Identifies this pipeline to aria2c's remote servers, mirroring the
+# politeness convention openmaptiles-tools' download-osm follows for its own
+# planet-mirror requests (see download/planet_mirrors.py's USER_AGENT).
+ARIA2_USER_AGENT = "abt-planet-downloader/1.0 (+https://github.com/ReleaseableBasemapTiles/abt)"
 
 
 def get_retry_session() -> requests.Session:
@@ -99,6 +105,49 @@ class DownloadFile(BaseModel):
     url: HttpUrl
 
 
+class DownloadAria2(BaseModel):
+    """
+    A Pydantic model for a multi-source, checksum-verified download executed
+    via the aria2c CLI tool instead of a plain HTTP GET.
+
+    `urls` must all be byte-identical copies of the same file (verified by
+    `md5`); aria2c fetches segments from all of them at once, aggregating
+    their bandwidth instead of being capped by a single mirror's
+    per-connection throughput. Currently only used for OSM planet
+    downloads -- see osm_data_model.py and download/planet_mirrors.py,
+    which discover `urls`/`md5` from the known planet mirrors.
+    """
+    urls: List[HttpUrl]
+    md5: str
+
+
+def build_aria2c_cmd(downloader: DownloadAria2, output_dir: Path, filename: str) -> List[str]:
+    """Builds the aria2c command line for a DownloadAria2 task.
+
+    --checksum makes verification mandatory: combined with
+    --check-integrity, aria2c itself re-validates any existing/partial file
+    against `md5` before deciding whether to skip, resume, or redownload --
+    no separate exists-on-disk check is needed here. --split ensures at
+    least one segment per mirror, so aria2c pulls from all of `urls`
+    concurrently rather than just the first one.
+    """
+    return [
+        "aria2c",
+        f"--checksum=md5={downloader.md5}",
+        f"--split={len(downloader.urls)}",
+        "--check-integrity=true",
+        "--continue=true",
+        "--allow-overwrite=true",
+        "--auto-file-renaming=false",
+        "--http-accept-gzip=true",
+        "--summary-interval=60",
+        f"--user-agent={ARIA2_USER_AGENT}",
+        f"--dir={output_dir}",
+        f"--out={filename}",
+        *[str(u) for u in downloader.urls],
+    ]
+
+
 class DownloadOverture(BaseModel):
     """
     A Pydantic model to manage downloading data from the Overture Maps S3 bucket.
@@ -150,12 +199,13 @@ class Downloader(BaseModel):
     or an Overture Maps S3 location.
 
     Attributes:
-        downloader: The specific downloader model (DownloadFile or DownloadOverture).
+        downloader: The specific downloader model (DownloadFile, DownloadAria2,
+            or DownloadOverture).
         output_dir: The directory where the downloaded files will be saved.
         filename: The target filename or folder name for the download.
         log_dir: The directory for storing logs.
     """
-    downloader: Union[DownloadOverture, DownloadFile]
+    downloader: Union[DownloadOverture, DownloadFile, DownloadAria2]
     output_dir: Path
     filename: str
     log_dir: Path
@@ -174,6 +224,15 @@ class Downloader(BaseModel):
         if isinstance(self.downloader, DownloadFile):
             download_path = self.output_dir / self.filename
             get_file(file_url=self.downloader.url, file_path=download_path, logger=logger)
+
+        elif isinstance(self.downloader, DownloadAria2):
+            run_subprocess(
+                cmd=build_aria2c_cmd(self.downloader, self.output_dir, self.filename),
+                layer=Path(self.filename).stem,
+                process_stage="download",
+                log_dir=self.log_dir,
+                tool_name="aria2c",
+            )
 
         elif isinstance(self.downloader, DownloadOverture):
             output_path = self.output_dir / self.filename

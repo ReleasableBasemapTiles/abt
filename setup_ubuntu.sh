@@ -47,8 +47,8 @@ echo "Logging full output to ${LOG_FILE}"
 # split across $HOME and wherever this script happens to live. Override to
 # relocate the whole tree, e.g. onto a dedicated data disk mounted elsewhere.
 ABT_WORKSPACE_DIR="${ABT_WORKSPACE_DIR:-/rbt}"
-ABT_RUN_DIR="${ABT_RUN_DIR:-$ABT_WORKSPACE_DIR/run-norway}"
-ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$ABT_WORKSPACE_DIR/abt}"
+ABT_RUN_DIR="${ABT_RUN_DIR:-$ABT_WORKSPACE_DIR/run-planet}"
+ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$ABT_WORKSPACE_DIR/rbt}"
 
 # This is a private repo, cloned over SSH using a deploy key rather than
 # HTTPS. The hostname below ("abt") is not github.com itself -- it's expected
@@ -76,16 +76,16 @@ CLONE_REPO="${CLONE_REPO:-true}"
 PIPELINE_USER="${PIPELINE_USER:-${SUDO_USER:-$(id -un)}}"
 PIPELINE_GROUP="${PIPELINE_GROUP:-$(id -gn "$PIPELINE_USER")}"
 
-PG_DB="${PG_DB:-abt_norway}"
-PG_USER="${PG_USER:-abt}"
-PG_PASSWORD="${PG_PASSWORD:-abt}"
+PG_DB="${PG_DB:-rbt}"
+PG_USER="${PG_USER:-rbt}"
+PG_PASSWORD="${PG_PASSWORD:-rbt}"
 PG_PORT="${PG_PORT:-5432}"
 
 # This script bypasses Debian's postgresql-common cluster tooling
 # (pg_createcluster/pg_ctlcluster/pg_lsclusters) entirely and instead
 # initializes and runs the cluster with the raw upstream initdb/pg_ctl
 # binaries, wrapped in a small systemd unit named PG_SERVICE_NAME.
-PG_SERVICE_NAME="${PG_SERVICE_NAME:-postgresql-abt}"
+PG_SERVICE_NAME="${PG_SERVICE_NAME:-postgresql-rbt}"
 
 # Data directory for the cluster, initialized via a plain `initdb`. Defaults
 # to /var/lib/postgresql/<major>/main (the standard Debian/Ubuntu path, just
@@ -103,12 +103,12 @@ FORCE_REINIT_POSTGRES="${FORCE_REINIT_POSTGRES:-false}"
 # in README.md section 2 (Sizing). For a large single host (e.g. 48 vCPU /
 # 384 GB), override all of these -- README.md's Sizing section has a
 # copy-pasteable `export` block sized for that tier.
-PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-8GB}"
-PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-24GB}"
-PG_MAINTENANCE_WORK_MEM="${PG_MAINTENANCE_WORK_MEM:-2GB}"
-PG_MAX_WORKER_PROCESSES="${PG_MAX_WORKER_PROCESSES:-10}"
-PG_MAX_PARALLEL_WORKERS="${PG_MAX_PARALLEL_WORKERS:-10}"
-PG_MAX_PARALLEL_WORKERS_PER_GATHER="${PG_MAX_PARALLEL_WORKERS_PER_GATHER:-4}"
+PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-96GB}"
+PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-192GB}"
+PG_MAINTENANCE_WORK_MEM="${PG_MAINTENANCE_WORK_MEM:-8GB}"
+PG_MAX_WORKER_PROCESSES="${PG_MAX_WORKER_PROCESSES:-44}"
+PG_MAX_PARALLEL_WORKERS="${PG_MAX_PARALLEL_WORKERS:-40}"
+PG_MAX_PARALLEL_WORKERS_PER_GATHER="${PG_MAX_PARALLEL_WORKERS_PER_GATHER:-8}"
 PG_MAX_FILES_PER_PROCESS="${PG_MAX_FILES_PER_PROCESS:-4096}"
 
 # Postgres's own factory default (100) is too low once carto runs multiple
@@ -117,7 +117,7 @@ PG_MAX_FILES_PER_PROCESS="${PG_MAX_FILES_PER_PROCESS:-4096}"
 # dissolves -- raised here unconditionally since headroom is cheap and a
 # too-low ceiling fails hard ("FATAL: sorry, too many clients already") deep
 # into a run rather than at startup.
-PG_MAX_CONNECTIONS="${PG_MAX_CONNECTIONS:-200}"
+PG_MAX_CONNECTIONS="${PG_MAX_CONNECTIONS:-400}"
 
 # Set to "false" to skip the /etc/sysctl.d, /etc/security/limits.d, and
 # systemd LimitNOFILE tuning below entirely.
@@ -200,6 +200,56 @@ on_error() {
 }
 trap on_error ERR
 
+# PG_SERVICE_NAME (section 3 below) wraps pg_ctl, but nothing stops a
+# postmaster from being started directly via `pg_ctl start -D PG_DATA_DIR`
+# -- e.g. by hand, while debugging -- instead of `systemctl start
+# PG_SERVICE_NAME`. systemd has no record of a unit it didn't start, so
+# `systemctl start`/`restart` still run the unit's own ExecStart (pg_ctl
+# start), which then fails outright because a postmaster is already bound
+# to PG_DATA_DIR/PG_PORT. These helpers check for that out-of-band case
+# directly via `pg_ctl status` rather than trusting systemd's view alone,
+# so the rest of the script behaves the same regardless of how Postgres
+# was last started/stopped. They depend on PG_SERVICE_NAME/PG_DATA_DIR/
+# PG_BIN_DIR, which aren't assigned their final values until section 3.
+
+pg_is_running() {
+    sudo -u postgres env "PATH=${PG_BIN_DIR}:/usr/bin:/bin" \
+        pg_ctl status -D "$PG_DATA_DIR" >/dev/null 2>&1
+}
+
+pg_service_stop() {
+    if systemctl is-active --quiet "$PG_SERVICE_NAME" 2>/dev/null; then
+        sudo systemctl stop "$PG_SERVICE_NAME"
+    fi
+    # Fallback: systemd only stopped something above if it was the one that
+    # started it. A postmaster started directly via pg_ctl is invisible to
+    # systemd and would otherwise still be left holding PG_DATA_DIR/PG_PORT.
+    if pg_is_running; then
+        echo "Stopping postmaster running against ${PG_DATA_DIR} (not managed by ${PG_SERVICE_NAME}.service)"
+        sudo -u postgres env "PATH=${PG_BIN_DIR}:/usr/bin:/bin" \
+            pg_ctl stop -D "$PG_DATA_DIR" -m fast -w -t 60 2>/dev/null \
+            || sudo kill "$(sudo head -n1 "$PG_DATA_DIR/postmaster.pid" 2>/dev/null)" 2>/dev/null \
+            || true
+    fi
+}
+
+pg_service_ensure_running() {
+    if pg_is_running; then
+        echo "Postgres is already running against ${PG_DATA_DIR}"
+    else
+        echo "${PG_SERVICE_NAME} is not running, starting it"
+        sudo systemctl start "$PG_SERVICE_NAME"
+    fi
+}
+
+pg_service_restart() {
+    pg_service_stop
+    # Always (re)start via systemctl, even if pg_service_stop's fallback is
+    # what actually stopped it, so a previously out-of-band postmaster gets
+    # adopted back under systemd from this point on.
+    sudo systemctl start "$PG_SERVICE_NAME"
+}
+
 # --- 1. OS check --------------------------------------------------------------
 
 stage "Checking OS"
@@ -236,7 +286,7 @@ stage "Installing base apt packages"
 export DEBIAN_FRONTEND=noninteractive
 sudo apt-get update
 sudo apt-get install -y \
-    build-essential git curl wget unzip \
+    build-essential git curl wget unzip aria2 \
     libsqlite3-dev zlib1g-dev sqlite3
 
 # --- 2b. Kernel tuning for PostgreSQL / high I/O workloads ----------------------
@@ -398,27 +448,15 @@ EOF
     stage "Initializing PostgreSQL ${PG_MAJOR} data directory at ${PG_DATA_DIR} (initdb)"
 
     # Stop any server already running against this data directory (e.g. left
-    # over from a previous run of this script) before touching its contents.
-    # initdb runs its own temporary "bootstrap" backend to populate template1,
-    # and if an old postmaster for this same data dir/port is still attached
-    # to a shared memory segment -- even after FORCE_REINIT_POSTGRES wipes its
+    # over from a previous run of this script, or started directly via
+    # pg_ctl rather than systemctl) before touching its contents. initdb
+    # runs its own temporary "bootstrap" backend to populate template1, and
+    # if an old postmaster for this same data dir/port is still attached to
+    # a shared memory segment -- even after FORCE_REINIT_POSTGRES wipes its
     # files out from under it -- that bootstrap backend fails with "pre-
     # existing shared memory block ... is still in use".
-    if systemctl list-unit-files "${PG_SERVICE_NAME}.service" >/dev/null 2>&1 && systemctl is-active --quiet "$PG_SERVICE_NAME"; then
-        echo "Stopping already-running ${PG_SERVICE_NAME}.service before (re)initializing ${PG_DATA_DIR}"
-        sudo systemctl stop "$PG_SERVICE_NAME"
-    fi
-    # Defensive fallback in case a postmaster is running against this data
-    # directory some other way (not via our systemd unit).
-    if [[ -f "$PG_DATA_DIR/postmaster.pid" ]]; then
-        OLD_PG_PID="$(sudo head -n1 "$PG_DATA_DIR/postmaster.pid" 2>/dev/null || true)"
-        if [[ -n "$OLD_PG_PID" ]] && sudo kill -0 "$OLD_PG_PID" 2>/dev/null; then
-            echo "Found a still-running postmaster (pid ${OLD_PG_PID}) for ${PG_DATA_DIR}, stopping it"
-            sudo -u postgres env "PATH=${PG_BIN_DIR}:/usr/bin:/bin" \
-                pg_ctl stop -D "$PG_DATA_DIR" -m fast -w -t 60 2>/dev/null \
-                || sudo kill "$OLD_PG_PID" 2>/dev/null || true
-        fi
-    fi
+    echo "Stopping any server already running against ${PG_DATA_DIR} before (re)initializing it"
+    pg_service_stop
 
     if ! mountpoint -q "$PG_DATA_DIR" && ! mountpoint -q "$(dirname "$PG_DATA_DIR")"; then
         echo "Warning: neither ${PG_DATA_DIR} nor its parent directory is a separate mount point." >&2
@@ -511,13 +549,8 @@ if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
     # *started* -- e.g. after a reboot. Everything from here on needs a
     # live connection, so explicitly check and start it rather than
     # assuming the enable --now above (section 3) left it running.
-    stage "Ensuring ${PG_SERVICE_NAME}.service is running"
-    if systemctl is-active --quiet "$PG_SERVICE_NAME"; then
-        echo "${PG_SERVICE_NAME} is already running"
-    else
-        echo "${PG_SERVICE_NAME} is not running, starting it"
-        sudo systemctl start "$PG_SERVICE_NAME"
-    fi
+    stage "Ensuring Postgres is running"
+    pg_service_ensure_running
 
     stage "Creating role '${PG_USER}' and database '${PG_DB}'"
 
@@ -572,7 +605,7 @@ ALTER SYSTEM SET max_files_per_process = ${PG_MAX_FILES_PER_PROCESS};
 SQL
 
     stage "Restarting PostgreSQL to apply tuning"
-    sudo systemctl restart "$PG_SERVICE_NAME"
+    pg_service_restart
 else
     stage "Skipping PostgreSQL role/database/tuning configuration (CONFIGURE_POSTGRES=false)"
 fi
@@ -745,6 +778,7 @@ if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
     echo "postgis:     $(PGPASSWORD="$PG_PASSWORD" psql -h 127.0.0.1 -p "$PG_PORT" -U "$PG_USER" -d "$PG_DB" -tAc 'SELECT postgis_version();' 2>&1 || echo 'connection failed')"
 fi
 echo "ogr2ogr:     $(run_in_env ogr2ogr --version 2>&1 || echo 'not available')"
+echo "aria2c:      $(aria2c --version 2>&1 | head -n1 || echo 'not available')"
 echo "imposm:      $(imposm version 2>&1 || echo 'not available')"
 echo "tippecanoe:  $(tippecanoe --version 2>&1 || echo 'not available')"
 echo "tile-join:   $(command -v tile-join 2>&1 || echo 'not available')"

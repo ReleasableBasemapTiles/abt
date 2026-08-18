@@ -15,6 +15,7 @@ ABT was developed in Python 3.13 (see `env.yaml`) and tested on Rocky Linux 9 an
 - GDAL (ogr2ogr) >=3.9.2
 - imposm3 >=0.14
 - tippecanoe >=2.76
+- aria2 (`aria2c`) -- only needed for `download -k planet`; see "Commands" below
 
 Python packages: `env.yaml`. PostgreSQL connection: `PGHOST`/`PGPORT`/`PGDATABASE`/
 `PGUSER`/`PGPASSWORD` env vars, or `--pg-config`.
@@ -82,7 +83,7 @@ flowchart LR
 
 | Stage | Tool(s) invoked | Reads | Writes |
 |---|---|---|---|
-| `download` | `requests`, `boto3` (anonymous S3) | Geofabrik/planet index, aux source URLs | `<working_dir>/osm/pbf/`, `<working_dir>/aux_downloads/` |
+| `download` | `requests` (Geofabrik extracts, aux), `aria2c` (planet), `boto3` (anonymous S3) | Geofabrik/planet index, aux source URLs | `<working_dir>/osm/pbf/`, `<working_dir>/aux_downloads/` |
 | `import` | `imposm`, `ogr2ogr` | PBF + aux downloads | Postgres schemas `osm`, `aux_data` |
 | `carto` | raw SQL via `psycopg2`, optionally several scripts at once | Postgres schemas `osm`, `aux_data` | Postgres schema `export` |
 | `export` | `ogr2ogr`, `tippecanoe` | Postgres schema `export` | `<working_dir>/flatgeobuf/*.fgb`, `<working_dir>/mbtiles/*.mbtiles` |
@@ -185,6 +186,18 @@ download -w <dir> -s <dir> -d {osm,aux,all} [-n workers] [-k osm_key]
 Downloads OSM PBF and/or aux files. Skips files that already exist.
 `-k/--osm-key` **defaults to `planet`** when omitted -- always pass an explicit
 Geofabrik key (e.g. `-k norway`) unless a full-planet download is actually intended.
+
+For `-k planet` specifically, OSM PBF download goes through `aria2c` instead of a
+plain HTTP GET: [`abt/download/planet_mirrors.py`](abt/download/planet_mirrors.py)
+queries the ~11 known public planet mirrors concurrently, cross-checks their
+reported MD5/date/size to agree on one current file, and hands every URL serving
+it to `aria2c` at once, which downloads segments from all of them in parallel --
+aggregating their bandwidth instead of being capped by any single mirror. MD5
+verification is mandatory for planet: if the mirrors can't be reconciled into one
+trustworthy hash, the download fails rather than proceeding unverified. Geofabrik
+extracts only ever publish one URL each, so they keep using the original
+single-stream `requests` downloader -- this only changes `-k planet` behavior.
+Requires the `aria2` apt package (installed by `setup_ubuntu.sh`).
 
 ```
 import -w <dir> -s <dir> -d {osm,aux,all} [-n workers] [-p pg_config] [-k osm_key] [-f] [-c]

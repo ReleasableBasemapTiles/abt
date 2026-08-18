@@ -30,7 +30,7 @@ flowchart LR
 
 | Stage | Tool(s) invoked | Reads | Writes |
 |---|---|---|---|
-| `download` | `requests`, `boto3` (anonymous S3) | Geofabrik/planet index, aux source URLs | `<working_dir>/osm/pbf/`, `<working_dir>/aux_downloads/` |
+| `download` | `requests` (Geofabrik extracts, aux), `aria2c` (planet), `boto3` (anonymous S3) | Geofabrik/planet index, aux source URLs | `<working_dir>/osm/pbf/`, `<working_dir>/aux_downloads/` |
 | `import` | `imposm`, `ogr2ogr` | PBF + aux downloads | Postgres schemas `osm`, `aux_data` |
 | `carto` | raw SQL via `psycopg2`, optionally several scripts at once | Postgres schemas `osm`, `aux_data` | Postgres schema `export` |
 | `export` | `ogr2ogr`, `tippecanoe` | Postgres schema `export` | `<working_dir>/flatgeobuf/*.fgb`, `<working_dir>/mbtiles/*.mbtiles` |
@@ -97,11 +97,11 @@ Run all of this on a fresh Ubuntu 26.04 ("resolute") host. Steps assume a non-ro
 ```bash
 sudo apt update
 sudo apt install -y \
-  build-essential git curl wget unzip \
+  build-essential git curl wget unzip aria2 \
   libsqlite3-dev zlib1g-dev sqlite3
 ```
 
-`libsqlite3-dev` and `zlib1g-dev` are needed to build tippecanoe from source (below); `build-essential` supplies `g++`/`make`; `sqlite3` is the CLI used later to inspect the final `.mbtiles` output.
+`libsqlite3-dev` and `zlib1g-dev` are needed to build tippecanoe from source (below); `build-essential` supplies `g++`/`make`; `sqlite3` is the CLI used later to inspect the final `.mbtiles` output; `aria2` provides `aria2c`, used by `download -k planet` for a multi-mirror, checksum-verified download of the planet file (see [`abtv2-tools/README.md`](abtv2-tools/README.md#commands)) -- not needed for the Norway walkthrough below, which uses `-k norway` instead.
 
 ### 3.2 PostgreSQL 18 + PostGIS 3.6
 
