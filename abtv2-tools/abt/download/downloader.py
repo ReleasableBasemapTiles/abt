@@ -10,15 +10,12 @@ includes a simple utility for extracting zip archives.
 from pydantic import BaseModel, HttpUrl
 from typing import Union, List
 from pathlib import Path
-from tqdm import tqdm
-import os
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import urllib3
 import functools
 import datetime
-from time import perf_counter
 
 from ..utils.logger import get_logger
 from ..utils.subprocess_tools import run_subprocess
@@ -64,11 +61,11 @@ def get_retry_session() -> requests.Session:
 
 def get_file(file_url: str, file_path: Path, logger):
     """
-    Downloads a single file from a URL to a local path with progress tracking.
+    Downloads a single file from a URL to a local path.
 
     It checks if the file already exists to prevent re-downloading. It uses a
-    session with retry logic and streams the download to handle large files
-    efficiently, showing a progress bar via tqdm.
+    session with retry logic and streams the download in chunks to handle
+    large files efficiently.
 
     Args:
         file_url: The URL of the file to download.

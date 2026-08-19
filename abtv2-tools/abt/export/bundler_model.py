@@ -57,16 +57,19 @@ class Bundler(BaseModel):
         """
         try:
             con = sqlite3.connect(path)
-            cur = con.cursor()
-            cur.execute("SELECT count(*) FROM sqlite_master WHERE name='tiles' AND type IN ('table', 'view')")
-            has_table = cur.fetchone()[0] == 1
-            if not has_table:
+            # sqlite3.Connection's own context-manager protocol only
+            # commits/rolls back a transaction on exit -- it does not
+            # close the connection, so this uses an explicit finally
+            # instead (matching mbtiles_metadata.py's consistent pattern).
+            try:
+                cur = con.cursor()
+                cur.execute("SELECT count(*) FROM sqlite_master WHERE name='tiles' AND type IN ('table', 'view')")
+                if cur.fetchone()[0] != 1:
+                    return False
+                cur.execute("SELECT count(*) FROM tiles")
+                return cur.fetchone()[0] > 0
+            finally:
                 con.close()
-                return False
-            cur.execute("SELECT count(*) FROM tiles")
-            has_rows = cur.fetchone()[0] > 0
-            con.close()
-            return has_rows
         except Exception:
             return False
 
@@ -115,7 +118,7 @@ class Bundler(BaseModel):
     def bundled_mbtiles_tmp(self) -> Path:
         """Returns the full path to the temporary bundled MBTiles file."""
         tmp_dir = self.bundled_dir / "_tmp"
-        tmp_dir.mkdir(exist_ok=True)
+        tmp_dir.mkdir(parents=True, exist_ok=True)
         return tmp_dir
 
     @property

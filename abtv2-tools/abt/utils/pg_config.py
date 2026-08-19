@@ -8,7 +8,6 @@ for testing the connection, resetting schemas, and executing SQL scripts.
 """
 
 import os
-from typing import List, Tuple
 from pydantic import BaseModel
 import psycopg2
 from pathlib import Path

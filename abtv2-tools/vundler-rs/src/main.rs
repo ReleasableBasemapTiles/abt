@@ -233,6 +233,51 @@ mod tests {
     use super::*;
 
     #[test]
+    fn bundle_filename_uses_minimum_four_hex_digits_and_can_overflow_at_high_zoom() {
+        // R{:04x}C{:04x} is a MINIMUM width format, not a fixed width --
+        // same as the original Python implementation's
+        // f"R{start_row:04x}C{start_col:04x}" (see git history at
+        // 9b85f2b). Both are correct at every zoom this tool is actually
+        // used at (z4..z13 real data; CLI default --max-zoom is 13, see
+        // cli_funcs/vundler.py), but the format silently grows past the
+        // conventional 10-character "R####C####" shape once a bundle's
+        // start_row/start_col reaches 0x10000 (zoom 17+: bundle_row can
+        // reach 512, and 512*128 = 65536 = 0x10000), which oracle.py's
+        // `len(name) != 10` check would then reject. Not a
+        // Rust-introduced regression -- documented here as a
+        // pre-existing, shared limitation (see
+        // docs/code-review-findings.md), deliberately not fixed.
+        let within_four_digits = BundleKey {
+            zoom: 16,
+            bundle_row: 511,
+            bundle_col: 0,
+        };
+        let name = bundle_path(Path::new("/out"), &within_four_digits)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert_eq!(name, "Rff80C0000.bundle");
+
+        let overflows_four_digits = BundleKey {
+            zoom: 17,
+            bundle_row: 512,
+            bundle_col: 0,
+        };
+        let name = bundle_path(Path::new("/out"), &overflows_four_digits)
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert_eq!(
+            name, "R10000C0000.bundle",
+            "5 hex digits -- not truncated to the conventional 4"
+        );
+    }
+
+    #[test]
     fn separators_match_python_json_dumps_default() {
         let out = format_metadata_json(r#"{"a":1,"b":[1,2,3],"c":{"d":4}}"#).unwrap();
         assert_eq!(

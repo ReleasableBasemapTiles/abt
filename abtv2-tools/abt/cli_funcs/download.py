@@ -1,5 +1,5 @@
 import typer
-from typing import Annotated, List, Union, Optional
+from typing import Annotated, List
 from pathlib import Path
 
 from ..schema import DataSchema, ProcessingDirectorySchema
@@ -13,7 +13,6 @@ from ..utils.fields import (
     schema_dir_field,
     data_type_field,
     CliDataType,
-    pg_config_field,
     num_workers_field,
     osm_key_field,
     default_num_workers,

@@ -4,43 +4,43 @@ overview: Build the two missing test harnesses — a working golden-oracle regre
 todos:
   - id: freeze-reference
     content: Extract the pre-port Python vundler from git 9b85f2b into vundler-rs/tests/reference/vundler_reference.py as a standalone stdlib-only frozen oracle
-    status: pending
+    status: completed
   - id: tiny-fixtures
     content: Add vundler-rs/tests/fixtures.py generating tiny deterministic mbtiles at bundle boundaries (replacing the 245 MB gitignored fixtures) covering z0, seams, sub-bundle zoom, sparse, orphan map rows, missing/empty metadata, zero tiles
-    status: pending
+    status: completed
   - id: golden-test
     content: Add vundler-rs/tests/test_golden.py comparing frozen reference vs Rust binary output per fixture via oracle.compare_trees, including max_zoom truncation, skipping if the binary is unbuilt
-    status: pending
+    status: completed
   - id: rust-integration
     content: "Add vundler-rs/tests/cli.rs integration tests driving CARGO_BIN_EXE_abt-vundler: end-to-end, metadata.json, empty input, max_zoom, num_workers determinism, missing-input failure"
-    status: pending
+    status: completed
   - id: rust-unit-gaps
     content: "Fill bundle.rs/db.rs unit-test gaps: local_index corners, has_map=false plain-tiles fallback, zoom 0, R####C#### filename width limit above z16"
-    status: pending
+    status: completed
   - id: py-scaffolding
     content: Add abtv2-tools/pyproject.toml with pytest pythonpath, requirements-dev.txt, pytest in env.yaml, and the missing abt/cli_funcs/__init__.py
-    status: pending
+    status: completed
   - id: py-tests-utils
     content: "Write tests for abt/utils and abt/parallel: default_num_workers, validate_projection_override, PGConfig string building, RunReporter status logic, run_subprocess, extract_zip, ParallelExecutor"
-    status: pending
+    status: completed
   - id: py-tests-export
     content: "Write tests for abt/export: TippecanoeOptions flags, TileLayer.from_dict/tippecanoe_cmd/ogr_cmd/ogr_sql, Bundler.tile_join_cmd/_has_tiles, mbtiles_metadata round-trip"
-    status: pending
+    status: completed
   - id: py-tests-models-download
     content: Write tests for pydantic validators (AuxDataLayer, ImposmMappingFile, DataSchema), _geometry_bbox, CartoExecutionPlan, and download helpers including the planet_mirrors winner heuristic
-    status: pending
+    status: completed
   - id: py-tests-cli
     content: Write tests for cli_funcs/vundler.resolve_input and abt/vundler.convert() argv construction
-    status: pending
+    status: completed
   - id: findings-report
     content: Write docs/code-review-findings.md with every issue, file:line, severity, and whether it is fixed or reported-only
-    status: pending
+    status: completed
   - id: targeted-fixes
     content: "Fix the clear-cut test-covered bugs: None derefs in tippecanoe_cmd/ogr_cmd, diff_location optionality, count_features sentinel, parents=True, _has_tiles leak, Popen context manager, unused imports, stale docstrings"
-    status: pending
+    status: completed
   - id: verify-all
     content: Run cargo test, both pytest suites, and the golden cross-check; confirm all green
-    status: pending
+    status: completed
 isProject: false
 ---
 

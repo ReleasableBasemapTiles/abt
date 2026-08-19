@@ -1,7 +1,6 @@
 import typer
-from typing import Annotated, List, Optional, Union
+from typing import Annotated, List, Optional
 from pathlib import Path
-from tqdm import tqdm
 
 from .cli_helpers import get_pg_config
 from ..schema import DataSchema, ProcessingDirectorySchema
@@ -12,7 +11,6 @@ from ..utils.run_reporter import RunReporter
 from ..utils.fields import (
     working_dir_field,
     schema_dir_field,
-    data_type_field,
     pg_config_field,
     num_workers_field,
     max_zoom_field,

@@ -181,6 +181,75 @@ mod tests {
         }
     }
 
+    /// Builds an in-memory mbtiles with a plain single `tiles` table (no
+    /// `map`/`images` split) -- the fallback path exercised when
+    /// `has_map` is false. Real tippecanoe/tile-join output always uses
+    /// the map/images split (see `build_fixture`'s docs); this schema
+    /// represents any other producer that writes a spec-conformant plain
+    /// mbtiles instead.
+    fn build_plain_tiles_fixture(conn: &Connection, tiles: &[(i64, i64, i64, &[u8])]) {
+        conn.execute_batch(
+            "CREATE TABLE tiles (zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB);
+             CREATE UNIQUE INDEX tile_index ON tiles (zoom_level, tile_column, tile_row);
+             CREATE TABLE metadata (name TEXT, value TEXT);",
+        )
+        .unwrap();
+        for (zoom, col, row, data) in tiles {
+            conn.execute(
+                "INSERT INTO tiles (zoom_level, tile_column, tile_row, tile_data) VALUES (?1, ?2, ?3, ?4)",
+                params![zoom, col, row, data],
+            )
+            .unwrap();
+        }
+    }
+
+    #[test]
+    fn plain_tiles_table_fallback_when_has_map_is_false() {
+        let conn = Connection::open_in_memory().unwrap();
+        build_plain_tiles_fixture(&conn, &[(7, 5, 3, b"abc"), (7, 5, 4, b"def")]);
+
+        assert!(!has_table(&conn, "map").unwrap());
+        assert!(has_table(&conn, "tiles").unwrap());
+
+        let zooms = list_zoom_levels(&conn, 13, false).unwrap();
+        assert_eq!(zooms, vec![7]);
+
+        let keys = enumerate_bundle_keys(&conn, 7, false).unwrap();
+        assert_eq!(
+            keys,
+            vec![BundleKey {
+                zoom: 7,
+                bundle_row: 0,
+                bundle_col: 0
+            }]
+        );
+
+        let tiles = fetch_bundle_tiles(&conn, &keys[0]).unwrap();
+        assert_eq!(tiles.len(), 2, "both rows share the one (0,0) bundle");
+    }
+
+    #[test]
+    fn zoom_zero_is_a_single_tile_covering_the_whole_world() {
+        let conn = Connection::open_in_memory().unwrap();
+        build_fixture(&conn, &[(0, 0, 0, b"world")]);
+
+        let keys = enumerate_bundle_keys(&conn, 0, true).unwrap();
+        assert_eq!(
+            keys,
+            vec![BundleKey {
+                zoom: 0,
+                bundle_row: 0,
+                bundle_col: 0
+            }]
+        );
+
+        let tiles = fetch_bundle_tiles(&conn, &keys[0]).unwrap();
+        assert_eq!(tiles.len(), 1);
+        assert_eq!(tiles[0].global_row, 0);
+        assert_eq!(tiles[0].global_col, 0);
+        assert_eq!(tiles[0].data, b"world");
+    }
+
     #[test]
     fn enumerate_and_fetch_roundtrip_with_row_flip() {
         let conn = Connection::open_in_memory().unwrap();

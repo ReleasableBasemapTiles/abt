@@ -41,9 +41,9 @@ def init_vundler(
         output_dir: Output package directory. Defaults to
             working_dir/bundled/vundled/p12.
         max_zoom: Highest zoom level to convert.
-        num_workers: Number of zoom levels to convert concurrently. Defaults
-            to one per available core (see `default_num_workers`), naturally
-            capped by however many zoom levels exist.
+        num_workers: Number of worker threads converting bundles concurrently
+            (the abt-vundler binary's own --num-workers). Defaults to one per
+            available core (see `default_num_workers`).
     """
     mbtiles_path = resolve_input(working_dir, input_path)
     package_dir = output_dir or working_dir / "bundled" / "vundled" / "p12"

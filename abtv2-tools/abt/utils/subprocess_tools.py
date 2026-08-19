@@ -20,19 +20,23 @@ def run_subprocess(cmd: List[str], layer: str, process_stage: str, log_dir: Path
     logger = get_logger(name=layer, directory=log_dir, process_stage=process_stage)
     logger.info(f"Running {tool_name} for '{layer}': {' '.join(cmd)}")
     try:
-        process = subprocess.Popen(
+        # Popen as a context manager guarantees stdout/stdin/stderr get
+        # closed and the child is waited on even if something in the read
+        # loop below raises something other than the CalledProcessError
+        # handled explicitly here.
+        with subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
             text=True,
-        )
-        for line in iter(process.stdout.readline, ''):
-            logger.info(line.strip())
-        process.wait()
-        if process.returncode != 0:
-            logger.error(f"{tool_name} failed for '{layer}' with exit code {process.returncode}.")
-            raise subprocess.CalledProcessError(process.returncode, cmd)
+        ) as process:
+            for line in iter(process.stdout.readline, ''):
+                logger.info(line.strip())
+            process.wait()
+            if process.returncode != 0:
+                logger.error(f"{tool_name} failed for '{layer}' with exit code {process.returncode}.")
+                raise subprocess.CalledProcessError(process.returncode, cmd)
     except Exception as e:
         logger.error(f"An exception occurred while running {tool_name} for '{layer}': {e}", exc_info=True)
         raise

@@ -8,9 +8,8 @@ data schema directory which contains all user-defined configurations.
 """
 
 import datetime
-import shutil
 from pydantic import BaseModel, model_validator
-from typing import Optional, List
+from typing import List
 from typing_extensions import Self
 from pathlib import Path
 

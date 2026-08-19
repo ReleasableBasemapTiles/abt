@@ -7,9 +7,8 @@ It ensures consistent argument definitions, help text, and type annotations
 for various commands related to data processing.
 """
 
-from typing import Annotated, Optional
+from typing import Optional
 from enum import Enum
-from pathlib import Path
 import os
 import re
 import typer
@@ -119,8 +118,8 @@ data_type_field = typer.Option(
         "Allowed values are 'osm', 'aux', or 'all'.\n"
         "  osm: Uses the Imposm method to import data.\n"
         "  aux: Uses Ogr2Ogr methods to import data in parallel, respecting the --num-workers setting.\n"
-        "  all: A convenience option to run both aux and osm. It first processes aux data in parallel, "
-        "then dedicates all workers to the osm import."
+        "  all: A convenience option to run both osm and aux. It first processes the OSM data, "
+        "then dedicates all workers to the aux import."
     ),
 )
 

@@ -1,14 +1,10 @@
 import typer
-from typing import Annotated, List, Union, Optional
+from typing import Annotated
 from pathlib import Path
-from itertools import chain
 
 from .cli_helpers import get_pg_config
 from ..schema import DataSchema, ProcessingDirectorySchema
 from ..aux_data_model import AuxDataLayer
-from ..osm_data_model import OSMData, OSMProcessingModel, getGeoFabrikIndex, ImposmMappingFile, ImposmManagement
-from ..parallel import ParallelExecutor
-from ..importer.importer import Importer
 from ..utils.fields import (
     working_dir_field,
     schema_dir_field,

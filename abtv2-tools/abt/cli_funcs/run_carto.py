@@ -7,7 +7,7 @@ format suitable for the final tile export process.
 """
 
 import typer
-from typing import Annotated, List, Union
+from typing import Annotated
 from pathlib import Path
 
 from .cli_helpers import get_pg_config
@@ -17,9 +17,7 @@ from ..utils.run_reporter import RunReporter
 from ..utils.fields import (
     working_dir_field,
     schema_dir_field,
-    data_type_field,
     pg_config_field,
-    num_workers_field,
     carto_concurrency_field,
     default_num_workers,
 )

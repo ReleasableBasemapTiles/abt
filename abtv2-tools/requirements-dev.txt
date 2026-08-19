@@ -1,0 +1,18 @@
+# Development/test dependencies for abtv2-tools.
+#
+# Runtime dependencies are normally installed via the conda env in
+# env.yaml (gdal, numpy, etc. don't have reliable pip wheels on every
+# platform), but pytest needs to import every module under test, so this
+# file lists pytest plus every third-party package abt/ imports, for use
+# in a plain pip/venv environment when a conda env isn't available or
+# convenient (e.g. CI). Keep in sync with env.yaml's dependency list.
+pytest>=8.0
+pydantic>=2.0
+typer>=0.12
+psycopg2-binary>=2.9
+boto3>=1.34
+requests>=2.31
+PyYAML>=6.0
+tqdm>=4.66
+beautifulsoup4>=4.12
+pyproj>=3.6

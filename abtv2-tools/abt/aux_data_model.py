@@ -7,8 +7,8 @@ source and format to orchestrating its download, extraction, and import into
 a PostgreSQL database.
 """
 
-from pydantic import BaseModel, HttpUrl, Field, model_validator
-from typing import List, Optional, Any, Union, Tuple
+from pydantic import BaseModel, HttpUrl, model_validator
+from typing import List, Optional, Union, Tuple
 from enum import Enum
 import fnmatch
 import json

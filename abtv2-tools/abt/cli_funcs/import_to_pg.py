@@ -1,5 +1,5 @@
 import typer
-from typing import Annotated, List, Union, Optional, Tuple
+from typing import Annotated, List, Optional, Tuple
 from pathlib import Path
 from itertools import chain
 

@@ -7,11 +7,10 @@ GeoFabrik, managing 'imposm' mapping configurations, and orchestrating the
 download and import processes.
 """
 
-from pydantic import BaseModel, HttpUrl, field_validator, model_validator
+from pydantic import BaseModel, HttpUrl, model_validator
 from typing import List, Optional, Dict, Tuple
 from typing_extensions import Self
 import requests
-import json
 from pathlib import Path
 import yaml
 
@@ -160,13 +159,15 @@ class OSMData(BaseModel):
     Attributes:
         identifier: The unique ID of the extract (e.g., 'thailand', 'planet').
         pbf_location: The URL to the PBF file for a full import.
-        diff_location: The URL to the replication service for updates.
+        diff_location: The URL to the replication service for updates, or
+            None for an extract with no updates feed -- some GeoFabrik
+            extracts omit `urls.updates` entirely.
         bbox: WGS84 (xmin, ymin, xmax, ymax) envelope of the extract, or None
             for 'planet' (no meaningful bounding box to clip against).
     """
     identifier: str
     pbf_location: HttpUrl
-    diff_location: HttpUrl
+    diff_location: Optional[HttpUrl] = None
     bbox: Optional[Tuple[float, float, float, float]] = None
 
     @property

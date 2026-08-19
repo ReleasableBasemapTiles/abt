@@ -140,6 +140,25 @@ mod tests {
     }
 
     #[test]
+    fn local_index_covers_all_four_corners() {
+        assert_eq!(local_index(0, 0), 0, "top-left");
+        assert_eq!(local_index(0, 127), 127, "top-right");
+        assert_eq!(local_index(127, 0), 16256, "bottom-left");
+        assert_eq!(local_index(127, 127), 16383, "bottom-right (last index)");
+    }
+
+    #[test]
+    fn local_index_wraps_global_coordinates_via_modulo() {
+        // global_row/col are absolute tile coordinates, not pre-masked to
+        // [0, 128) -- callers (write_bundle, fed from db::fetch_bundle_tiles)
+        // rely on local_index reducing them mod BUNDLE_SIZE itself.
+        assert_eq!(local_index(128, 128), local_index(0, 0));
+        assert_eq!(local_index(255, 255), local_index(127, 127));
+        assert_eq!(local_index(128, 0), local_index(0, 0));
+        assert_eq!(local_index(0, 128), local_index(0, 0));
+    }
+
+    #[test]
     fn header_layout_matches_python_struct_format() {
         let mut buf = Vec::new();
         write_header_and_blank_index(&mut buf).unwrap();

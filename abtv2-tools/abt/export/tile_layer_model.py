@@ -11,7 +11,7 @@ export/bundler_model.py.
 import json
 from pathlib import Path
 from pydantic import BaseModel, Field
-from typing import Optional, List, Annotated, Any
+from typing import Optional, List, Annotated
 from enum import Enum
 
 from ..utils.pg_config import PGConfig
@@ -137,25 +137,26 @@ class TileLayer(BaseModel):
 
     @classmethod
     def from_dict(cls, data: dict, max_detail_const: int, pg_config:PGConfig,flatgeobuf_dir:Path,mbtiles_dir:Path,tmp_dir:Path,log_dir:Path, projection_override: Optional[str] = None) -> "TileLayer":
-        """Creates a TileLayer instance from a dictionary and runtime arguments."""
-        if data.get("tippecanoe_options"):
-            tc = data.get("tippecanoe_options")
-            tippecanoe_options = TippecanoeOptions(
-                minimum_zoom=tc.get("minimum_zoom", 0),
-                maximum_zoom=tc.get("maximum_zoom", max_detail_const),
-                additional_flags=tc.get("additional_flags", ""),
-                filter=tc.get("filter", {}),
-                max_detail_const=max_detail_const,
-            )
+        """Creates a TileLayer instance from a dictionary and runtime arguments.
 
-        else:
-            tippecanoe_options = None
-        if data.get("ogr_export_options"):
-            ogr_export_options = OGRExportOptions(
-                additional_flags=data["ogr_export_options"]["additional_flags"]
-            )
-        else:
-            ogr_export_options = None
+        A layer JSON that omits "tippecanoe_options"/"ogr_export_options"
+        entirely is treated the same as an explicit empty `{}` for that
+        key -- both build options from defaults -- rather than leaving the
+        field `None`, which `tippecanoe_cmd`/`ogr_cmd` can't handle (they
+        unconditionally dereference `self.tippecanoe_options`/
+        `self.ogr_export_options`).
+        """
+        tc = data.get("tippecanoe_options") or {}
+        tippecanoe_options = TippecanoeOptions(
+            minimum_zoom=tc.get("minimum_zoom", 0),
+            maximum_zoom=tc.get("maximum_zoom", max_detail_const),
+            additional_flags=tc.get("additional_flags", ""),
+            filter=tc.get("filter", {}),
+            max_detail_const=max_detail_const,
+        )
+        ogr_export_options = OGRExportOptions(
+            additional_flags=(data.get("ogr_export_options") or {}).get("additional_flags", "")
+        )
         return TileLayer(
             layer_id=data.get("layer_id"),
             description=data.get("description", ""),
@@ -321,22 +322,29 @@ class TileLayer(BaseModel):
             cur = conn.cursor()
             cur.execute(sql)
             return cur.fetchone()[0]
-    def count_features(self,pg_config:PGConfig) -> Any:
-        if self.does_table_exist(pg_config=pg_config):
-            sql = f"WITH tile_layer AS ({self.ogr_sql}) SELECT count(*) FROM tile_layer;"
-            with pg_config.conn as conn:
-                cur = conn.cursor()
-                cur.execute(sql)
-                return cur.fetchone()[0]
-        else:
-            return False
+    def count_features(self,pg_config:PGConfig) -> Optional[int]:
+        """Returns the feature count, or None if the table doesn't exist.
+
+        None (rather than the previous sentinel of False) is used
+        specifically so a genuinely empty table (count 0, falsy) and a
+        missing table (None) stay distinguishable by identity rather than
+        truthiness -- see layer_summary, which used to report both as
+        "does not exist".
+        """
+        if not self.does_table_exist(pg_config=pg_config):
+            return None
+        sql = f"WITH tile_layer AS ({self.ogr_sql}) SELECT count(*) FROM tile_layer;"
+        with pg_config.conn as conn:
+            cur = conn.cursor()
+            cur.execute(sql)
+            return cur.fetchone()[0]
 
     def layer_summary(self, pg_config:PGConfig) -> str:
         count=self.count_features(pg_config=pg_config)
-        if count:
+        if count is None:
+            print(f"Layer: {self.layer_id} does not exist")
+        else:
             print(f"Layer: {self.layer_id}")
             print(f"  Export SQL:     {self.ogr_sql}")
             print(f"  Feature Count:  {str(count)}")
-        else:
-            print(f"Layer: {self.layer_id} does not exist")
         return
