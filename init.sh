@@ -5,12 +5,14 @@ set -euo pipefail
 ABT_TOOLS="/rbt/abtv2-tools/abt-tools.py"
 WORKSPACE="/rbt/run-planet"
 WORKSPACE_3395="/rbt/run-planet-3395"
+WORKSPACE_4087="/rbt/run-planet-4087"
 SCHEMA="/rbt/rbt-schema"
 JOBS=12
 PROVIDER="env"
 KIND="planet"
 ZOOM=13
 PROJECTION_3395="EPSG:3395"
+PROJECTION_4087="EPSG:4087"
 # Destination folders for [6/6] -- trailing slash optional, stripped below.
 S3_BUCKET_3857="s3://data-478728046499-us-east-1-an/3857/"
 S3_BUCKET_3395="s3://data-478728046499-us-east-1-an/3395/"
@@ -83,29 +85,34 @@ python "$ABT_TOOLS" import -w "$WORKSPACE" -s "$SCHEMA" -d all -n "$JOBS" -p "$P
 echo "[3/6] carto"
 python "$ABT_TOOLS" carto -w "$WORKSPACE" -s "$SCHEMA" -p "$PROVIDER"
 
-# 3857 (default) and 3395 (World Mercator, via --projection-override) both
-# only read the carto'd `export` schema and write to their own workspace
-# ($WORKSPACE vs $WORKSPACE_3395 -- required, not just tidy: export's
+# 3857 (default), 3395 (World Mercator), and 4087 (World Equidistant
+# Cylindrical) -- the latter two via --projection-override -- all only read
+# the carto'd `export` schema and write to their own workspace ($WORKSPACE
+# vs $WORKSPACE_3395 vs $WORKSPACE_4087 -- required, not just tidy: export's
 # intermediate .fgb filenames don't encode projection, so sharing a
-# workspace would make one run silently skip regenerating .fgb files the
-# other already produced, instead of reprojecting them to 3395). Nothing
-# about the two conflicts, so run them concurrently instead of back to
-# back. NOTE: each still fans out its own $JOBS-worker pool, so this briefly
-# runs up to 2x $JOBS worker processes at once -- lower $JOBS if that would
-# oversubscribe this host's CPU/IO/Postgres connections.
-echo "[4/6] export (3857 + 3395, in parallel)"
+# workspace would make one run silently skip regenerating .fgb files
+# another projection already produced, instead of reprojecting them).
+# Nothing about the three conflicts, so run them concurrently instead of
+# back to back. NOTE: each still fans out its own $JOBS-worker pool, so
+# this briefly runs up to 3x $JOBS worker processes at once -- lower $JOBS
+# if that would oversubscribe this host's CPU/IO/Postgres connections.
+echo "[4/6] export (3857 + 3395 + 4087, in parallel)"
 python "$ABT_TOOLS" export -w "$WORKSPACE" -s "$SCHEMA" -n "$JOBS" -p "$PROVIDER" -z "$ZOOM" &
 pid_3857=$!
 python "$ABT_TOOLS" export -w "$WORKSPACE_3395" -s "$SCHEMA" -n "$JOBS" -p "$PROVIDER" -z "$ZOOM" --projection-override "$PROJECTION_3395" &
 pid_3395=$!
-wait_jobs "3857:$pid_3857" "3395:$pid_3395"
+python "$ABT_TOOLS" export -w "$WORKSPACE_4087" -s "$SCHEMA" -n "$JOBS" -p "$PROVIDER" -z "$ZOOM" --projection-override "$PROJECTION_4087" &
+pid_4087=$!
+wait_jobs "3857:$pid_3857" "3395:$pid_3395" "4087:$pid_4087"
 
-echo "[5/6] bundler (3857 + 3395, in parallel)"
+echo "[5/6] bundler (3857 + 3395 + 4087, in parallel)"
 python "$ABT_TOOLS" bundler -w "$WORKSPACE" -s "$SCHEMA" -p "$PROVIDER" &
 pid_3857=$!
 python "$ABT_TOOLS" bundler -w "$WORKSPACE_3395" -s "$SCHEMA" -p "$PROVIDER" &
 pid_3395=$!
-wait_jobs "3857:$pid_3857" "3395:$pid_3395"
+python "$ABT_TOOLS" bundler -w "$WORKSPACE_4087" -s "$SCHEMA" -p "$PROVIDER" &
+pid_4087=$!
+wait_jobs "3857:$pid_3857" "3395:$pid_3395" "4087:$pid_4087"
 
 echo "[6/6] upload bundles to S3 (3857 + 3395, in parallel)"
 bundled_3857="$(resolve_bundled "$WORKSPACE")"
