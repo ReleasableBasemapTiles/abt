@@ -29,6 +29,11 @@
             "name": "adm0_name",
             "type": "string",
             "description": ""
+        },
+        {
+            "name": "nga_short_name",
+            "type": "string",
+            "description": "NGA abbreviation with possession parenthetical for territories (e.g. Grnld. (DEN.), St. Barth. (FR.))"
         }
     ],
     "source_attribution": "",

@@ -68,8 +68,25 @@ SELECT
     END                                                                 AS class_rank,
     CASE
         WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
+        -- DOS-directed primary capital override: Bujumbura remains primary per US State Dept
+        WHEN o.osm_id = 60715062               THEN 2   -- Bujumbura (Burundi)
+        -- Secondary national capitals (de facto, seat of government, legislative, judicial)
+        WHEN o.osm_id IN (
+              235857686,   -- The Hague (Netherlands)
+              266478791,   -- La Paz (Bolivia)
+             1046100133,   -- Abidjan (Côte d'Ivoire)
+             2872238032,   -- Putrajaya (Malaysia)
+               26576175,   -- Yangon (Myanmar)
+              313764484,   -- Sucre (Bolivia)
+               32675806,   -- Cape Town (South Africa)
+               26938845,   -- Bloemfontein (South Africa)
+              301351574,   -- Gitega (Burundi)
+               50794342,   -- Colombo (Sri Lanka)
+             4415037938    -- Lobamba (Eswatini)
+        )                                       THEN 3
         WHEN o.capital = 'yes'                  THEN 2
-        WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
+        WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
+        WHEN o.capital = '4'                    THEN 3
     END                                                                 AS capital,
     COALESCE(
         CASE
@@ -148,7 +165,12 @@ LEFT JOIN LATERAL (
         OR lower(n.name)      LIKE lower(o.name) || ',%'
         OR lower(n.nameascii) LIKE lower(o.name) || ',%'
         OR lower(n.name)      LIKE lower(o.name_en) || ',%'
-        OR lower(n.nameascii) LIKE lower(o.name_en) || ',%')
+        OR lower(n.nameascii) LIKE lower(o.name_en) || ',%'
+        -- Match abbreviated NE names against full OSM names (e.g. "Ft. Worth" vs "Fort Worth")
+        OR lower(o.name_en) = replace(lower(n.nameascii), 'ft. ', 'fort ')
+        OR lower(o.name)    = replace(lower(n.nameascii), 'ft. ', 'fort ')
+        OR lower(o.name_en) = replace(lower(n.nameascii), 'st. ', 'saint ')
+        OR lower(o.name)    = replace(lower(n.nameascii), 'st. ', 'saint '))
     ORDER BY
         CASE WHEN lower(o.name)    = lower(n.name)
                OR lower(o.name)    = lower(n.nameascii)
@@ -181,7 +203,8 @@ SELECT
     CASE
         WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
         WHEN o.capital = 'yes'                  THEN 2
-        WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
+        WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
+        WHEN o.capital = '4'                    THEN 3
     END                                                                 AS capital,
     CASE o.place
         WHEN 'village'       THEN 11

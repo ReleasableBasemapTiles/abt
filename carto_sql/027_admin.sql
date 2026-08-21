@@ -127,6 +127,34 @@ END $$;
 
 
 -- -----------------------------------------------------------------------------
+-- export.fmt_country_abbrev — uppercase parenthetical country abbreviations
+-- -----------------------------------------------------------------------------
+-- Transforms "(Fr.)" → "(FR.)", "(USA)" → "(U.S.)", etc. per NGA style guidance.
+-- Only genuine country abbreviations are uppercased; alternative names like
+-- "(Malvinas)" are left unchanged. Add new abbreviations here as needed.
+
+CREATE OR REPLACE FUNCTION export.fmt_country_abbrev(txt text)
+RETURNS text LANGUAGE sql IMMUTABLE AS $$
+    SELECT replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(replace(
+        txt,
+        '(Fr.)',   '(FR.)'),
+        '(Nor.)',  '(NOR.)'),
+        '(Aust.)', '(AUST.)'),
+        '(Den.)',  '(DEN.)'),
+        '(Neth.)', '(NETH.)'),
+        '(Port.)', '(PORT.)'),
+        '(Sp.)',   '(SP.)'),
+        '(Fin.)',  '(FIN.)'),
+        '(Jam.)',  '(JAM.)'),
+        '(Ven.)',  '(VEN.)'),
+        '(UK)',    '(U.K.)'),
+        '(USA)',   '(U.S.)'),
+        '(NZ)',    '(N.Z.)'),
+        '(SA)',    '(S. AFR.)')
+$$;
+
+
+-- -----------------------------------------------------------------------------
 -- export.adm0_line — country boundary lines (Fieldmaps)
 -- -----------------------------------------------------------------------------
 
@@ -166,6 +194,261 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
+-- aux_data.nga_country_abbrev — NGA-approved country/territory abbreviations
+-- -----------------------------------------------------------------------------
+-- Source: NGA Map Boundaries and Dispute, v1.1 Nov 2021, pp. 12-13
+-- "Abbreviations for Names of Geopolitical Entities"
+-- adm0_prefix: matches LEFT(adm0_id, 3) from fieldmaps_adm0_points
+-- nga_name:    populated only where NGA name differs from GeoNames
+-- nga_abbrev:  space-constrained label form; NULL where NGA lists '---'
+
+BEGIN;
+DROP TABLE IF EXISTS aux_data.nga_country_abbrev CASCADE;
+CREATE TABLE aux_data.nga_country_abbrev (
+    adm0_prefix  char(3)  NOT NULL PRIMARY KEY,
+    nga_name     text,
+    nga_abbrev   text
+);
+
+INSERT INTO aux_data.nga_country_abbrev (adm0_prefix, nga_name, nga_abbrev) VALUES
+-- A
+('AFG', NULL,          'AFG.'),
+('ALB', NULL,          'ALB.'),
+('DZA', NULL,          'ALG.'),
+('ASM', NULL,          'Am. Sam.'),
+('AND', NULL,          'AND.'),
+('AGO', NULL,          'ANG.'),
+('AIA', NULL,          'Angu.'),
+('ATG', NULL,          'ANTI. & BARB.'),
+('ARG', NULL,          'ARG.'),
+('ARM', NULL,          'ARM.'),
+('AUS', NULL,          'AUSTL.'),
+('AUT', NULL,          'AUS.'),
+('AZE', NULL,          'AZER.'),
+-- B
+('BHS', NULL,          'BAH.'),
+('BHR', NULL,          'BAHR.'),
+('BGD', NULL,          'BANGL.'),
+('BRB', NULL,          'BARB.'),
+('BLR', NULL,          'BELA.'),
+('BEL', NULL,          'BEL.'),
+('BLZ', NULL,          'BELZ.'),
+('BMU', NULL,          'Berm.'),
+('BTN', NULL,          'BHU.'),
+('BOL', NULL,          'BOL.'),
+('BIH', NULL,          'BOS. & HER.'),
+('BWA', NULL,          'BOTS.'),
+('BVT', NULL,          'Bouv. I.'),
+('BRA', NULL,          'BRAZ.'),
+('IOT', NULL,          'B.I.O.T.'),
+('VGB', NULL,          'Br. Vir. Is.'),
+('BRN', NULL,          'BRU.'),
+('BGR', NULL,          'BULG.'),
+('BFA', NULL,          'BURK.'),
+('MMR', 'Burma',       NULL),           -- NGA policy name; GeoNames: Myanmar; no NGA abbreviation
+('BDI', NULL,          'BURU.'),
+-- C
+('KHM', NULL,          'CAMB.'),
+('CMR', NULL,          'CAMER.'),
+('CAN', NULL,          'CAN.'),
+('CPV', NULL,          'C. VER.'),
+('CYM', NULL,          'Cay. Is.'),
+('CAF', NULL,          'C.A.R.'),
+('CXR', NULL,          'Christ. I.'),
+('CPT', NULL,          'Clip. I.'),     -- Clipperton Island
+('CCK', NULL,          'Cocos Is.'),
+('COL', NULL,          'COL.'),
+('COM', NULL,          'COMO.'),
+('COD', NULL,          'D.R.C.'),
+('COG', NULL,          'REP. OF THE CONGO'),
+('COK', NULL,          'Cook Is.'),
+('CRI', NULL,          'C.R.'),
+('CIV', NULL,          'C. D''IV.'),
+('HRV', NULL,          'CRO.'),
+('CUW', NULL,          'Cur.'),
+('CYP', NULL,          'CYP.'),
+('CZE', NULL,          'CZECH.'),
+-- D
+('DNK', NULL,          'DEN.'),
+('DJI', NULL,          'DJI.'),
+('DMA', NULL,          'DOM.'),
+('DOM', NULL,          'DOM. REP.'),
+-- E
+('ECU', NULL,          'ECUA.'),
+('SLV', NULL,          'EL SAL.'),
+('GNQ', NULL,          'EQUA. GUI.'),
+('ERI', NULL,          'ERIT.'),
+('EST', NULL,          'EST.'),
+('SWZ', NULL,          'ESW.'),
+('ETH', NULL,          'ETH.'),
+-- F
+('FLK', NULL,          'Falk. Is.'),
+('FRO', NULL,          'Faroe Is.'),
+('FIN', NULL,          'FIN.'),
+('FRA', NULL,          'FR.'),
+('GUF', NULL,          'Fr. Gui.'),
+('PYF', NULL,          'Fr. Poly.'),
+('ATF', NULL,          'Fr. S. & Ant. Lands'),
+-- G
+('GMB', NULL,          'GAM.'),
+('GEO', NULL,          'GEO.'),
+('DEU', NULL,          'GER.'),
+('GIB', NULL,          'Gibr.'),
+('GRC', NULL,          'GR.'),
+('GRL', NULL,          'Grnld.'),
+('GRD', NULL,          'GREN.'),
+('GLP', NULL,          'Guad.'),
+('GTM', NULL,          'GUAT.'),
+('GGY', NULL,          'Guern.'),
+('GIN', NULL,          'GUI.'),
+('GNB', NULL,          'GUI.-BIS.'),
+('GUY', NULL,          'GUY.'),
+-- H
+('HMD', NULL,          'He. I. & McD. Is.'),
+('HND', NULL,          'HOND.'),
+('HKG', NULL,          'H.K.'),
+('HUN', NULL,          'HUNG.'),
+-- I
+('ISL', NULL,          'ICE.'),
+('IDN', NULL,          'INDO.'),
+('IRL', NULL,          'IRE.'),
+('IMN', NULL,          'I. of Man'),
+('ISR', NULL,          'ISR.'),
+-- J
+('JAM', NULL,          'JAM.'),
+('SJM', NULL,          'Sval.'),        -- Svalbard and Jan Mayen (combined ISO code); Svalbard abbrev used
+('JEY', NULL,          'Jer.'),
+('JOR', NULL,          'JOR.'),
+-- K
+('KAZ', NULL,          'KAZ.'),
+('KIR', NULL,          'KIRI.'),
+('XKX', NULL,          'KOS.'),         -- Kosovo
+('KWT', NULL,          'KUW.'),
+('KGZ', NULL,          'KYR.'),
+-- L
+('LVA', NULL,          'LAT.'),
+('LBN', NULL,          'LEB.'),
+('LSO', NULL,          'LESO.'),
+('LBR', NULL,          'LIBER.'),
+('LIE', NULL,          'LIECH.'),
+('LTU', NULL,          'LITH.'),
+('LUX', NULL,          'LUX.'),
+-- M
+('MDG', NULL,          'MADAG.'),
+('MWI', NULL,          'MAL.'),
+('MYS', NULL,          'MALAY.'),
+('MDV', NULL,          'MALD.'),
+('MHL', NULL,          'MARSH. IS.'),
+('MTQ', NULL,          'Mart.'),
+('MRT', NULL,          'MAUR.'),
+('MUS', NULL,          'MAURIS.'),
+('MYT', NULL,          'May.'),
+('MEX', NULL,          'MEX.'),
+('FSM', NULL,          'MICRO.'),
+('MDA', NULL,          'MOL.'),
+('MCO', NULL,          'MON.'),
+('MNG', NULL,          'MONG.'),
+('MNE', NULL,          'MONT.'),
+('MSR', NULL,          'Monts.'),
+('MAR', NULL,          'MOR.'),
+('MOZ', NULL,          'MOZ.'),
+-- N
+('NAM', NULL,          'NAM.'),
+('NLD', NULL,          'NETH.'),
+('NCL', NULL,          'N. Cal.'),
+('NZL', NULL,          'N.Z.'),
+('NIC', NULL,          'NIC.'),
+('NGA', NULL,          'NIG.'),         -- Nigeria (ISO NGA); nga_abbrev='NIG.' avoids agency/country confusion
+('NFK', NULL,          'Norf. I.'),
+('PRK', 'North Korea', 'N. KOR.'),
+('MKD', NULL,          'N. MACE.'),
+('MNP', NULL,          'N. Mar. Is.'),
+('NOR', NULL,          'NOR.'),
+-- P
+('PAK', NULL,          'PAK.'),
+('PAN', NULL,          'PAN.'),
+('PNG', NULL,          'PAP. N. GUI.'),
+('XPI', NULL,          'Parc. Is.'),    -- Paracel Islands (fieldmaps X-code)
+('PRY', NULL,          'PARA.'),
+('PHL', NULL,          'PHIL.'),
+('PCN', NULL,          'Pit. Is.'),
+('POL', NULL,          'POL.'),
+('PRT', NULL,          'PORT.'),
+('PRI', NULL,          'P.R.'),
+-- R
+('REU', NULL,          'Reu.'),
+('ROU', NULL,          'ROM.'),
+('RUS', NULL,          'RUS.'),
+('RWA', NULL,          'RW.'),
+-- S
+('BLM', NULL,          'St. Barth.'),
+('KNA', NULL,          'ST. KITTS & NEV.'),
+('LCA', NULL,          'ST. LUC.'),
+('MAF', NULL,          'St. Mar.'),
+('SPM', NULL,          'St. Pier. & Miq.'),
+('VCT', NULL,          'ST. VIN. & GREN.'),
+('SMR', NULL,          'S. MAR.'),
+('STP', NULL,          'S. TO. & PRIN.'),
+('SAU', NULL,          'SAU. AR.'),
+('SEN', NULL,          'SEN.'),
+('SRB', NULL,          'SER.'),
+('SYC', NULL,          'SEY.'),
+('SLE', NULL,          'S. LEO.'),
+('SGP', NULL,          'SING.'),
+('SXM', NULL,          'St. Maar.'),
+('SVK', NULL,          'SLOV.'),
+('SVN', NULL,          'SLO.'),
+('SLB', NULL,          'SOL. IS.'),
+('SOM', NULL,          'SOM.'),
+('ZAF', NULL,          'S. AFR.'),
+('SGS', NULL,          'S. Ga. & S. Sdwch. Is.'),
+('KOR', 'South Korea', 'S. KOR.'),
+('SSD', NULL,          'S. SUDAN'),
+('ESP', NULL,          'SP.'),
+('XSI', NULL,          'Spr. Is.'),     -- Spratly Islands (fieldmaps X-code)
+('LKA', NULL,          'SRI LAN.'),
+('SUR', NULL,          'SUR.'),
+('SWE', NULL,          'SWE.'),
+('CHE', NULL,          'SWITZ.'),
+('SYR', NULL,          'SYR.'),
+-- T
+('TJK', NULL,          'TAJ.'),
+('TZA', NULL,          'TANZ.'),
+('THA', NULL,          'THAI.'),
+('TLS', NULL,          'TIM.-LES.'),
+('TKL', NULL,          'Tok.'),
+('TTO', NULL,          'TRIN. & TOB.'),
+('TUN', NULL,          'TUN.'),
+('TUR', NULL,          'TURK.'),        -- NGA (2021) uses Turkey; name changed to Türkiye in 2022
+('TKM', NULL,          'TURKM.'),
+('TCA', NULL,          'Tur. & Cal. Is.'),
+('TUV', NULL,          'TUV.'),
+-- U
+('UGA', NULL,          'UG.'),
+('UKR', NULL,          'UKR.'),
+('ARE', NULL,          'U.A.E.'),
+('GBR', NULL,          'U.K.'),
+('USA', NULL,          'U.S.'),
+('URY', NULL,          'URU.'),
+('UZB', NULL,          'UZB.'),
+-- V
+('VUT', NULL,          'VANU.'),
+('VAT', NULL,          'VAT. C.'),
+('VEN', NULL,          'VEN.'),
+('VNM', NULL,          'VIET.'),
+('VIR', NULL,          'Vir. Is.'),
+-- W
+('WLF', NULL,          'Wal. & Fut.'),
+-- Y
+('YEM', NULL,          'YEM.'),
+-- Z
+('ZMB', NULL,          'ZAM.'),
+('ZWE', NULL,          'ZIMB.');
+
+COMMIT;
+
+
+-- -----------------------------------------------------------------------------
 -- export.adm0_label — country label points (Fieldmaps + NE + GeoNames)
 -- -----------------------------------------------------------------------------
 
@@ -194,20 +477,30 @@ SELECT
     a.adm0_id,
     LEFT(a.adm0_id, 3)                                                  AS iso_3,
     a.iso_2,
-    CASE LEFT(a.adm0_id, 3)
-        WHEN 'XAB' THEN 'Abyei Area'
-        WHEN 'XKK' THEN 'Area in dispute'
-        ELSE NULLIF(a.adm0_name, '')
-    END                                                                 AS adm0_name,
+    export.fmt_country_abbrev(
+        CASE LEFT(a.adm0_id, 3)
+            WHEN 'XAB' THEN 'Abyei Area'
+            WHEN 'XKK' THEN 'Area in dispute'
+            ELSE NULLIF(a.adm0_name, '')
+        END
+    )                                                                    AS adm0_name,
     NULLIF(a.adm0_name1, '')                                            AS adm0_name1,
-    a.status_cd,
+    -- French overseas departments (DOM) get status_cd=98 so the style can target them
+    -- distinctly from other adm0 entities. They remain in adm0_label (not adm1_label)
+    -- because they have their own polygons and some have adm1 sub-divisions.
+    CASE WHEN LEFT(a.adm0_id, 3) IN ('GLP','GUF','MTQ','MYT','REU')
+         THEN 98
+         ELSE a.status_cd
+    END                                                                  AS status_cd,
     NULLIF(a.status_nm, '')                                             AS status_nm,
     -- Short display name (DOS naming overrides for disputed special entities)
-    CASE LEFT(a.adm0_id, 3)
-        WHEN 'XAB' THEN 'Abyei Area'
-        WHEN 'XKK' THEN 'Area in dispute'
-        ELSE COALESCE(s.full_nm_nd, NULLIF(a.adm0_name1, ''))
-    END                                                                 AS gns_short_name,
+    export.fmt_country_abbrev(
+        CASE LEFT(a.adm0_id, 3)
+            WHEN 'XAB' THEN 'Abyei Area'
+            WHEN 'XKK' THEN 'Area in dispute'
+            ELSE COALESCE(s.full_nm_nd, NULLIF(a.adm0_name1, ''))
+        END
+    )                                                                    AS gns_short_name,
     -- Full GeoNames match on name for additional metadata
     NULLIF(g.full_nm_nd, '')                                            AS gns_full_name,
     g.name_rank                                                         AS gns_name_rank,
@@ -218,6 +511,22 @@ SELECT
     NULLIF(n.name, '')                                                  AS ne_name,
     NULLIF(n.name_en, '')                                               AS ne_name_en,
     NULLIF(n.name_long, '')                                             AS ne_name_long,
+    nga.nga_name                                                         AS nga_name,
+    nga.nga_abbrev                                                       AS nga_abbrev,
+    -- Space-constrained label: NGA abbreviation + possession parenthetical when present.
+    -- Extracts trailing uppercase parenthetical (e.g. "(FR.)", "(U.K.)", "(S. AFR.)")
+    -- from adm0_name via regex; sovereign states have no parenthetical so nga_abbrev alone.
+    CASE
+        WHEN nga.nga_abbrev IS NOT NULL THEN
+            nga.nga_abbrev
+            || COALESCE(
+                ' ' || (regexp_match(
+                    export.fmt_country_abbrev(a.adm0_name),
+                    '\([A-Z][A-Z. ]+\)$'
+                ))[1],
+                ''
+            )
+    END                                                                  AS nga_short_name,
     ST_Area(ST_Transform(poly.geometry, 3857))::real                    AS area,
     a.geometry                                                              AS geometry
 FROM aux_data.fieldmaps_adm0_points a
@@ -231,7 +540,17 @@ LEFT JOIN aux_data.nga_geonames_administrative_regions g
    AND g.cc_ft = LEFT(a.adm0_id, 3)
 LEFT JOIN aux_data.ne_10m_admin_0_countries n
     ON n.name = a.adm0_name1
+LEFT JOIN aux_data.nga_country_abbrev nga
+    ON nga.adm0_prefix = LEFT(a.adm0_id, 3)
+   AND SUBSTRING(a.adm0_id, 4, 1) = '-'   -- exclude sub-entries like AUS_2, GBR_1
 WHERE a.geometry IS NOT NULL
+  -- Some X-entities have no adm0 lines and slip through the LSIB filter via NULL
+  -- iso_2 (NULL = anything is false, so NOT (false AND ...) passes). Exclude them
+  -- explicitly. Other X-entities (Kosovo, Golan Heights, etc.) have specific names
+  -- and are intentionally retained. Add new exclusions here as needed.
+  --   XKK: placeholder for western South Sudan disputed boundary; generic "Area in dispute" label
+  --   XAC: duplicate of AUS_2 (Ashmore & Cartier Islands) with a bad geometry in Kashmir
+  AND LEFT(a.adm0_id, 3) NOT IN ('XKK', 'XAC')
   -- Exclude entities whose land borders were entirely removed by the LSIB filter.
   -- Logic: if a polygon has land borders in the fieldmaps source but none survived into export.adm0_line, DOS does not recognize it as a distinct entity.
   AND NOT (
