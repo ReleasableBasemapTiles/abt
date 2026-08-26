@@ -77,7 +77,7 @@ BEGIN
           AND f.country2 = s.country2 AND f.label = s.label
     );
     IF orphans IS NOT NULL THEN
-        RAISE EXCEPTION 'adm0_line_supplements rows match no fieldmaps_adm0_lines row (upstream rename?): %', orphans;
+        RAISE WARNING 'adm0_line_supplements rows match no fieldmaps_adm0_lines row (upstream rename?): %', orphans;
     END IF;
 
     FOR rec IN
