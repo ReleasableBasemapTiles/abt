@@ -20,7 +20,6 @@
             "description": ""
         },
         {"name": "name",    "type": "string", "description": ""},
-        {"name": "name_en", "type": "string", "description": ""},
         {"name": "rank",    "type": "int",    "description": ""}
     ],
     "source_attribution": "",

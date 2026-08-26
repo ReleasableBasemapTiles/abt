@@ -113,11 +113,13 @@ SELECT
             WHEN ne.rank_max IN (8, 9)                                   THEN 6
             WHEN ne.rank_max IN (6, 7)                                   THEN 7
             WHEN ne.rank_max = 5                                         THEN 8
-            WHEN g.display_max >= 7                                      THEN 9
-            WHEN g.display_max >= 5                                      THEN 10
+            WHEN g.display_max >= 7                                      THEN
+                CASE WHEN o.place = 'city' THEN 8 ELSE 9 END
+            WHEN g.display_max >= 5                                      THEN
+                CASE WHEN o.place = 'city' THEN 8 ELSE 10 END
         END,
         CASE o.place
-            WHEN 'city'    THEN 10
+            WHEN 'city'    THEN 8
             WHEN 'town'    THEN 10
             ELSE                12
         END
@@ -170,7 +172,10 @@ LEFT JOIN LATERAL (
         OR lower(o.name_en) = replace(lower(n.nameascii), 'ft. ', 'fort ')
         OR lower(o.name)    = replace(lower(n.nameascii), 'ft. ', 'fort ')
         OR lower(o.name_en) = replace(lower(n.nameascii), 'st. ', 'saint ')
-        OR lower(o.name)    = replace(lower(n.nameascii), 'st. ', 'saint '))
+        OR lower(o.name)    = replace(lower(n.nameascii), 'st. ', 'saint ')
+        -- Match NE Persian "-e-" connective against OSM names without it (e.g. "Bandar-e-Abbas" → "Bandar Abbas")
+        OR lower(o.name_en) = replace(lower(n.nameascii), '-e-', ' ')
+        OR lower(o.name)    = replace(lower(n.nameascii), '-e-', ' '))
     ORDER BY
         CASE WHEN lower(o.name)    = lower(n.name)
                OR lower(o.name)    = lower(n.nameascii)
