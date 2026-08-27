@@ -58,8 +58,7 @@ CREATE MATERIALIZED VIEW export.place_labels AS
 -- Cities and towns: full three-source ranking via GeoNames + NE + OSM fallback
 SELECT
     o.osm_id,
-    NULLIF(o.name, '')                                                  AS name,
-    NULLIF(o.name_en, '')                                               AS name_en,
+    COALESCE(NULLIF(o.name_en, ''), NULLIF(o.name, ''))                 AS name,
     o.place                                                             AS class,
     CASE o.place
         WHEN 'city'    THEN 1
@@ -195,8 +194,7 @@ UNION ALL
 -- Villages and hamlets: OSM fallback only.
 SELECT
     o.osm_id,
-    NULLIF(o.name, '')                                                  AS name,
-    NULLIF(o.name_en, '')                                               AS name_en,
+    COALESCE(NULLIF(o.name_en, ''), NULLIF(o.name, ''))                 AS name,
     o.place                                                             AS class,
     CASE o.place
         WHEN 'village'       THEN 3
@@ -228,14 +226,16 @@ UNION ALL
 -- Label placed at polygon centroid.
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    CASE osm_id
-        WHEN  468798441 THEN 'Abu Musa'    -- NGA Guide: drop "Island" suffix
-        WHEN   -2103185 THEN 'Etorofu'     -- NGA Guide: Japanese name for Iturup
-        WHEN   -2409701 THEN 'Kunashiri'   -- NGA Guide: Japanese name for Kunashir
-        WHEN   -9687998 THEN 'Habomai'     -- NGA Guide: Japanese name for Ostrov Zelenyy
-        ELSE NULLIF(name_en, '')
-    END                                                                 AS name_en,
+    COALESCE(
+        CASE osm_id
+            WHEN  468798441 THEN 'Abu Musa'    -- NGA Guide: drop "Island" suffix
+            WHEN   -2103185 THEN 'Etorofu'     -- NGA Guide: Japanese name for Iturup
+            WHEN   -2409701 THEN 'Kunashiri'   -- NGA Guide: Japanese name for Kunashir
+            WHEN   -9687998 THEN 'Habomai'     -- NGA Guide: Japanese name for Ostrov Zelenyy
+            ELSE NULLIF(name_en, '')
+        END,
+        NULLIF(name, '')
+    )                                                                   AS name,
     'island'::text                                                      AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
@@ -260,8 +260,7 @@ UNION ALL
 -- Avoids duplicating labels for islands mapped as both polygon and node.
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     'island'::text                                                      AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
@@ -282,8 +281,7 @@ UNION ALL
 -- Island groups from NE geography regions (Spratly Islands, Aleutians, etc.)
 SELECT
     NULL::bigint                                                        AS osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     'island_group'::text                                                AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,

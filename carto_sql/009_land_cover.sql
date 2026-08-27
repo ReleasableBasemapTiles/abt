@@ -500,8 +500,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.landcover_label CASCADE;
 CREATE MATERIALIZED VIEW export.landcover_label AS
 SELECT
     osm_id,
-    name,
-    name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     subclass,
     leaf_type,
     leaf_cycle,

@@ -22,8 +22,7 @@ SELECT
     osm_id,
     class,
     subclass,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(height::text, '')                                            AS height,
     NULLIF(content, '')                                                 AS content,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
@@ -49,8 +48,7 @@ SELECT
     osm_id,
     class,
     subclass,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(height::text, '')                                            AS height,
     COALESCE(
         NULLIF(content, ''),
@@ -122,10 +120,9 @@ SELECT
     class,
     subclass,
     name,
-    name_en,
     height,
     content,
-    area, -- Included area field
+    area,
     tags,
     geometry
 FROM infrastructure.grain_point
@@ -135,10 +132,9 @@ SELECT
     class,
     subclass,
     name,
-    name_en,
     height,
     content,
-    area, -- Included area field
+    area,
     tags,
     geometry
 FROM infrastructure.grain_srf_pnt;

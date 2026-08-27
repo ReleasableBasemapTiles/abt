@@ -326,8 +326,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.road_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.road_polygon AS
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     CASE WHEN class = 'public_transport' THEN 'platform' ELSE subclass END AS subclass,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
     geometry
