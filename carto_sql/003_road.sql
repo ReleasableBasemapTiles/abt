@@ -161,8 +161,7 @@ enriched AS (
             WHEN 'unclassified_link' THEN 'unclassified_link'
             ELSE lower(h.subclass)
         END                                                             AS subclass,
-        h.name,
-        h.name_en,
+        COALESCE(NULLIF(h.name_en, ''), NULLIF(h.name, ''))            AS name,
         length(h.name)                                                  AS name_len,
         NULLIF(TRIM(h.ref), '')                                         AS ref,
         h.ref                                                           AS ref_raw,
@@ -229,7 +228,6 @@ base AS (
         brunnel_name,
         subclass,
         name,
-        name_en,
         name_len,
         ref,
         ref_len,

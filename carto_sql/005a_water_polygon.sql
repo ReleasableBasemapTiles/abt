@@ -115,8 +115,7 @@ CREATE MATERIALIZED VIEW water.water_surface AS
 WITH water_classified AS (
     SELECT
         osm_id,
-        NULLIF(name, '')                                        AS name,
-        NULLIF(name_en, '')                                     AS name_en,
+        COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))         AS name,
         water.classify_water_type(subclass)                     AS subclass,
         ST_Area(ST_Transform(geometry, 3857))::real             AS area,
         water.safe_simplify_geometry(geometry, 0.000001)        AS geometry,
@@ -128,7 +127,6 @@ WITH water_classified AS (
 SELECT
     osm_id,
     name,
-    name_en,
     subclass,
     intermittent,
     area,
@@ -167,8 +165,7 @@ CREATE MATERIALIZED VIEW export.inland_water_intermittent_polygon AS
 WITH intermittent_water AS (
     SELECT
         osm_id,
-        NULLIF(name, '')                                            AS name,
-        NULLIF(name_en, '')                                         AS name_en,
+        COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))             AS name,
         water.classify_water_type(subclass)                         AS subclass,
         (ST_Dump(
             ST_MakeValid(
