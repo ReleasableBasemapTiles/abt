@@ -243,8 +243,8 @@ DO $$
 DECLARE
     nshards CONSTANT int := 16;
     connstr CONSTANT text := format(
-        'dbname=%s options=''-c work_mem=1GB -c synchronous_commit=off -c jit=off''',
-        current_database());
+        'dbname=%s port=%s options=''-c work_mem=1GB -c synchronous_commit=off -c jit=off''',
+        current_database(), current_setting('port'));
     i int;
     n int;
 BEGIN
