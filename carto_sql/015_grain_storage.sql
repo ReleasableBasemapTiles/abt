@@ -80,7 +80,6 @@ SELECT
     class,
     subclass,
     name,
-    name_en,
     height,
     content,
     area,
