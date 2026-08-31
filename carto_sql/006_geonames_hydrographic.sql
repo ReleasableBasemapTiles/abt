@@ -104,10 +104,7 @@ ne_water AS (
 ne_lakes AS (
     -- Natural Earth major lakes
     SELECT
-        CASE
-            WHEN NULLIF(l.name, '') ILIKE 'Lake Ontario' THEN 'Lake America'
-            ELSE NULLIF(l.name, '')
-        END                       AS name,
+        NULLIF(l.name, '')        AS name,
         CASE lower(l.featurecla)
             WHEN 'lake'             THEN 'LK'
             WHEN 'intermittent lake' THEN 'LKI'
@@ -147,7 +144,10 @@ combined AS (
     )
 )
 SELECT
-    c.name,
+    CASE
+        WHEN c.name ILIKE 'Lake Ontario' THEN 'Lake America'
+        ELSE c.name
+    END                                                         AS name,
     c.desig_cd,
     CASE
         WHEN c.desig_cd = 'BAY'    THEN 'bay(s)'
