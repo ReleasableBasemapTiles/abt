@@ -6,25 +6,47 @@ tippecanoe passes them through untouched -- nothing in the file says what the
 coordinates actually are. Writes only the `crs` key; bounds/center are left as
 tippecanoe computed them.
 
-  ./tag_crs.py 4087 building_polygon_4087.mbtiles contours_4087.mbtiles
+  ./tag_crs.py 4087 building_polygon_4087.mbtiles [more.mbtiles ...]
 
-Env: ABT_TOOLS -- checkout holding abt.export (default /raid/rbt/abtv2-tools)
+Standard library only -- no abtv2-tools, no pyproj.
 """
 
-import os
+import sqlite3
 import sys
 from pathlib import Path
 
-sys.path.insert(0, os.environ.get("ABT_TOOLS", "/raid/rbt/abtv2-tools"))
 
-from abt.export.mbtiles_metadata import write_mbtiles_metadata
+def tag(path, epsg):
+    con = sqlite3.connect(path)
+    try:
+        exists = con.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'metadata'"
+        ).fetchone()
+        if exists is None:
+            sys.exit("{}: no metadata table -- not an mbtiles?".format(path))
+
+        # DELETE then INSERT, not INSERT OR REPLACE: the latter only replaces when
+        # metadata.name carries a UNIQUE constraint, and silently appends a second
+        # row when it doesn't. This leaves exactly one crs row either way.
+        with con:
+            con.execute("DELETE FROM metadata WHERE name = 'crs'")
+            con.execute(
+                "INSERT INTO metadata (name, value) VALUES ('crs', ?)",
+                ("EPSG:{}".format(epsg),),
+            )
+    finally:
+        con.close()
 
 
 def main(argv):
     if len(argv) < 3:
         sys.exit("usage: {} <epsg> <file.mbtiles> [file.mbtiles ...]".format(argv[0]))
 
-    epsg = int(argv[1])
+    try:
+        epsg = int(argv[1])
+    except ValueError:
+        sys.exit("epsg must be a number, got: {}".format(argv[1]))
+
     files = [Path(a) for a in argv[2:]]
 
     # Check every path up front; a half-tagged set is worse than none.
@@ -33,7 +55,7 @@ def main(argv):
         sys.exit("not found: " + ", ".join(missing))
 
     for f in files:
-        write_mbtiles_metadata(f, {"crs": "EPSG:{}".format(epsg)})
+        tag(f, epsg)
         print("tagged {} as EPSG:{}".format(f, epsg))
 
 

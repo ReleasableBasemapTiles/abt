@@ -21,8 +21,8 @@ ls /path/to/data_dir/overture-buildings/*.parquet | xargs -P 24 -n 1 bash shard.
 
 Any non-3857 build ends by running `tag_crs.py`, which writes a `crs` key into the
 mbtiles metadata -- the header itself says 3857, so downstream has no other way to
-know. It touches only that key; tippecanoe's `bounds`/`center` are left alone. Set `ABT_TOOLS` if the
-`abtv2-tools` checkout isn't at `/raid/rbt/abtv2-tools`, and `PYTHON` to pick a
+know. It touches only that key; tippecanoe's `bounds`/`center` are left alone.
+Standard library only, so it runs under any python3 -- set `PYTHON` to pick a
 different interpreter. To re-tag without rebuilding:
 ```bash
 python3 tag_crs.py 4087 /path/to/data_dir/building_polygon_4087.mbtiles
