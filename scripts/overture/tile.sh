@@ -43,3 +43,10 @@ tippecanoe \
   --force \
   "${PROJ_FLAG[@]}" \
   "$PARTSDIR"/*.fgb
+
+# Reprojected builds claim EPSG:3857 in the mbtiles header, so nothing downstream
+# can tell what the coordinates really are. Stamp the true CRS plus bounds/center
+# for it. Invoked via the interpreter so a missing exec bit can't break the build.
+if [[ "$SRS" != "3857" ]]; then
+  "${PYTHON:-python3}" tag_crs.py "$SRS" "$OUT"
+fi
