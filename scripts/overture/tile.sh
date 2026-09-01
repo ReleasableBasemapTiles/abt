@@ -26,6 +26,7 @@ mkdir -p "$OUTDIR/tippe_temp"
 tippecanoe \
   -o "$OUT" \
   -l building_polygon \
+  -n "Releasable Basemap Tiles (RBT) - Buildings" \
   -P \
   --temporary-directory "$OUTDIR/tippe_temp" \
   -y area -y subtype -y class -y has_parts -y height \
