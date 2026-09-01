@@ -144,7 +144,10 @@ combined AS (
     )
 )
 SELECT
-    c.name,
+    CASE
+        WHEN c.name ILIKE 'Lake Ontario' THEN 'Lake America'
+        ELSE c.name
+    END                                                         AS name,
     c.desig_cd,
     CASE
         WHEN c.desig_cd = 'BAY'    THEN 'bay(s)'

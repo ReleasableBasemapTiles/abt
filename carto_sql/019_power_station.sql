@@ -16,8 +16,7 @@ CREATE MATERIALIZED VIEW infrastructure.power_station AS
 SELECT
     osm_id,
     CASE WHEN subclass = 'plant_part' THEN 'plant' ELSE subclass END      AS subclass,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(operator, '')                                                AS operator,
     NULLIF(plant_source, '')                                            AS plant_source,
     NULLIF(plant_method, '')                                            AS plant_method,
@@ -67,7 +66,6 @@ SELECT
     osm_id,
     subclass,
     name,
-    name_en,
     operator,
     plant_source,
     plant_method,

@@ -4,7 +4,6 @@
     "geometry_type": "polygon",
     "attributes": [
         {"name": "name",     "type": "string", "description": ""},
-        {"name": "name_en",  "type": "string", "description": ""},
         {"name": "subclass", "type": "string", "description": "pedestrian, footway, steps, path, cycleway, bridleway, corridor, platform"},
         {"name": "area",     "type": "float", "description": "area in m² (web mercator)"}
     ],

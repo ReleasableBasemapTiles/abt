@@ -58,8 +58,7 @@ CREATE MATERIALIZED VIEW export.place_labels AS
 -- Cities and towns: full three-source ranking via GeoNames + NE + OSM fallback
 SELECT
     o.osm_id,
-    NULLIF(o.name, '')                                                  AS name,
-    NULLIF(o.name_en, '')                                               AS name_en,
+    COALESCE(NULLIF(o.name_en, ''), NULLIF(o.name, ''))                 AS name,
     o.place                                                             AS class,
     CASE o.place
         WHEN 'city'    THEN 1
@@ -68,8 +67,25 @@ SELECT
     END                                                                 AS class_rank,
     CASE
         WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
+        -- DOS-directed primary capital override: Bujumbura remains primary per US State Dept
+        WHEN o.osm_id = 60715062               THEN 2   -- Bujumbura (Burundi)
+        -- Secondary national capitals (de facto, seat of government, legislative, judicial)
+        WHEN o.osm_id IN (
+              235857686,   -- The Hague (Netherlands)
+              266478791,   -- La Paz (Bolivia)
+             1046100133,   -- Abidjan (Côte d'Ivoire)
+             2872238032,   -- Putrajaya (Malaysia)
+               26576175,   -- Yangon (Myanmar)
+              313764484,   -- Sucre (Bolivia)
+               32675806,   -- Cape Town (South Africa)
+               26938845,   -- Bloemfontein (South Africa)
+              301351574,   -- Gitega (Burundi)
+               50794342,   -- Colombo (Sri Lanka)
+             4415037938    -- Lobamba (Eswatini)
+        )                                       THEN 3
         WHEN o.capital = 'yes'                  THEN 2
-        WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
+        WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
+        WHEN o.capital = '4'                    THEN 3
     END                                                                 AS capital,
     COALESCE(
         CASE
@@ -96,11 +112,13 @@ SELECT
             WHEN ne.rank_max IN (8, 9)                                   THEN 6
             WHEN ne.rank_max IN (6, 7)                                   THEN 7
             WHEN ne.rank_max = 5                                         THEN 8
-            WHEN g.display_max >= 7                                      THEN 9
-            WHEN g.display_max >= 5                                      THEN 10
+            WHEN g.display_max >= 7                                      THEN
+                CASE WHEN o.place = 'city' THEN 8 ELSE 9 END
+            WHEN g.display_max >= 5                                      THEN
+                CASE WHEN o.place = 'city' THEN 8 ELSE 10 END
         END,
         CASE o.place
-            WHEN 'city'    THEN 10
+            WHEN 'city'    THEN 8
             WHEN 'town'    THEN 10
             ELSE                12
         END
@@ -148,7 +166,15 @@ LEFT JOIN LATERAL (
         OR lower(n.name)      LIKE lower(o.name) || ',%'
         OR lower(n.nameascii) LIKE lower(o.name) || ',%'
         OR lower(n.name)      LIKE lower(o.name_en) || ',%'
-        OR lower(n.nameascii) LIKE lower(o.name_en) || ',%')
+        OR lower(n.nameascii) LIKE lower(o.name_en) || ',%'
+        -- Match abbreviated NE names against full OSM names (e.g. "Ft. Worth" vs "Fort Worth")
+        OR lower(o.name_en) = replace(lower(n.nameascii), 'ft. ', 'fort ')
+        OR lower(o.name)    = replace(lower(n.nameascii), 'ft. ', 'fort ')
+        OR lower(o.name_en) = replace(lower(n.nameascii), 'st. ', 'saint ')
+        OR lower(o.name)    = replace(lower(n.nameascii), 'st. ', 'saint ')
+        -- Match NE Persian "-e-" connective against OSM names without it (e.g. "Bandar-e-Abbas" → "Bandar Abbas")
+        OR lower(o.name_en) = replace(lower(n.nameascii), '-e-', ' ')
+        OR lower(o.name)    = replace(lower(n.nameascii), '-e-', ' '))
     ORDER BY
         CASE WHEN lower(o.name)    = lower(n.name)
                OR lower(o.name)    = lower(n.nameascii)
@@ -168,8 +194,7 @@ UNION ALL
 -- Villages and hamlets: OSM fallback only.
 SELECT
     o.osm_id,
-    NULLIF(o.name, '')                                                  AS name,
-    NULLIF(o.name_en, '')                                               AS name_en,
+    COALESCE(NULLIF(o.name_en, ''), NULLIF(o.name, ''))                 AS name,
     o.place                                                             AS class,
     CASE o.place
         WHEN 'village'       THEN 3
@@ -181,7 +206,8 @@ SELECT
     CASE
         WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
         WHEN o.capital = 'yes'                  THEN 2
-        WHEN o.capital IN ('2','3','4','5','6') THEN o.capital::int
+        WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
+        WHEN o.capital = '4'                    THEN 3
     END                                                                 AS capital,
     CASE o.place
         WHEN 'village'       THEN 11
@@ -200,14 +226,16 @@ UNION ALL
 -- Label placed at polygon centroid.
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    CASE osm_id
-        WHEN  468798441 THEN 'Abu Musa'    -- NGA Guide: drop "Island" suffix
-        WHEN   -2103185 THEN 'Etorofu'     -- NGA Guide: Japanese name for Iturup
-        WHEN   -2409701 THEN 'Kunashiri'   -- NGA Guide: Japanese name for Kunashir
-        WHEN   -9687998 THEN 'Habomai'     -- NGA Guide: Japanese name for Ostrov Zelenyy
-        ELSE NULLIF(name_en, '')
-    END                                                                 AS name_en,
+    COALESCE(
+        CASE osm_id
+            WHEN  468798441 THEN 'Abu Musa'    -- NGA Guide: drop "Island" suffix
+            WHEN   -2103185 THEN 'Etorofu'     -- NGA Guide: Japanese name for Iturup
+            WHEN   -2409701 THEN 'Kunashiri'   -- NGA Guide: Japanese name for Kunashir
+            WHEN   -9687998 THEN 'Habomai'     -- NGA Guide: Japanese name for Ostrov Zelenyy
+            ELSE NULLIF(name_en, '')
+        END,
+        NULLIF(name, '')
+    )                                                                   AS name,
     'island'::text                                                      AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
@@ -232,8 +260,7 @@ UNION ALL
 -- Avoids duplicating labels for islands mapped as both polygon and node.
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     'island'::text                                                      AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
@@ -254,8 +281,7 @@ UNION ALL
 -- Island groups from NE geography regions (Spratly Islands, Aleutians, etc.)
 SELECT
     NULL::bigint                                                        AS osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     'island_group'::text                                                AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,

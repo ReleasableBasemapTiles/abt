@@ -10,7 +10,6 @@
         {"name": "height",                    "type": "int", "description": ""},
         {"name": "mast_type",                 "type": "string", "description": ""},
         {"name": "name",                      "type": "string", "description": ""},
-        {"name": "name_en",                   "type": "string", "description": ""},
         {"name": "pumping_station",           "type": "string", "description": ""},
         {"name": "seamark_platform_category", "type": "string", "description": ""},
         {"name": "shore",                     "type": "string", "description": ""},

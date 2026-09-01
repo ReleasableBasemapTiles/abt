@@ -13,9 +13,8 @@ BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.physical_labels CASCADE;
 CREATE MATERIALIZED VIEW export.physical_labels AS
 SELECT
-    NULLIF(name, '')        AS name,
-    NULLIF(name_en, '')     AS name_en,
-    NULLIF(featurecla, '')  AS featurecla,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))     AS name,
+    NULLIF(featurecla, '')                              AS featurecla,
     scalerank,
     min_label,
     max_label,
