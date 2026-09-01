@@ -16,7 +16,7 @@ mkdir -p /path/to/data_dir/parts_$SRS
 export SHARD_THREADS=1 TARGET_SRS=$SRS
 ls /path/to/data_dir/overture-buildings/*.parquet | xargs -P 24 -n 1 bash shard.sh /path/to/data_dir/parts_$SRS
 ./tile.sh /path/to/data_dir $SRS
-# -> data_dir/building_polygon_4087.mbtiles
+# -> data_dir/building_polygon_4087.btis
 ```
 
 Any non-3857 build ends by running `tag_crs.py`, which writes a `crs` key into the
@@ -25,10 +25,11 @@ know. It touches only that key; tippecanoe's `bounds`/`center` are left alone.
 Standard library only, so it runs under any python3 -- set `PYTHON` to pick a
 different interpreter. To re-tag without rebuilding:
 ```bash
-python3 tag_crs.py 4087 /path/to/data_dir/building_polygon_4087.mbtiles
+python3 tag_crs.py 4087 /path/to/data_dir/building_polygon_4087.btis
 ```
 
-Parts dir is `parts_<srs>` and output is `building_polygon_<srs>.mbtiles`; the
+Parts dir is `parts_<srs>` and output is `building_polygon_<srs>.btis` -- sqlite in
+the usual mbtiles layout, but the extension marks it as not web mercator. The
 layer name is always `building_polygon`. `shard.sh` skips files already done, so
 it's safe to re-run.
 

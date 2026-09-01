@@ -6,7 +6,7 @@ tippecanoe passes them through untouched -- nothing in the file says what the
 coordinates actually are. Writes only the `crs` key; bounds/center are left as
 tippecanoe computed them.
 
-  ./tag_crs.py 4087 building_polygon_4087.mbtiles [more.mbtiles ...]
+  ./tag_crs.py 4087 building_polygon_4087.btis [more ...]
 
 Standard library only -- no abtv2-tools, no pyproj.
 """

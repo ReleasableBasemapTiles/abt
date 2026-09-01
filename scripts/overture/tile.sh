@@ -16,8 +16,10 @@ if [[ "$SRS" == "3857" ]]; then
 else
   # Parts were already reprojected to EPSG:$SRS by shard.sh and tagged 3857;
   # --projection=EPSG:3857 tells tippecanoe to take them as-is.
+  # .btis, not .mbtiles: the file is sqlite in the usual layout, but the tiles are
+  # not web mercator, so the extension keeps it from being consumed as one.
   PARTSDIR="$OUTDIR/parts_$SRS"
-  OUT="$OUTDIR/building_polygon_$SRS.mbtiles"
+  OUT="$OUTDIR/building_polygon_$SRS.btis"
   PROJ_FLAG=(--projection=EPSG:3857)
 fi
 
