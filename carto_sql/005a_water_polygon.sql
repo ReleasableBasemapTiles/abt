@@ -305,6 +305,74 @@ CREATE INDEX idx_inland_water_intermittent_name     ON export.inland_water_inter
 COMMIT;
 
 -- -----------------------------------------------------------------------------
+-- water.valid_ocean — validated ocean polygons, subdivided to ≤1024 vertices.
+--                     OSM coastline polygons can carry 500k+ vertices and
+--                     thousands of rings in marshland; tile-side clipping and
+--                     simplification of those produces self-intersection
+--                     rendering artifacts. Subdivision edges are invisible
+--                     because the ocean style has no fill outline.
+-- -----------------------------------------------------------------------------
+
+BEGIN;
+DROP TABLE IF EXISTS water.valid_ocean CASCADE;
+CREATE TABLE water.valid_ocean AS
+SELECT
+    'ocean'                                                         AS subclass,
+    s.geom::geometry(Polygon, 4326)                                 AS geometry
+FROM (
+    SELECT (ST_Dump(
+        ST_MakeValid(
+            ST_SimplifyPreserveTopology(
+                ST_MakeValid(geometry, 'method=structure'),
+                0.000001
+            ),
+            'method=structure'
+        )
+    )).geom AS geom
+    FROM aux_data.osm_ocean
+    WHERE geometry IS NOT NULL
+      AND NOT ST_IsEmpty(geometry)
+) d,
+LATERAL ST_Subdivide(d.geom, 1024) AS s(geom)
+WHERE ST_Dimension(d.geom) = 2;
+
+CREATE INDEX idx_valid_ocean_geometry ON water.valid_ocean USING gist(geometry);
+COMMIT;
+
+
+-- -----------------------------------------------------------------------------
+-- export.ocean_polygon — ocean polygons with NE/OSM zoom transition
+-- -----------------------------------------------------------------------------
+
+BEGIN;
+DROP MATERIALIZED VIEW IF EXISTS export.ocean_polygon CASCADE;
+CREATE MATERIALIZED VIEW export.ocean_polygon AS
+
+SELECT
+    'ocean'::text                                                    AS subclass,
+    ST_MakeValid(
+        (ST_Dump(geometry)).geom::geometry(Polygon, 4326),
+        'method=structure'
+    )                                                                AS geometry,
+    0                                                                AS z_level
+FROM aux_data.ne_50m_ocean
+WHERE geometry IS NOT NULL
+  AND NOT ST_IsEmpty(geometry)
+
+UNION ALL
+
+SELECT
+    subclass::text,
+    ST_MakeValid(geometry, 'method=structure')                       AS geometry,
+    1                                                                AS z_level
+FROM water.valid_ocean;
+
+CREATE INDEX idx_ocean_geometry         ON export.ocean_polygon USING gist(geometry);
+CREATE INDEX idx_ocean_polygon_z_level  ON export.ocean_polygon USING btree(z_level);
+COMMIT;
+
+
+-- -----------------------------------------------------------------------------
 -- export.water_polygon — inland water polygons (NE 50m lakes + OSM)
 --
 -- Key discovery: the map style (RBT-TOPO) only draws a fill-outline stroke
