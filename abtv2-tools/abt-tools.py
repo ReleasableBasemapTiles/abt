@@ -20,10 +20,24 @@ from abt.cli_funcs import (
     vundler,         # Converts a bundled mbtiles file into Esri Compact Cache V2 tile bundles
     import_aux_single
 )
+from abt.utils.rlimit import raise_open_file_limit
 
 # Initialize the main Typer application
 # add_completion=False is used to prevent Typer from generating shell completion scripts
 app = typer.Typer(add_completion=False)
+
+
+@app.callback()
+def cli_root() -> None:
+    """Army Basemap Tiles (ABT) data pipeline tools."""
+    # Raised here rather than per-command so no command can be left out:
+    # every one of them shells out to a tool that inherits this process's
+    # limit, and tippecanoe scales its descriptor use to the host's core
+    # count -- see raise_open_file_limit. Reported on stderr to keep it out
+    # of any command's own output.
+    previous_soft, current_soft = raise_open_file_limit()
+    typer.echo(f"--- Open file limit: {current_soft} (was {previous_soft}) ---", err=True)
+
 
 # Add each sub-application (defined in separate modules) to the main Typer app.
 # This makes their commands accessible through the main CLI.

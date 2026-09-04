@@ -11,6 +11,7 @@
 
 set -euo pipefail
 cd "$(dirname "$0")"
+source ./lock.sh
 
 RELEASE="${OVERTURE_RELEASE:-$(aws s3 ls --no-sign-request s3://overturemaps-us-west-2/release/ | awk '{print $2}' | tr -d '/' | sort | tail -1)}"
 OUTDIR="${1:-./data}"
@@ -19,6 +20,12 @@ export SHARD_THREADS="${3:-1}"
 
 echo "release: $RELEASE"
 mkdir -p "$OUTDIR"
+
+# Exclusive: this is the only writer to the shared parts dirs below, and a
+# second concurrent writer (e.g. a run started twice, or an orphaned job
+# left over from an aborted init.sh) is what corrupts shard.sh's temp files
+# -- see lock.sh and shard.sh. Fails fast rather than blocking.
+acquire_overture_lock "$OUTDIR" exclusive
 
 # `aws s3 sync` below only adds/updates files for $RELEASE -- it won't remove
 # a *different*, previously-fetched release's parquet already sitting in
@@ -53,6 +60,12 @@ for srs in ${SRS_LIST:-3857}; do
     shard_target_srs="$srs"
   fi
   mkdir -p "$partsdir"
+  # Safe only because acquire_overture_lock above guarantees we're the only
+  # writer: sweeps any half-written temp left by a prior run that was
+  # killed mid-shard, before shard.sh's own per-process paths existed (or
+  # before this run's own PID reused one), rather than leaving it as
+  # permanent debris.
+  find "$partsdir" -maxdepth 1 -name '.*.tmp' -exec rm -rf {} +
   echo "sharding -> $partsdir (TARGET_SRS=$shard_target_srs)"
   ls "$OUTDIR"/overture-buildings/*.parquet \
     | TARGET_SRS="$shard_target_srs" xargs -P "$JOBS" -n 1 bash shard.sh "$partsdir"
