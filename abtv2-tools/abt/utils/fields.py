@@ -85,6 +85,12 @@ max_zoom_field = typer.Option(
     help="Sets the maximum zoom level for processing exports. The default value is 13",
 )
 
+optional_max_zoom_field = typer.Option(
+    ..., # Default value None (no cap); see cli_bundler
+    *max_zoom_aliases,
+    help="Cap the bundled output at this zoom level. Omit for no cap (full resolution).",
+)
+
 additional_mbtiles_field = typer.Option(
     ..., # Default value [], making it optional
     *additional_mbtiles_aliases,

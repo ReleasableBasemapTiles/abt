@@ -39,6 +39,8 @@ flowchart LR
 
 Only `download` and `export` skip work that's already done (they check for existing output files). `import`, `carto`, `bundler`, and `vundler` always redo the full operation, so the SQL in `carto_sql/` is written to be safely re-runnable.
 
+`bundler` also accepts `-z/--max-zoom` to cap the joined output at a given zoom level -- e.g. for a smaller "RBT Small" package alongside the full-resolution one. Each input is pre-trimmed with SQLite before `tile-join` runs, rather than relying on `tile-join` itself to filter by zoom.
+
 ### Parallelism and carto concurrency
 
 `carto` groups `carto_sql/*.sql` scripts by [`rbt-schema/carto_sql/execution_plan.yml`](rbt-schema/carto_sql/execution_plan.yml): a small sequential prefix (`000_update_aux_geom.sql`, `001_set_schema.sql`) creates the `export` schema and every carto-owned custom schema up front, then independent script groups run concurrently against Postgres (up to `-n/--carto-concurrency` at a time, one Postgres connection per group), then a sequential suffix (`099_update_geometry.sql`) normalizes everything once every group has finished. `--carto-concurrency` defaults to a value scaled to the host's CPU count (`cpu_count // 6`, floored at 1) -- 8 on the 48 vCPU planet tier documented in this guide, or 1 (fully sequential, today's historical behavior) on an 8 vCPU host like the smaller single-extract tier in §6.
@@ -382,6 +384,8 @@ python abt-tools.py bundler \
 
 Runs `tile-join` across every per-layer `.mbtiles` file, stamping metadata from `rbt-schema/tile-metadata/metadata.py`, and writes `~/abt/run-planet/bundled/joined.mbtiles`. At planet scale this reads every layer's full-planet `.mbtiles` at once and always rebuilds from scratch, so budget real time and disk headroom for this step too.
 
+Add `-z/--max-zoom` (e.g. `-z 8`) to also produce a smaller, zoom-capped "RBT Small" package. Each input is pre-trimmed with SQLite to the given zoom before `tile-join` runs, rather than reading every layer's full-planet `.mbtiles` a second time just to filter by zoom.
+
 ### 5.7 (Optional) Vundler — Esri tile bundle
 
 ```bash
@@ -496,6 +500,8 @@ python abt-tools.py bundler \
 ```
 
 Runs `tile-join` across every per-layer `.mbtiles` file, stamping metadata from `rbt-schema/tile-metadata/metadata.py`, and writes `~/abt/run-norway/bundled/joined.mbtiles`.
+
+Add `-z/--max-zoom` to cap the output at a given zoom level for a smaller package, e.g. an "RBT Small" build.
 
 ### 6.7 (Optional) Vundler — Esri tile bundle
 

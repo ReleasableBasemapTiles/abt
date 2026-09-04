@@ -16,6 +16,7 @@ from ..utils.fields import (
     pg_config_field,
     additional_mbtiles_field,
     output_name_field,
+    optional_max_zoom_field,
 )
 
 
@@ -34,7 +35,8 @@ def init_bundler(
     schema_dir: Path,
     pg_config_type: str = 'env',
     additional_mbtiles: Optional[List[Path]] = None,
-    output_name: Optional[str] = None
+    output_name: Optional[str] = None,
+    max_zoom: Optional[int] = None,
 ):
     """Bundles exported tile layers into a single MBTiles file via tile-join.
 
@@ -48,6 +50,8 @@ def init_bundler(
             contours) to fold into the bundle. Defaults to none.
         output_name: Optional filename for the bundled output. Defaults to
             joined.mbtiles (joined.btis under --projection-override).
+        max_zoom: Optional zoom cap for the bundled output (e.g. for an RBT
+            Small package). Omit for no cap (full resolution).
     """
     data_schema = DataSchema(base_schema_dir=schema_dir)
     processing_directory = ProcessingDirectorySchema.init_working_directories(working_dir=working_dir)
@@ -68,7 +72,8 @@ def init_bundler(
         additional_mbtiles=additional_mbtiles or [],
         metadata=joined_metadata,
         package_name=output_name or "joined.mbtiles",
-        package_name_explicit=output_name is not None
+        package_name_explicit=output_name is not None,
+        max_zoom=max_zoom,
     )
     print("--- Bundling tile layers ---")
     print(f"--- Log directory: {bundle.bundled_dir} ---")
@@ -95,6 +100,7 @@ def cli_bundler(
     pg_config: Annotated[str, pg_config_field] = 'env',
     additional_mbtiles: Annotated[List[Path], additional_mbtiles_field] = None,
     output_name: Annotated[str, output_name_field] = None,
+    max_zoom: Annotated[Optional[int], optional_max_zoom_field] = None,
 ):
     """CLI command to bundle exported tile layers into a single MBTiles file via tile-join.
 
@@ -106,6 +112,7 @@ def cli_bundler(
         additional_mbtiles: Paths to externally-produced mbtiles files (e.g.
             contours) to fold into the bundle. Repeatable.
         output_name: Optional filename for the bundled output.
+        max_zoom: Optional zoom cap for the bundle. Omit for no cap.
     """
     try:
         reporter = init_bundler(
@@ -113,7 +120,8 @@ def cli_bundler(
             schema_dir=schema_dir,
             pg_config_type=pg_config,
             additional_mbtiles=additional_mbtiles,
-            output_name=output_name
+            output_name=output_name,
+            max_zoom=max_zoom,
         )
     except Exception as e:
         typer.echo(f"Error during bundler process: {e}. Check logs for details.", err=True)

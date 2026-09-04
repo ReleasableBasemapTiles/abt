@@ -38,6 +38,9 @@ class Bundler(BaseModel):
             the join completes. Keys tile-join computes itself from actual tile content
             (bounds, center, format) are never overwritten -- see
             mbtiles_metadata.TOOL_COMPUTED_METADATA_KEYS, used by bundler.py.
+        max_zoom: Optional zoom cap for the bundled output (e.g. for an RBT
+            Small package). When set, bundler.py pre-trims every input to
+            this zoom level before tile-join runs. None means no cap.
     """
     bundled_dir: Path
     package_name: str = "joined.mbtiles"
@@ -45,6 +48,7 @@ class Bundler(BaseModel):
     tile_layers: List[TileLayer]
     additional_mbtiles: List[Path] = []
     metadata: Optional[Dict[str, Any]] = None
+    max_zoom: Optional[int] = None
 
     @staticmethod
     def _has_tiles(path: Path) -> bool:
@@ -66,8 +70,8 @@ class Bundler(BaseModel):
                 cur.execute("SELECT count(*) FROM sqlite_master WHERE name='tiles' AND type IN ('table', 'view')")
                 if cur.fetchone()[0] != 1:
                     return False
-                cur.execute("SELECT count(*) FROM tiles")
-                return cur.fetchone()[0] > 0
+                cur.execute("SELECT 1 FROM tiles LIMIT 1")
+                return cur.fetchone() is not None
             finally:
                 con.close()
         except Exception:
@@ -121,9 +125,14 @@ class Bundler(BaseModel):
         tmp_dir.mkdir(parents=True, exist_ok=True)
         return tmp_dir
 
-    @property
-    def tile_join_cmd(self) -> List[str]:
-        """Constructs the full 'tile-join' command."""
+    def build_tile_join_cmd(self, files: List[Path]) -> List[str]:
+        """Constructs a 'tile-join' command joining exactly the given files.
+
+        Split out from `tile_join_cmd` so bundler.py can join a set of
+        zoom-trimmed temporary copies (see `max_zoom`) instead of the
+        original `tile_list` inputs, without duplicating the name/output
+        logic.
+        """
         default_name = f"Army Basemap Tiles (Build: {datetime.datetime.now().strftime('%Y-%m-%d')})"
         name = self.metadata.get("name", default_name) if self.metadata else default_name
         return [
@@ -131,5 +140,10 @@ class Bundler(BaseModel):
             "-pk",  # Don't skip tiles larger than 500K.
             "-n", name,
             "--output", str(self.bundled_dir / self.package_name),
-            *[str(p) for p in self.tile_list]
+            *[str(p) for p in files],
         ]
+
+    @property
+    def tile_join_cmd(self) -> List[str]:
+        """Constructs the full 'tile-join' command using all tile inputs."""
+        return self.build_tile_join_cmd(self.tile_list)
