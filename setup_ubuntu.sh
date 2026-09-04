@@ -57,7 +57,25 @@ ABT_RUN_DIR="${ABT_RUN_DIR:-$ABT_WORKSPACE_DIR/run-planet}"
 # default build's Web Mercator .fgb files instead of reprojecting to 3395).
 ABT_RUN_DIR_3395="${ABT_RUN_DIR_3395:-${ABT_RUN_DIR}-3395}"
 
-ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$ABT_WORKSPACE_DIR/rbt}"
+# Defaults to wherever *this script* lives, if it's already sitting inside
+# a checked-out copy of the monorepo (i.e. abtv2-tools/ and rbt-schema/ are
+# right next to it) -- so `git clone ... /rbt && /rbt/setup_ubuntu.sh` just
+# works with no other configuration, and CLONE_REPO below becomes a no-op
+# rather than trying to clone into an already-populated directory. This also
+# keeps it aligned with init.sh's own hardcoded /rbt/abtv2-tools,
+# /rbt/rbt-schema paths, which assume this same "monorepo root == workspace
+# root" layout -- so no manual symlinking is needed to make init.sh find
+# them afterward. Falls back to the old nested "$ABT_WORKSPACE_DIR/rbt"
+# default otherwise (e.g. running a standalone copy of this script before
+# CLONE_REPO has anything to clone yet), so that flow still clones into a
+# fresh, empty directory instead of colliding with ABT_WORKSPACE_DIR itself
+# (already created, non-empty, by the time section 8's clone runs).
+SETUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+if [[ -d "$SETUP_SCRIPT_DIR/abtv2-tools" && -d "$SETUP_SCRIPT_DIR/rbt-schema" ]]; then
+    ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$SETUP_SCRIPT_DIR}"
+else
+    ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$ABT_WORKSPACE_DIR/rbt}"
+fi
 
 # This is a private repo, cloned over SSH using a deploy key rather than
 # HTTPS. The hostname below ("abt") is not github.com itself -- it's expected
@@ -175,6 +193,19 @@ TIPPECANOE_REF="${TIPPECANOE_REF:-main}"
 FORCE_REBUILD_IMPOSM="${FORCE_REBUILD_IMPOSM:-false}"
 FORCE_REBUILD_TIPPECANOE="${FORCE_REBUILD_TIPPECANOE:-false}"
 
+# AWS CLI v2 and the duckdb CLI are only needed by init.sh's --overture path
+# (S3 access for Overture's own fetch, plus init.sh's own final upload step;
+# see init.sh's preflight checks) -- not by abt-tools.py itself. Installed
+# as prebuilt binaries (an official installer script for AWS CLI, a release
+# zip for duckdb) rather than built from source, since -- unlike imposm/
+# tippecanoe above -- neither needs a newer toolchain than Ubuntu ships;
+# there's just no apt package for AWS CLI v2, and Ubuntu 26.04's packaged
+# duckdb lags well behind what the `spatial` extension used in
+# rbt-schema/scripts/overture/shard.sh expects.
+DUCKDB_VERSION="${DUCKDB_VERSION:-latest}"
+FORCE_REINSTALL_AWSCLI="${FORCE_REINSTALL_AWSCLI:-false}"
+FORCE_REINSTALL_DUCKDB="${FORCE_REINSTALL_DUCKDB:-false}"
+
 # abt-vundler (converts a bundled mbtiles into Esri Compact Cache V2 tile
 # bundles) lives in-tree at abtv2-tools/vundler-rs/ rather than a separate
 # upstream repo, so -- unlike imposm/tippecanoe above -- there's no _REF to
@@ -206,6 +237,8 @@ CONFIGURE_POSTGRES="${CONFIGURE_POSTGRES:-true}"
 INSTALL_IMPOSM="${INSTALL_IMPOSM:-true}"
 INSTALL_TIPPECANOE="${INSTALL_TIPPECANOE:-true}"
 INSTALL_VUNDLER="${INSTALL_VUNDLER:-true}"
+INSTALL_AWSCLI="${INSTALL_AWSCLI:-true}"
+INSTALL_DUCKDB="${INSTALL_DUCKDB:-true}"
 INSTALL_CONDA="${INSTALL_CONDA:-true}"
 
 # --- Helpers -----------------------------------------------------------------
@@ -689,6 +722,99 @@ else
     stage "Skipping tippecanoe install (INSTALL_TIPPECANOE=false)"
 fi
 
+# --- 7b. AWS CLI v2 ----------------------------------------------------------------
+#
+# Only needed for init.sh's --overture (Overture's own anonymous S3 sync
+# still works without it via boto3, but init.sh's --overture preflight and
+# its final upload step both shell out to `aws`) and --overture/plain S3
+# upload paths -- see init.sh's own AWS_ACCESS_KEY_ID/etc. checks. Installed
+# via the official installer rather than `apt install awscli`, which ships
+# the older v1 line on Ubuntu 26.04.
+
+if [[ "$INSTALL_AWSCLI" == "true" ]]; then
+    stage "Installing AWS CLI v2"
+    if command -v aws >/dev/null 2>&1 && [[ "$FORCE_REINSTALL_AWSCLI" != "true" ]]; then
+        echo "aws CLI already installed at $(command -v aws), skipping (set FORCE_REINSTALL_AWSCLI=true to reinstall/update): $(aws --version 2>&1)"
+    else
+        # awscli.amazonaws.com only publishes x86_64/aarch64 builds -- same
+        # two architectures micromamba's own installer below distinguishes,
+        # so fail the same way it does on anything else instead of quietly
+        # fetching the wrong binary.
+        case "$(uname -m)" in
+            x86_64) AWSCLI_ARCH="x86_64" ;;
+            aarch64|arm64) AWSCLI_ARCH="aarch64" ;;
+            *)
+                echo "Unsupported architecture for AWS CLI v2: $(uname -m)" >&2
+                exit 1
+                ;;
+        esac
+
+        AWSCLI_TMP_DIR="$(mktemp -d)"
+        (
+            cd "$AWSCLI_TMP_DIR"
+            curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-${AWSCLI_ARCH}.zip" -o awscliv2.zip
+            unzip -q awscliv2.zip
+            # --update is required (and otherwise rejected) when a previous
+            # install already exists, e.g. under FORCE_REINSTALL_AWSCLI=true.
+            install_args=(./aws/install)
+            command -v aws >/dev/null 2>&1 && install_args+=(--update)
+            sudo "${install_args[@]}"
+        )
+        rm -rf "$AWSCLI_TMP_DIR"
+        aws --version
+    fi
+else
+    stage "Skipping AWS CLI install (INSTALL_AWSCLI=false)"
+fi
+
+# --- 7c. duckdb CLI ------------------------------------------------------------------
+#
+# Only needed for init.sh's --overture, which reads Overture's GeoParquet
+# straight from S3 via duckdb's own `spatial` extension (see
+# rbt-schema/scripts/overture/shard.sh) -- Ubuntu 26.04's packaged duckdb
+# lags well behind what that extension expects, so this installs the
+# prebuilt CLI release directly from GitHub instead, mirroring how imposm/
+# tippecanoe above are fetched from upstream rather than apt.
+if [[ "$INSTALL_DUCKDB" == "true" ]]; then
+    stage "Installing duckdb CLI (${DUCKDB_VERSION})"
+    if command -v duckdb >/dev/null 2>&1 && [[ "$FORCE_REINSTALL_DUCKDB" != "true" ]]; then
+        echo "duckdb already installed at $(command -v duckdb), skipping (set FORCE_REINSTALL_DUCKDB=true to reinstall): $(duckdb --version 2>&1)"
+    else
+        # duckdb publishes glibc release assets for these two architectures
+        # only, named duckdb_cli-linux-<arch>.zip -- same set micromamba's
+        # own installer below distinguishes.
+        case "$(uname -m)" in
+            x86_64) DUCKDB_ARCH="amd64" ;;
+            aarch64|arm64) DUCKDB_ARCH="arm64" ;;
+            *)
+                echo "Unsupported architecture for duckdb CLI: $(uname -m)" >&2
+                exit 1
+                ;;
+        esac
+
+        # "latest" resolves via GitHub's own release-alias redirect rather
+        # than querying the API for a version string first; pin
+        # DUCKDB_VERSION (e.g. "v1.5.5") to fetch a specific release instead.
+        if [[ "$DUCKDB_VERSION" == "latest" ]]; then
+            DUCKDB_URL="https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-linux-${DUCKDB_ARCH}.zip"
+        else
+            DUCKDB_URL="https://github.com/duckdb/duckdb/releases/download/${DUCKDB_VERSION}/duckdb_cli-linux-${DUCKDB_ARCH}.zip"
+        fi
+
+        DUCKDB_TMP_DIR="$(mktemp -d)"
+        (
+            cd "$DUCKDB_TMP_DIR"
+            curl -sSL "$DUCKDB_URL" -o duckdb_cli.zip
+            unzip -q duckdb_cli.zip
+            sudo install -m 755 duckdb /usr/local/bin/duckdb
+        )
+        rm -rf "$DUCKDB_TMP_DIR"
+        duckdb --version
+    fi
+else
+    stage "Skipping duckdb install (INSTALL_DUCKDB=false)"
+fi
+
 # --- 8. Clone the abt monorepo (abtv2-tools/ + rbt-schema/) ------------------------
 
 if [[ "$CLONE_REPO" == "true" ]]; then
@@ -696,6 +822,11 @@ if [[ "$CLONE_REPO" == "true" ]]; then
     if [[ ! -d "$ABT_MONOREPO_DIR" ]]; then
         git clone "$ABT_REPO" "$ABT_MONOREPO_DIR"
     else
+        # Expected, not just a resume case: if you manually cloned this repo
+        # yourself (e.g. to /rbt) and are running its own setup_ubuntu.sh,
+        # ABT_MONOREPO_DIR's auto-detection above already points here, so
+        # this is every run's normal path -- not a leftover from a prior
+        # interrupted run.
         echo "abt monorepo already present at ${ABT_MONOREPO_DIR}, skipping clone"
     fi
 else
@@ -862,6 +993,8 @@ echo "aria2c:      $(aria2c --version 2>&1 | head -n1 || echo 'not available')"
 echo "imposm:      $(imposm version 2>&1 || echo 'not available')"
 echo "tippecanoe:  $(tippecanoe --version 2>&1 || echo 'not available')"
 echo "tile-join:   $(command -v tile-join 2>&1 || echo 'not available')"
+echo "aws:         $(aws --version 2>&1 || echo 'not available')"
+echo "duckdb:      $(duckdb --version 2>&1 || echo 'not available')"
 echo "abt-vundler: $(abt-vundler --version 2>&1 || echo 'not available')"
 
 stage "Setup complete"
