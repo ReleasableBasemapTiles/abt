@@ -24,10 +24,6 @@ class Bundler(BaseModel):
     Attributes:
         bundled_dir: The directory where the final bundled MBTiles file will be saved.
         package_name: The filename for the final output (e.g., "joined.mbtiles").
-        package_name_explicit: True if package_name was chosen by the caller
-            rather than defaulted -- skips the automatic .btis rename under
-            --projection-override, since an explicit name is assumed to
-            already include the extension the caller wants.
         tile_layers: A list of TileLayer objects to be included in the bundle.
         additional_mbtiles: Paths to externally-produced mbtiles files to fold into the
             bundle alongside the tile_layers (e.g. contours). Zero, one, or many.
@@ -44,7 +40,6 @@ class Bundler(BaseModel):
     """
     bundled_dir: Path
     package_name: str = "joined.mbtiles"
-    package_name_explicit: bool = False
     tile_layers: List[TileLayer]
     additional_mbtiles: List[Path] = []
     metadata: Optional[Dict[str, Any]] = None

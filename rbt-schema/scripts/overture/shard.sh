@@ -10,7 +10,14 @@ partsdir="${1:-parts}"
 infile="$2"
 name="$(basename "$infile" .zstd.parquet)"
 out="${partsdir}/${name}.fgb"
-tmp="${partsdir}/.${name}.tmp"
+# Suffixed with this process's PID: two concurrent workers can land on the
+# same input file across two separate fetch.sh invocations (e.g. an
+# orphaned run left over from an aborted init.sh), and without the PID both
+# would target the identical temp path and destroy each other's in-progress
+# output via the rm -rf below. fetch.sh's own lock (see lock.sh) is meant to
+# prevent two invocations from running at all; this is the fallback if it
+# doesn't.
+tmp="${partsdir}/.${name}.$$.tmp"
 
 # Idempotent restart: skip anything already finished.
 if [[ -s "$out" ]]; then
@@ -18,6 +25,12 @@ if [[ -s "$out" ]]; then
   exit 0
 fi
 rm -rf "$tmp"
+# PIDs get reused across separate runs, so a same-named leftover from a much
+# earlier crash is still possible even though this run's own $tmp can't
+# collide with a concurrent one. Cleans up on any exit (normal or error) so
+# a failed/interrupted worker doesn't leave debris for the next run to trip
+# over.
+trap 'rm -rf "$tmp"' EXIT
 
 # DuckDB spill space. Defaults alongside the parts dir (i.e. the data dir) rather
 # than $PWD, so it lands on the big volume no matter where xargs was invoked from.

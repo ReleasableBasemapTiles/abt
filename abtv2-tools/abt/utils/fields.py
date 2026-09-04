@@ -182,23 +182,23 @@ projection_override_field = typer.Option(
         "target projection that uses meters as its unit (like EPSG:3857 itself) -- "
         "e.g. EPSG:3395, 5041, 5042. This is NOT enforced/validated; passing a "
         "degrees-based or otherwise incompatible EPSG code will silently produce "
-        "garbled tiles. Output tiles will NOT conform to the MBTiles 1.3 spec and are "
-        "saved with a .btis extension instead of .mbtiles, with 'crs' (and, for "
-        "bundled output, 'btp_schema_version'/'changelog_url') metadata rows added "
-        "per the BTIS convention. Must be given as \"EPSG:<code>\", e.g. \"EPSG:3395\"."
+        "garbled tiles. Output tiles will NOT conform to the MBTiles 1.3 spec; "
+        "'crs' (and, for bundled output, 'btp_schema_version'/'changelog_url') "
+        "metadata rows are added per the BTIS convention so downstream tools can "
+        "still detect this. Must be given as \"EPSG:<code>\", e.g. \"EPSG:3395\"."
     ),
 )
 
 output_name_field = typer.Option(
     ...,
     *output_name_aliases,
-    help="Filename for the bundled output. Defaults to joined.mbtiles (joined.btis under --projection-override).",
+    help="Filename for the bundled output. Defaults to joined.mbtiles.",
 )
 
 vundler_input_field = typer.Option(
     ...,
     *vundler_input_aliases,
-    help="Path to the source .mbtiles/.btis file. Defaults to <working-dir>/bundled/joined.mbtiles or joined.btis.",
+    help="Path to the source .mbtiles file. Defaults to <working-dir>/bundled/joined.mbtiles.",
 )
 
 vundler_output_dir_field = typer.Option(

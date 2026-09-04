@@ -1,9 +1,10 @@
 """
 mbtiles_metadata.py
 
-Reads and writes rows in an mbtiles/btis file's `metadata` table, and looks
-up a CRS's real-world area of use. Used by TileLayer/Bundler in
-tile_layer_model.py to keep BTIS metadata (crs, bounds, center) correct under
+Reads and writes rows in an mbtiles/btis file's `metadata` table, checks
+whether such a file holds finished work at all, and looks up a CRS's
+real-world area of use. Used by TileLayer/Bundler in tile_layer_model.py to
+keep BTIS metadata (crs, bounds, center) correct under
 --projection-override -- see crs_area_of_use_bounds for why tippecanoe/
 tile-join's own computed bounds/center can't be trusted in that case.
 """
@@ -47,6 +48,50 @@ def crs_area_of_use_bounds(epsg_code: int) -> Tuple[List[float], List[float]]:
     west, south, east, north = area_of_use.bounds
     center = [(west + east) / 2, (south + north) / 2, DEFAULT_CENTER_ZOOM]
     return [west, south, east, north], center
+
+
+def is_complete_tileset(path: Path) -> bool:
+    """
+    True when `path` is a readable mbtiles/btis holding at least one tile.
+
+    tippecanoe creates and initializes its output database before it reads
+    any input, so a run that dies early -- as every layer does on a host
+    whose open-file limit is too low (exit 111) -- leaves behind a file that
+    exists, opens cleanly, and contains nothing. Mere existence therefore
+    can't tell finished work from a stub, and mistaking one for the other
+    silently ships an empty layer instead of failing.
+
+    Holding no tiles is an unambiguous signal here because tippecanoe
+    refuses to finish an empty tileset: a layer with no features exits
+    EXIT_NODATA ("Did not read any valid geometries") rather than writing a
+    tile-less output, so a successful run always leaves at least one tile.
+    """
+    if not path.exists():
+        return False
+    try:
+        # Read-only so a probe can never create or modify the file it's
+        # inspecting. as_uri() escapes the characters (spaces, ?, #) that
+        # would otherwise break the URI, and needs an absolute path to
+        # produce one at all.
+        con = sqlite3.connect(f"{path.absolute().as_uri()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return False
+    try:
+        # `tiles` is a real table in tippecanoe/tile-join output, but the
+        # spec also allows a view over deduplicated map/images tables.
+        has_tiles = con.execute(
+            "SELECT count(*) FROM sqlite_master "
+            "WHERE name = 'tiles' AND type IN ('table', 'view')"
+        ).fetchone()[0] == 1
+        if not has_tiles:
+            return False
+        return con.execute("SELECT EXISTS (SELECT 1 FROM tiles)").fetchone()[0] == 1
+    except sqlite3.Error:
+        # Truncated, corrupt, or not a database at all -- none of which is
+        # finished work.
+        return False
+    finally:
+        con.close()
 
 
 def read_mbtiles_crs(path: Path) -> Optional[str]:

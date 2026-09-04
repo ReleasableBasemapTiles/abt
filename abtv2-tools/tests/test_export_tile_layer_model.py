@@ -237,9 +237,9 @@ def test_view_columns_quotes_attribute_names(tmp_path):
     assert layer.view_columns == '"class", geometry'
 
 
-def test_mbtiles_export_filename_uses_btis_extension_under_override(tmp_path):
+def test_mbtiles_export_filename_uses_mbtiles_extension_under_override(tmp_path):
     layer = make_layer(tmp_path, projection_override="EPSG:3395")
-    assert layer.mbtiles_export_filename.suffix == ".btis"
+    assert layer.mbtiles_export_filename.suffix == ".mbtiles"
 
 
 def test_mbtiles_export_filename_uses_mbtiles_extension_by_default(tmp_path):

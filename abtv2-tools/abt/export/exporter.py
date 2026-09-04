@@ -2,14 +2,18 @@
 exporter.py
 
 Runs the two-step tile export for a TileLayer: PostGIS -> FlatGeobuf
-(ogr2ogr), then FlatGeobuf -> MBTiles (tippecanoe). Each step is skipped if
-its output file already exists.
+(ogr2ogr), then FlatGeobuf -> MBTiles (tippecanoe), so a re-run resumes
+where an earlier one stopped. The FlatGeobuf step is skipped if its output
+exists; the MBTiles step only if its output is a *finished* tileset, since
+tippecanoe leaves a stub behind when it fails -- see is_complete_tileset.
 """
 
 from .tile_layer_model import TileLayer
+from ..utils.logger import get_logger
 from ..utils.subprocess_tools import run_subprocess
 from .mbtiles_metadata import (
     crs_area_of_use_bounds,
+    is_complete_tileset,
     write_mbtiles_metadata,
     delete_mbtiles_metadata,
     OVERRIDE_ONLY_DROPPED_METADATA_KEYS,
@@ -28,7 +32,23 @@ def export_to_fgb(layer: TileLayer) -> None:
 
 
 def export_to_mbtiles(layer: TileLayer) -> None:
-    if not layer.mbtiles_export_filename.exists():
+    # Completeness, not existence: an interrupted earlier run leaves a
+    # tile-less output file behind (see is_complete_tileset), and skipping
+    # that would ship an empty layer.
+    if not is_complete_tileset(layer.mbtiles_export_filename):
+        if layer.mbtiles_export_filename.exists():
+            # tippecanoe refuses to write to an existing output at all
+            # (EXIT_EXISTS) unless --force, so the stub has to go before
+            # there's any point retrying.
+            get_logger(
+                name=layer.layer_id,
+                directory=layer.log_dir,
+                process_stage="export_to_mbtiles",
+            ).warning(
+                f"Discarding incomplete {layer.mbtiles_export_filename.name} left by an "
+                "earlier run and re-exporting it."
+            )
+            layer.mbtiles_export_filename.unlink()
         run_subprocess(
             cmd=layer.tippecanoe_cmd,
             layer=layer.layer_id,
