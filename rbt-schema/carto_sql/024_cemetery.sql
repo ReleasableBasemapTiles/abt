@@ -17,7 +17,7 @@ CREATE TABLE landuse.tmp_cemetery_ranked AS
 WITH dumped AS (
     SELECT
         osm_id,
-        NULLIF(name, '')                                                AS name,
+        COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                 AS name,
         NULLIF(class, '')                                               AS class,
         NULLIF(subclass, '')                                            AS subclass,
         NULLIF(tags -> 'religion', '')                                  AS religion,

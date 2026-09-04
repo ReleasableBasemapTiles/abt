@@ -15,8 +15,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.stadium_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.stadium_polygon AS
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     class,
     subclass,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
@@ -38,7 +37,6 @@ CREATE MATERIALIZED VIEW export.stadium_label AS
 SELECT
     osm_id,
     name,
-    name_en,
     class,
     subclass,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,

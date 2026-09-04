@@ -16,8 +16,7 @@ CREATE MATERIALIZED VIEW infrastructure.pumping_station AS
 SELECT
     osm_id,
     subclass,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(operator, '')                                                AS operator,
     NULLIF(substation, '')                                              AS substation,
     NULLIF(substance, '')                                               AS substance,
@@ -61,7 +60,6 @@ SELECT
     osm_id,
     subclass,
     name,
-    name_en,
     operator,
     substation,
     substance,

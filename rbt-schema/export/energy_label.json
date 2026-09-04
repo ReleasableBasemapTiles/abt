@@ -4,7 +4,6 @@
     "geometry_type": "point",
     "attributes": [
         {"name": "name",          "type": "string",  "description": ""},
-        {"name": "name_en",       "type": "string",  "description": ""},
         {"name": "subclass",      "type": "string",  "description": ""},
         {"name": "operator",      "type": "string",  "description": ""},
         {"name": "substance",     "type": "string",  "description": ""},

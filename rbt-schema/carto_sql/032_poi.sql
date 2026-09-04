@@ -50,8 +50,7 @@ CREATE MATERIALIZED VIEW export.poi_point AS
 
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     poi.classify(subclass, class)                                       AS class,
     subclass,
     NULLIF(religion, '')                                                AS religion,
@@ -63,8 +62,7 @@ UNION ALL
 
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     poi.classify(subclass, class)                                       AS class,
     subclass,
     NULLIF(religion, '')                                                AS religion,

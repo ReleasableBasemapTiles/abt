@@ -589,8 +589,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.airport_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.airport_polygon AS
 SELECT
     osm_id,
-    NULLIF(name,           '')                                          AS name,
-    NULLIF(name_en,        '')                                          AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(aerodrome_type, '')                                          AS aerodrome_type,
     NULLIF(amenity,        '')                                          AS amenity,
     class,

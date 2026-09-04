@@ -14,8 +14,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.culvert_point CASCADE;
 CREATE MATERIALIZED VIEW export.culvert_point AS
 SELECT
     osm_id,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     subclass,
     geometry
 FROM osm.osm_water_point

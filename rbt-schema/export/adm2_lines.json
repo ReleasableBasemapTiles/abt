@@ -7,7 +7,7 @@
         {"name": "iso_3",      "type": "string",  "description": ""},
         {"name": "adm0_name",  "type": "string",  "description": ""},
         {"name": "adm1_name",  "type": "string",  "description": ""},
-        {"name": "status_cd",  "type": "number",  "description": ""}
+        {"name": "status_cd",  "type": "int",     "description": ""}
     ],
     "source_attribution": "",
     "tippecanoe_options": {

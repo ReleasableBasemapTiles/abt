@@ -24,11 +24,6 @@
             "description": ""
         },
         {
-            "name": "name_en",
-            "type": "string",
-            "description": ""
-        },
-        {
             "name": "scalerank",
             "type": "int",
             "description": ""

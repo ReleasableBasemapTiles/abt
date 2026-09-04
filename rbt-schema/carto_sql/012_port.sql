@@ -25,7 +25,7 @@ CREATE MATERIALIZED VIEW infrastructure.port_surface_enhanced AS
 WITH base_ports AS (
     SELECT
         b.osm_id,
-        NULLIF(b.name, '')                                              AS name,
+        COALESCE(NULLIF(b.name_en, ''), NULLIF(b.name, ''))             AS name,
         b.class,
         b.subclass,
         NULLIF(b.industrial, '')                                        AS industrial,

@@ -5,8 +5,7 @@
     "attributes": [
         {"name": "area",    "type": "float",  "description": ""},
         {"name": "content", "type": "string", "description": ""},
-        {"name": "name",    "type": "string", "description": ""},
-        {"name": "name_en", "type": "string", "description": ""}
+        {"name": "name",    "type": "string", "description": ""}
     ],
     "source_attribution": "",
     "tippecanoe_options": {

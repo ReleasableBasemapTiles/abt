@@ -4,7 +4,8 @@
     "geometry_type": "polygon",
     "attributes": [
         {"name": "subclass", "type": "string",  "description": ""},
-        {"name": "z_level",  "type": "int",     "description": ""}
+        {"name": "z_level",  "type": "int",     "description": ""},
+        {"name": "capped",   "type": "bool",    "description": "true only for touching-cluster member features below z12 (see carto_sql/005a_water_polygon.sql); stops them from rendering at z12+, where the merged z_level=12 replacement takes over instead. Filter-only, not styled."}
     ],
     "source_attribution": "",
     "tippecanoe_options": {
@@ -15,14 +16,29 @@
             "*": [
                 "any",
                 ["all", [">=", "$zoom", 0], ["<=", "$zoom", 4], ["==", "z_level", 1]],
-                ["all", [">=", "$zoom", 5],  ["==", "z_level", 5]],
-                ["all", [">=", "$zoom", 6],  ["==", "z_level", 6]],
-                ["all", [">=", "$zoom", 7],  ["==", "z_level", 7]],
-                ["all", [">=", "$zoom", 8],  ["==", "z_level", 8]],
-                ["all", [">=", "$zoom", 9],  ["==", "z_level", 9]],
-                ["all", [">=", "$zoom", 10], ["==", "z_level", 10]],
-                ["all", [">=", "$zoom", 11], ["==", "z_level", 11]],
-                ["all", [">=", "$zoom", 12], ["==", "z_level", 12]]
+
+                ["all", [">=", "$zoom", 5], ["==", "z_level", 5], ["==", "capped", false]],
+                ["all", [">=", "$zoom", 5], ["<", "$zoom", 12], ["==", "z_level", 5], ["==", "capped", true]],
+
+                ["all", [">=", "$zoom", 6], ["==", "z_level", 6], ["==", "capped", false]],
+                ["all", [">=", "$zoom", 6], ["<", "$zoom", 12], ["==", "z_level", 6], ["==", "capped", true]],
+
+                ["all", [">=", "$zoom", 7], ["==", "z_level", 7], ["==", "capped", false]],
+                ["all", [">=", "$zoom", 7], ["<", "$zoom", 12], ["==", "z_level", 7], ["==", "capped", true]],
+
+                ["all", [">=", "$zoom", 8], ["==", "z_level", 8], ["==", "capped", false]],
+                ["all", [">=", "$zoom", 8], ["<", "$zoom", 12], ["==", "z_level", 8], ["==", "capped", true]],
+
+                ["all", [">=", "$zoom", 9], ["==", "z_level", 9], ["==", "capped", false]],
+                ["all", [">=", "$zoom", 9], ["<", "$zoom", 12], ["==", "z_level", 9], ["==", "capped", true]],
+
+                ["all", [">=", "$zoom", 10], ["==", "z_level", 10], ["==", "capped", false]],
+                ["all", [">=", "$zoom", 10], ["<", "$zoom", 12], ["==", "z_level", 10], ["==", "capped", true]],
+
+                ["all", [">=", "$zoom", 11], ["==", "z_level", 11], ["==", "capped", false]],
+                ["all", [">=", "$zoom", 11], ["<", "$zoom", 12], ["==", "z_level", 11], ["==", "capped", true]],
+
+                ["all", [">=", "$zoom", 12], ["==", "z_level", 12], ["==", "capped", false]]
             ]
         }
     },
