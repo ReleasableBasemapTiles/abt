@@ -148,3 +148,16 @@ at once. Three env vars per worker:
 `SHARD_MEM` matters: duckdb's own default is ~80% of **system** RAM, which every
 concurrent worker would claim in full, so they exhaust RAM before any of them
 spills. Budget roughly `RAM / -P` and leave headroom.
+
+`tile.sh` raises its own open-file limit (soft `ulimit -n`) before invoking
+tippecanoe, and logs the result to stderr. tippecanoe opens roughly ten
+descriptors per reader while it sets up, one reader per host CPU, so a
+many-core box can need more than the usual default of 1024 -- without this,
+tippecanoe dies partway through setup with `open vertexfile ...: Too many
+open files` (exit 111) before reading a single feature. Same fix as
+`abt/utils/rlimit.py` applies for the Python CLI. If a host's hard limit
+still can't go high enough, set `TIPPECANOE_MAX_THREADS` to cap tippecanoe's
+reader pool (and so its descriptor use) directly instead:
+```bash
+TIPPECANOE_MAX_THREADS=32 ./tile.sh /path/to/data_dir
+```
