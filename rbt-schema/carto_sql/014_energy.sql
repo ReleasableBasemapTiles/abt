@@ -40,8 +40,7 @@ WITH classified AS (
             WHEN subclass = 'storage_tank' AND content = 'oil' THEN 'oil_storage'
             ELSE subclass
         END                                                             AS subclass,
-        NULLIF(name, '')                                                AS name,
-        NULLIF(name_en, '')                                             AS name_en,
+        COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                 AS name,
         NULLIF(operator, '')                                            AS operator,
         COALESCE(
             substance,
@@ -80,8 +79,7 @@ WITH classified AS (
             WHEN industrial IN ('oilfield', 'wellsite')     THEN 'oilfield'
             ELSE 'oilfield'
         END                                                             AS subclass,
-        NULLIF(name, '')                                                AS name,
-        NULLIF(name_en, '')                                             AS name_en,
+        COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                 AS name,
         NULLIF(tags -> 'operator', '')                                  AS operator,
         NULL::text                                                      AS substance,
         tags -> 'ref'                                                   AS ref,
@@ -100,7 +98,6 @@ SELECT
     class,
     subclass,
     name,
-    name_en,
     operator,
     substance,
     ref,
@@ -157,7 +154,6 @@ SELECT
     osm_id,
     subclass,
     name,
-    name_en,
     operator,
     substance,
     NULL::text                                                          AS resource,
@@ -176,8 +172,7 @@ UNION ALL
 SELECT
     osm_id,
     'mineshaft'::text                                                   AS subclass,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(operator, '')                                                AS operator,
     NULL::text                                                          AS substance,
     NULLIF(resource, '')                                                AS resource,

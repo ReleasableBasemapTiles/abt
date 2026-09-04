@@ -22,8 +22,7 @@ SELECT
         NULLIF(subclass, '')
     )                                                                   AS subclass,
     NULLIF(iucn_level, '')                                              AS iucn_level,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(protect_class, '')                                           AS protect_class,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
     geometry
@@ -46,8 +45,7 @@ SELECT
     NULLIF(class, '')                                                   AS class,
     NULLIF(subclass, '')                                                AS subclass,
     NULL::text                                                          AS iucn_level,
-    NULLIF(name, '')                                                    AS name,
-    NULLIF(name_en, '')                                                 AS name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULL::text                                                          AS protect_class,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
     geometry

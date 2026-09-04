@@ -3,7 +3,7 @@
 # Called once per input file by xargs/parallel.
 #
 # bash shard.sh <partsdir> <infile>
-# Env: SHARD_THREADS, TARGET_SRS (4326|3395) -- see README.md
+# Env: SHARD_THREADS, SHARD_MEM, SHARD_TMP, TARGET_SRS (4326 | any projected EPSG code, e.g. 3395, 4087) -- see README.md
 set -euo pipefail
 
 partsdir="${1:-parts}"
@@ -19,13 +19,21 @@ if [[ -s "$out" ]]; then
 fi
 rm -rf "$tmp"
 
+# DuckDB spill space. Defaults alongside the parts dir (i.e. the data dir) rather
+# than $PWD, so it lands on the big volume no matter where xargs was invoked from.
+# Concurrent workers can share one directory; duckdb namespaces its temp files.
+SHARD_TMP="${SHARD_TMP:-$(dirname "$partsdir")/duck_tmp}"
+mkdir -p "$SHARD_TMP"
+
 TARGET_SRS="${TARGET_SRS:-4326}"
-if [[ "$TARGET_SRS" == "3395" ]]; then
-  geom_expr="ST_Transform(geometry, 'EPSG:4326', 'EPSG:3395')"
-  out_srs="EPSG:3857"
-else
+if [[ "$TARGET_SRS" == "4326" ]]; then
   geom_expr="geometry"
   out_srs="EPSG:4326"
+else
+  geom_expr="ST_Transform(geometry, 'EPSG:4326', 'EPSG:${TARGET_SRS}')"
+  # Deliberate mislabel: the coords really are EPSG:${TARGET_SRS} metres, but tagging
+  # them 3857 stops tippecanoe (run with --projection=EPSG:3857) reprojecting again.
+  out_srs="EPSG:3857"
 fi
 
 duckdb -bail -dark-mode -c "
@@ -33,6 +41,9 @@ INSTALL spatial; LOAD spatial;
 SET enable_progress_bar = false;        -- silence per-worker progress bars under xargs -P
 SET geometry_always_xy = true;          -- correct axis order for ST_Area_Spheroid + GDAL
 SET threads = ${SHARD_THREADS:-4};      -- per-process; keep small since many run at once
+SET memory_limit = '${SHARD_MEM:-8GB}';  -- per-process ceiling; default is ~80% of SYSTEM ram,
+                                        -- which N concurrent workers would each claim in full
+SET temp_directory = '${SHARD_TMP}';   -- spill here instead of duckdb's default
 SET preserve_insertion_order = false;
 COPY (
     WITH b AS (

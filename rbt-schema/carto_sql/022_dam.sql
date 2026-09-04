@@ -58,8 +58,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.dam_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.dam_polygon AS
 WITH src AS (
     SELECT
-        NULLIF(name, '')                                                AS name,
-        NULLIF(name_en, '')                                             AS name_en,
+        COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                 AS name,
         subclass                                                        AS fclass,
         CASE
             WHEN LOWER(COALESCE(NULLIF(tags->'surface',''), NULLIF(tags->'material',''), NULLIF(tags->'dam:type',''))) IN (
@@ -82,7 +81,6 @@ WITH src AS (
 )
 SELECT
     s.name,
-    s.name_en,
     s.fclass,
     COALESCE(
         s.tag_surface,
@@ -138,8 +136,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.dam_line CASCADE;
 CREATE MATERIALIZED VIEW export.dam_line AS
 WITH src AS (
     SELECT
-        NULLIF(name, '')                                                AS name,
-        NULLIF(name_en, '')                                             AS name_en,
+        COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                 AS name,
         subclass                                                        AS fclass,
         CASE
             WHEN LOWER(COALESCE(NULLIF(tags->'surface',''), NULLIF(tags->'material',''), NULLIF(tags->'dam:type',''))) IN (
@@ -175,7 +172,6 @@ kept AS (
 )
 SELECT
     k.name,
-    k.name_en,
     k.fclass,
     COALESCE(
         k.tag_surface,
@@ -243,8 +239,7 @@ BEGIN;
 CREATE TABLE dam.label_tmp_point_labels AS
 SELECT
     wl.id                                                               AS fid,
-    NULLIF(wl.name, '')                                                 AS name,
-    NULLIF(wl.name_en, '')                                              AS name_en,
+    COALESCE(NULLIF(wl.name_en, ''), NULLIF(wl.name, ''))               AS name,
     wl.subclass                                                         AS fclass,
     CASE
         WHEN LOWER(wl.tags -> 'surface') IN ('asphalt', 'cement', 'concrete', 'rock', 'stone', 'wood') THEN 'hard'
@@ -288,7 +283,6 @@ CREATE TABLE dam.label_tmp_surface_points AS
 SELECT
     NULL::integer                                                       AS fid,
     ds.name,
-    ds.name_en,
     ds.fclass,
     ds.surface,
     CASE WHEN EXISTS (
@@ -321,7 +315,6 @@ CREATE MATERIALIZED VIEW export.dam_label AS
 WITH curve_midpoints AS (
     SELECT
         dc.name,
-        dc.name_en,
         dc.fclass,
         dc.surface,
         dc.geometry                                                     AS line_geometry,
@@ -337,7 +330,6 @@ supplemental_curve_points AS (
     SELECT
         NULL::integer                                                   AS fid,
         cm.name,
-        cm.name_en,
         cm.fclass,
         cm.surface,
         CASE WHEN EXISTS (
@@ -359,13 +351,13 @@ supplemental_curve_points AS (
         WHERE ST_DWithin(cm.midpoint, ssp.geometry, 0.0001)
     )
 )
-SELECT fid, name, name_en, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
+SELECT fid, name, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
 FROM dam.label_tmp_point_labels
 UNION ALL
-SELECT fid, name, name_en, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
+SELECT fid, name, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
 FROM dam.label_tmp_surface_points
 UNION ALL
-SELECT fid, name, name_en, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
+SELECT fid, name, fclass, surface, water_intersect, dam_srf_crv_intersect, geometry
 FROM supplemental_curve_points;
 
 CREATE INDEX idx_dam_label_geometry ON export.dam_label USING gist(geometry);

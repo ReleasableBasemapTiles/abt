@@ -315,8 +315,8 @@ DECLARE
     parallel_workers CONSTANT int  := COALESCE(current_setting('abt.parallel_workers_per_gather', true)::int, 10);
     cell             CONSTANT int  := 100000;    -- metres, EPSG:3857
     connstr          CONSTANT text := format(
-        'dbname=%s options=''-c work_mem=2GB -c maintenance_work_mem=16GB -c max_parallel_workers_per_gather=%s -c parallel_setup_cost=100 -c parallel_tuple_cost=0.01 -c synchronous_commit=off -c jit=off''',
-        current_database(), parallel_workers);
+        'dbname=%s port=%s options=''-c work_mem=2GB -c maintenance_work_mem=16GB -c max_parallel_workers_per_gather=%s -c parallel_setup_cost=100 -c parallel_tuple_cost=0.01 -c synchronous_commit=off -c jit=off''',
+        current_database(), current_setting('port'), parallel_workers);
     job record;
     i int;
     n int;
@@ -510,8 +510,7 @@ DROP MATERIALIZED VIEW IF EXISTS export.landcover_label CASCADE;
 CREATE MATERIALIZED VIEW export.landcover_label AS
 SELECT
     osm_id,
-    name,
-    name_en,
+    COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     subclass,
     leaf_type,
     leaf_cycle,

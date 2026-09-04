@@ -7,9 +7,14 @@
 # sequentially in filename order, as it always has.
 #
 # Derived from a full read-through of every script (not just grep) as of
-# rbt-schema commit 258418c. Re-verify this file whenever a carto_sql script
-# is added, removed, or changed to read/write a different schema/table --
-# see "How to update this file" at the bottom.
+# rbt-schema commit 258418c; re-verified as of 3cca358 (2026-09-01 upstream
+# sync -- 005a_water_polygon.sql rewrite, 027_admin.sql NGA additions,
+# name/name_en consolidation across most scripts: no carto_sql/*.sql files
+# were added or removed, no new custom schemas were introduced, and neither
+# 005a's nor 027's new tables/functions are read outside their own script).
+# Re-verify this file whenever a carto_sql script is added, removed, or
+# changed to read/write a different schema/table -- see "How to update this
+# file" at the bottom.
 #
 # Shape:
 #   custom_schemas: schemas created once, sequentially, before any group
