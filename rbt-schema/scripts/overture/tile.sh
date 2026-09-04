@@ -22,8 +22,14 @@ fi
 # Shared, not exclusive: two tile.sh runs for different projections read
 # disjoint parts_<srs> dirs and write disjoint outputs (see PARTSDIR/OUT
 # below), so running them concurrently has always been safe -- and is
-# exactly what README.md documents doing. A shared lock still blocks any
-# overlap with fetch.sh's exclusive lock, which is the actual hazard.
+# exactly what README.md documents doing. The one directory they don't
+# keep separate is tippe_temp (below): every file tippecanoe creates there
+# -- pool/tree/geom/index/vertex/node, plus a few more during its final
+# merge pass -- is mkstemp'd and unlinked again immediately after opening,
+# so two processes sharing it can never collide on a name, the same
+# guarantee any program sharing /tmp already relies on. A shared lock
+# still blocks any overlap with fetch.sh's exclusive lock, which is the
+# actual hazard.
 acquire_overture_lock "$OUTDIR" shared
 
 OUT="$OUTDIR/building_polygon_$SRS.mbtiles"
