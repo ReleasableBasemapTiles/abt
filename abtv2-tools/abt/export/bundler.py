@@ -6,9 +6,11 @@ into one package and writes BTIS/descriptive metadata into the result.
 """
 
 from pathlib import Path
+from typing import List
 import sqlite3
 
 from .bundler_model import Bundler
+from ..utils.logger import get_logger
 from ..utils.subprocess_tools import run_subprocess
 from .mbtiles_metadata import (
     BTIS_SCHEMA_VERSION,
@@ -22,6 +24,64 @@ from .mbtiles_metadata import (
     delete_mbtiles_metadata,
     strip_json_tilestats,
 )
+
+
+def _trim_mbtiles(src: Path, dst: Path, max_zoom: int) -> None:
+    """Copies tiles with zoom_level <= max_zoom from src into a new dst mbtiles.
+
+    Uses ATTACH + INSERT INTO ... SELECT so the transfer stays inside
+    SQLite's C layer with no Python row iteration overhead. `src` is bound
+    as a query parameter rather than interpolated into the ATTACH
+    statement, so a source path containing a quote can't break it.
+    """
+    if dst.exists():
+        dst.unlink()
+    con = sqlite3.connect(dst)
+    try:
+        con.execute("PRAGMA synchronous = OFF")
+        con.execute("PRAGMA journal_mode = MEMORY")
+        con.execute("ATTACH DATABASE ? AS src", (str(src),))
+        try:
+            con.execute(
+                "CREATE TABLE tiles "
+                "(zoom_level INTEGER, tile_column INTEGER, tile_row INTEGER, tile_data BLOB)"
+            )
+            con.execute(
+                "INSERT INTO tiles "
+                "SELECT zoom_level, tile_column, tile_row, tile_data "
+                "FROM src.tiles WHERE zoom_level <= ?",
+                (max_zoom,),
+            )
+            con.execute(
+                "CREATE UNIQUE INDEX tiles_idx ON tiles (zoom_level, tile_column, tile_row)"
+            )
+
+            # Not every input has a metadata table -- a user-supplied
+            # --additional-mbtiles file may not have one at all -- so check
+            # before copying rather than assuming it's always present.
+            has_metadata = con.execute(
+                "SELECT count(*) FROM src.sqlite_master WHERE name = 'metadata' AND type = 'table'"
+            ).fetchone()[0] == 1
+            con.execute("CREATE TABLE metadata (name TEXT, value TEXT)")
+            con.execute("CREATE UNIQUE INDEX metadata_name_idx ON metadata (name)")
+            if has_metadata:
+                con.execute(
+                    "INSERT OR REPLACE INTO metadata (name, value) "
+                    "SELECT name, value FROM src.metadata"
+                )
+            # OR REPLACE (backed by the unique index above) rather than an
+            # UPDATE, which would silently no-op when the source has no
+            # maxzoom row at all -- the trimmed copy's own maxzoom should
+            # always reflect the cap just applied, regardless of source.
+            con.execute(
+                "INSERT OR REPLACE INTO metadata (name, value) VALUES ('maxzoom', ?)",
+                (str(max_zoom),),
+            )
+            con.commit()
+        finally:
+            con.execute("DETACH DATABASE src")
+    finally:
+        con.close()
 
 
 def set_pragma_options(bundle: Bundler) -> None:
@@ -50,13 +110,37 @@ def export_bundled(bundle: Bundler) -> None:
     if bundle.bundled_mbtiles_path.exists():
         bundle.bundled_mbtiles_path.unlink()
 
-    run_subprocess(
-        cmd=bundle.tile_join_cmd,
-        layer="joined",
-        process_stage="bundler",
-        log_dir=bundle.bundled_dir,
-        tool_name="tile-join",
-    )
+    # When max_zoom is set (e.g. for an RBT Small package), pre-trim every
+    # input to a zoom-capped copy using SQLite (fast indexed read), then
+    # tile-join the small trimmed files instead of the full-resolution
+    # originals. This avoids tile-join scanning the full dataset just to
+    # filter by zoom. Trimmed copies are named with a positional prefix,
+    # not just src.name -- tile_list can combine per-layer files from
+    # different directories with additional_mbtiles, so two inputs could
+    # otherwise share a basename and overwrite each other in _tmp.
+    tile_files = bundle.tile_list
+    trimmed_files: List[Path] = []
+    try:
+        if bundle.max_zoom is not None:
+            logger = get_logger("trim", bundle.bundled_dir, "bundler")
+            tmp_dir = bundle.bundled_mbtiles_tmp
+            for i, src in enumerate(tile_files):
+                dst = tmp_dir / f"{i:03d}_{src.name}"
+                trimmed_files.append(dst)
+                logger.info(f"Trimming {src.name} to z{bundle.max_zoom} ({i + 1}/{len(tile_files)})")
+                _trim_mbtiles(src, dst, bundle.max_zoom)
+            tile_files = trimmed_files
+
+        run_subprocess(
+            cmd=bundle.build_tile_join_cmd(tile_files),
+            layer="joined",
+            process_stage="bundler",
+            log_dir=bundle.bundled_dir,
+            tool_name="tile-join",
+        )
+    finally:
+        for f in trimmed_files:
+            f.unlink(missing_ok=True)
 
     set_pragma_options(bundle)
 

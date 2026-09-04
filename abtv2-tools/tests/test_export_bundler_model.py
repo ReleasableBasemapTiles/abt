@@ -1,7 +1,7 @@
-"""Tests for abt.export.bundler_model.Bundler: tile_join_cmd, _has_tiles,
-and the tile_list discovery/skip-empty logic. Uses real (tiny) sqlite
-files on disk rather than mocking sqlite3 -- these are the actual
-mechanics _has_tiles checks."""
+"""Tests for abt.export.bundler_model.Bundler: tile_join_cmd,
+build_tile_join_cmd, _has_tiles, and the tile_list discovery/skip-empty
+logic. Uses real (tiny) sqlite files on disk rather than mocking sqlite3
+-- these are the actual mechanics _has_tiles checks."""
 
 import re
 import sqlite3
@@ -82,6 +82,32 @@ def test_tile_join_cmd_includes_tile_list_paths(tmp_path):
 
     bundler = make_bundler(tmp_path, additional_mbtiles=[extra])
     assert str(extra) in bundler.tile_join_cmd
+
+
+# --- build_tile_join_cmd -------------------------------------------------
+
+def test_build_tile_join_cmd_uses_given_files_not_tile_list(tmp_path):
+    mbtiles_dir = tmp_path / "mbtiles"
+    mbtiles_dir.mkdir()
+    extra = mbtiles_dir / "contours.mbtiles"
+    _write_populated_mbtiles(extra)
+    bundler = make_bundler(tmp_path, additional_mbtiles=[extra])
+
+    trimmed = tmp_path / "trimmed.mbtiles"
+    cmd = bundler.build_tile_join_cmd([trimmed])
+
+    assert str(trimmed) in cmd
+    assert str(extra) not in cmd
+
+
+def test_tile_join_cmd_delegates_to_build_tile_join_cmd_with_tile_list(tmp_path):
+    mbtiles_dir = tmp_path / "mbtiles"
+    mbtiles_dir.mkdir()
+    extra = mbtiles_dir / "contours.mbtiles"
+    _write_populated_mbtiles(extra)
+    bundler = make_bundler(tmp_path, additional_mbtiles=[extra])
+
+    assert bundler.tile_join_cmd == bundler.build_tile_join_cmd(bundler.tile_list)
 
 
 # --- _has_tiles ---------------------------------------------------------

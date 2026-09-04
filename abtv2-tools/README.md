@@ -230,14 +230,17 @@ non-standard (`export --help` for details); output becomes `.btis` instead of
 `.mbtiles`.
 
 ```
-bundler -w <dir> -s <dir> [-p pg_config] [-q path ...] [-o output_name]
+bundler -w <dir> -s <dir> [-p pg_config] [-q path ...] [-o output_name] [-z max_zoom]
 ```
 Joins all `mbtiles/*.mbtiles`/`.btis` into one package via tile-join. Always
 rebuilds from scratch. Fails on mismatched projections across inputs. Output
 defaults to `joined.mbtiles` (`joined.btis` under `--projection-override`);
 `-o/--output-name` overrides this and is used exactly as given (no auto-renaming).
 `-q/--additional-mbtiles` folds in an externally-produced mbtiles file (e.g.
-contours); repeatable for more than one.
+contours); repeatable for more than one. `-z/--max-zoom` caps the bundle at a
+given zoom level -- e.g. for a smaller "RBT Small" package -- by pre-trimming
+every input with SQLite before tile-join runs; omit for no cap (full
+resolution).
 
 ```
 vundler -w <dir> [-i input_path] [-o output_dir] [-z max_zoom] [-n workers]
