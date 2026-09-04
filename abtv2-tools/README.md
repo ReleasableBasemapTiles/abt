@@ -8,9 +8,9 @@ This directory is one half of the monorepo: it's the generic pipeline runner, pa
 
 ## Dependencies
 
-ABT was developed in Python 3.13 (see `env.yaml`) and tested on Rocky Linux 9 and Ubuntu 26.04.
+ABT was developed in Python 3.14 (see `env.yaml`) and tested on Rocky Linux 9 and Ubuntu 26.04.
 
-- Python 3.13
+- Python 3.14
 - PostgreSQL >=16 / PostGIS >=3.4
 - GDAL (ogr2ogr) >=3.9.2
 - imposm3 >=0.14
