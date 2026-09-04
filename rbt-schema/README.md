@@ -62,15 +62,16 @@ flowchart LR
     exportJson --> mbtiles["per-layer .mbtiles"]
     mbtiles --> bundle["bundled/joined.mbtiles"]
     metadataPy["tile-metadata/metadata.py"] -.->|written into| bundle
-    overture["scripts/overture/*.sh<br/>(standalone, no Postgres)"] -.->|manual, via bundler -q| bundle
+    overture["scripts/overture/*.sh<br/>(standalone, no Postgres)"] -.->|"bundler -q (or init.sh --overture)"| bundle
 ```
 
-The two dotted arrows are manual, not run by `abt-tools.py` automatically:
+The two dotted arrows are not run by `abt-tools.py` automatically:
 `tile-metadata/metadata.py` is loaded and written in by `bundler` itself
 (not a pipeline stage of its own), and `scripts/overture/` isn't invoked by
 `abt-tools.py` at all — its output gets folded into the same bundle later via
-`bundler`'s `-q/--additional-mbtiles` flag. See "`scripts/overture/` —
-standalone Overture buildings pipeline" below.
+`bundler`'s `-q/--additional-mbtiles` flag, either by hand or automatically
+via `init.sh --overture`. See "`scripts/overture/` — standalone Overture
+buildings pipeline" below.
 
 ## `import/osm/` — imposm mappings
 
@@ -447,7 +448,7 @@ Three shell scripts that build the `building_polygon` layer from
 [Overture Maps](https://overturemaps.org) building footprints, entirely
 outside `abt-tools.py`/Postgres — DuckDB reads Overture's GeoParquet
 directly from S3, shards it to per-file FlatGeobuf, and tippecanoe tiles it
-straight to `.mbtiles`:
+straight to `.mbtiles` (or `.btis` for a reprojected build; see below):
 
 ```bash
 ./fetch.sh /path/to/data_dir [jobs] [shard_threads]
@@ -456,24 +457,46 @@ straight to `.mbtiles`:
 ```
 
 (See [`scripts/overture/README.md`](scripts/overture/README.md) for the
-EPSG:3395 variant, which reprojects before tiling and tells tippecanoe it's
-already receiving 3857 so it doesn't reproject a second time.)
+EPSG:3395/4087 reprojected variants — and `SRS_LIST`, which drives several
+projections from one `fetch.sh` call — which reproject before tiling and tell
+tippecanoe it's already receiving 3857 so it doesn't reproject a second time.)
 
 This is why the OSM-derived building layer is disabled (see "The `.skip`
 convention" below): buildings come from here instead. The resulting
-`building_polygon_3857.mbtiles` isn't picked up automatically — fold it into
-the main tileset by passing it to `bundler`'s
-`-q/--additional-mbtiles`:
+`building_polygon_*` files aren't picked up by `abt-tools.py`
+automatically — fold each into its matching projection's tileset by passing
+it to that `bundler` run's `-q/--additional-mbtiles`:
 
 ```bash
 python abt-tools.py bundler -w <working_dir> -s ../rbt-schema -p env \
   -q /path/to/data_dir/building_polygon_3857.mbtiles
 ```
 
-`shard.sh` skips any output file that already exists, so `fetch.sh` is safe
-to re-run after an interruption; `SHARD_THREADS`/`TARGET_SRS` env vars
-control per-shard DuckDB threading and an alternate EPSG:3395 reprojection
-path (see the script's own README for when to use it).
+or run [`init.sh --overture`](../init.sh), which fetches/tiles Overture
+buildings in the background alongside the rest of the pipeline and passes
+each projection's output to its matching bundler run automatically. Add
+`--overture-clean` to also delete each projection's FlatGeobuf shards as it
+finishes tiling — at planet scale those shards dominate the pipeline's disk
+use, at the cost of re-sharding on a later re-run.
+
+`init.sh` defaults to building 3857, 3395, and 4087; pass
+`--projections "<space-separated EPSG codes>"` to build a different set
+(each non-3857 entry needs metres-based units, the same requirement
+`--projection-override` already has). `--contours <dir>` folds externally-
+produced `contours_<srs>.mbtiles` files from that directory into each
+projection's bundle the same way `-q` folds in Overture buildings — `init.sh`
+CRS-tags a reprojected contours file in place (reusing Overture's own
+`tag_crs.py`) if it doesn't already carry a `crs` row, and aborts up front if
+a file is missing or already tagged with a different projection than
+requested.
+
+`shard.sh` skips any output file that already exists and `fetch.sh`'s S3
+download is an `aws s3 sync`, so the whole pipeline is safe to re-run after
+an interruption. `SRS_LIST`/`OVERTURE_RELEASE` (on `fetch.sh`) and
+`SHARD_THREADS`/`TARGET_SRS` (on `shard.sh`) env vars control which
+projections get sharded, which Overture release to use, per-shard DuckDB
+threading, and reprojection to any other projected EPSG code (e.g. 3395,
+4087) — see the script's own README for the mechanics.
 
 ## The `.skip` convention
 

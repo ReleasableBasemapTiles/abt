@@ -26,6 +26,10 @@ SHARD_TMP="${SHARD_TMP:-$(dirname "$partsdir")/duck_tmp}"
 mkdir -p "$SHARD_TMP"
 
 TARGET_SRS="${TARGET_SRS:-4326}"
+if [[ "$TARGET_SRS" != "4326" && ! "$TARGET_SRS" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: TARGET_SRS must be 4326 or a numeric EPSG code (e.g. 3395, 4087), got '$TARGET_SRS'" >&2
+  exit 1
+fi
 if [[ "$TARGET_SRS" == "4326" ]]; then
   geom_expr="geometry"
   out_srs="EPSG:4326"
