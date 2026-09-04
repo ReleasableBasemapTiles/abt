@@ -2,12 +2,19 @@
 
 #./tile.sh /path/to/data_dir [srs]   srs: 3857 (default) | any reprojected code, e.g. 3395, 4087
 # See README.md for what the reprojected path does.
+# Env: CLEAN_PARTS (default false -- delete this projection's .fgb shards once
+#      tiling succeeds), PYTHON (interpreter used for tag_crs.py)
 
 set -euo pipefail
 cd "$(dirname "$0")"
 
 OUTDIR="${1:-./data}"
 SRS="${2:-3857}"
+
+if [[ "$SRS" != "3857" && ! "$SRS" =~ ^[0-9]+$ ]]; then
+  echo "ERROR: srs must be 3857 or a numeric EPSG code (e.g. 3395, 4087), got '$SRS'" >&2
+  exit 1
+fi
 
 if [[ "$SRS" == "3857" ]]; then
   PARTSDIR="$OUTDIR/parts"
@@ -52,4 +59,15 @@ tippecanoe \
 # for it. Invoked via the interpreter so a missing exec bit can't break the build.
 if [[ "$SRS" != "3857" ]]; then
   "${PYTHON:-python3}" tag_crs.py "$SRS" "$OUT"
+fi
+
+# Opt-in: drop the .fgb shards this build just consumed. A planet parts dir runs
+# to hundreds of GB and there is one per projection, so they are usually the
+# pipeline's dominant disk cost once the .mbtiles/.btis exists. Deliberately the
+# last thing here: under set -e a failed tippecanoe or tag_crs.py never reaches
+# it, leaving the shards in place to retry from. Nothing regenerates them, so a
+# later re-run of this projection has to re-shard (fetch.sh / shard.sh) first.
+if [[ "${CLEAN_PARTS:-false}" == true && -d "$PARTSDIR" ]]; then
+  echo "cleaning $PARTSDIR"
+  rm -rf "$PARTSDIR"
 fi
