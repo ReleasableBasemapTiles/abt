@@ -97,14 +97,11 @@ def set_pragma_options(bundle: Bundler) -> None:
 def export_bundled(bundle: Bundler) -> None:
     """Runs tile-join and writes BTIS/descriptive metadata into the joined output."""
 
-    # Determine up front whether every input agrees on a projection (or
-    # all default to Web Mercator); if it's a non-default CRS, the joined
-    # output is renamed .btis before tile_join_cmd/bundled_mbtiles_path
-    # are built from bundle.package_name. Skipped for an explicit
-    # package_name -- the caller's chosen extension is left alone.
+    # Determine up front whether every input agrees on a projection (or all
+    # default to Web Mercator) -- used below to decide whether the joined
+    # output needs the projection-override metadata block (crs, bounds/
+    # center recomputed for that CRS) instead of tile-join's own.
     crs = resolve_crs_from_files(bundle.tile_list)
-    if crs is not None and not bundle.package_name_explicit:
-        bundle.package_name = Path(bundle.package_name).with_suffix(".btis").name
 
     # Remove any stale output file so tile-join doesn't prompt to overwrite
     if bundle.bundled_mbtiles_path.exists():

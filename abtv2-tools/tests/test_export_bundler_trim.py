@@ -193,3 +193,30 @@ def test_export_bundled_trims_same_named_inputs_without_collision(tmp_path, monk
 
     assert len(trimmed_paths) == 2
     assert trimmed_paths[0].name != trimmed_paths[1].name
+
+
+def test_export_bundled_keeps_mbtiles_extension_for_crs_tagged_inputs(tmp_path, monkeypatch):
+    # A CRS-tagged input (e.g. from a --projection-override export) used to
+    # trigger an automatic rename to joined.btis; that auto-rename is gone,
+    # so package_name/bundled_mbtiles_path must stay joined.mbtiles even
+    # when every input carries a non-default crs metadata row. run_subprocess
+    # is mocked to raise for the same reason as the tests above -- stop
+    # export_bundled right after it decides the package name, before it
+    # reaches post-tile-join steps that assume a real output file exists.
+    mbtiles_dir = tmp_path / "mbtiles"
+    a = mbtiles_dir / "a.mbtiles"
+    _make_mbtiles(a, tiles=[(0, 0, 0)], metadata_rows={"crs": "EPSG:3395"})
+
+    bundler = make_bundler(tmp_path, additional_mbtiles=[a])
+
+    monkeypatch.setattr(
+        bundler_module,
+        "run_subprocess",
+        MagicMock(side_effect=subprocess.CalledProcessError(1, ["tile-join"])),
+    )
+
+    with pytest.raises(subprocess.CalledProcessError):
+        export_bundled(bundler)
+
+    assert bundler.package_name == "joined.mbtiles"
+    assert bundler.bundled_mbtiles_path == tmp_path / "bundled" / "joined.mbtiles"

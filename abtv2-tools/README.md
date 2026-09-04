@@ -226,16 +226,16 @@ export -w <dir> -s <dir> [-n workers] [-p pg_config] [-z max_zoom] [--projection
 ```
 Per layer: PostgreSQL -> FlatGeobuf (ogr2ogr) -> MBTiles (tippecanoe). Skips either
 step if its output file already exists. `--projection-override` is advanced/
-non-standard (`export --help` for details); output becomes `.btis` instead of
-`.mbtiles`.
+non-standard (`export --help` for details); output still uses the `.mbtiles`
+extension but won't conform to the MBTiles 1.3 spec.
 
 ```
 bundler -w <dir> -s <dir> [-p pg_config] [-q path ...] [-o output_name] [-z max_zoom]
 ```
-Joins all `mbtiles/*.mbtiles`/`.btis` into one package via tile-join. Always
-rebuilds from scratch. Fails on mismatched projections across inputs. Output
-defaults to `joined.mbtiles` (`joined.btis` under `--projection-override`);
-`-o/--output-name` overrides this and is used exactly as given (no auto-renaming).
+Joins all `mbtiles/*.mbtiles` (or `.btis`) per layer into one package via
+tile-join. Always rebuilds from scratch. Fails on mismatched projections across
+inputs. Output defaults to `joined.mbtiles`; `-o/--output-name` overrides this
+and is used exactly as given.
 `-q/--additional-mbtiles` folds in an externally-produced mbtiles file (e.g.
 contours); repeatable for more than one. `-z/--max-zoom` caps the bundle at a
 given zoom level -- e.g. for a smaller "RBT Small" package -- by pre-trimming
@@ -249,8 +249,8 @@ Converts a bundled mbtiles file into Esri Compact Cache V2 tile bundles
 (`.bundle` files per zoom level, plus a bare `metadata.json`), zoom levels
 converted concurrently (`-n/--num-workers`, defaults to one per core). Not a
 complete `.vtpk` -- no `conf.xml`/`root.json`/styles. `-i/--input-path`
-defaults to `bundled/joined.mbtiles` or `joined.btis`; `-o/--output-dir`
-defaults to `bundled/vundled/p12`.
+defaults to `bundled/joined.mbtiles` (or `joined.btis`, if present);
+`-o/--output-dir` defaults to `bundled/vundled/p12`.
 
 ## Reuse
 
@@ -258,8 +258,8 @@ Only `export` and `download` skip existing outputs. `import`, `carto`,
 `bundler`, and `vundler` always redo the full operation.
 
 To rebuild one layer: delete its `flatgeobuf/<layer>.fgb` and/or
-`mbtiles/<layer>.mbtiles`/`.btis`, then re-run `export`. Deleting only the mbtiles
-file (keeping the fgb) skips straight to the tippecanoe step.
+`mbtiles/<layer>.mbtiles` (or `.btis`, if present), then re-run `export`. Deleting
+only the mbtiles file (keeping the fgb) skips straight to the tippecanoe step.
 
 ## Troubleshooting
 

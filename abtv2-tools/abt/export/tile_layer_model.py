@@ -279,11 +279,7 @@ class TileLayer(BaseModel):
     # Exporter - Mbtiles
     @property
     def mbtiles_export_filename(self) -> Path:
-        # Non-conformant (projection-override) output is named .btis instead of
-        # .mbtiles, per the BTIS convention, so it's never mistaken for a
-        # spec-conformant MBTiles file.
-        extension = "btis" if self.is_projection_override_active else "mbtiles"
-        return self.mbtiles_dir / f"{self.layer_id}.{extension}"
+        return self.mbtiles_dir / f"{self.layer_id}.mbtiles"
     @property
     def mbtiles_tmp_dir(self) -> Path:
         tmp_dir = self.tmp_dir / f"{self.layer_id}"

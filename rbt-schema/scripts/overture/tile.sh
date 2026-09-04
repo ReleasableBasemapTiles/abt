@@ -7,6 +7,7 @@
 
 set -euo pipefail
 cd "$(dirname "$0")"
+source ./lock.sh
 
 OUTDIR="${1:-./data}"
 SRS="${2:-3857}"
@@ -16,17 +17,21 @@ if [[ "$SRS" != "3857" && ! "$SRS" =~ ^[0-9]+$ ]]; then
   exit 1
 fi
 
+# Shared, not exclusive: two tile.sh runs for different projections read
+# disjoint parts_<srs> dirs and write disjoint outputs (see PARTSDIR/OUT
+# below), so running them concurrently has always been safe -- and is
+# exactly what README.md documents doing. A shared lock still blocks any
+# overlap with fetch.sh's exclusive lock, which is the actual hazard.
+acquire_overture_lock "$OUTDIR" shared
+
+OUT="$OUTDIR/building_polygon_$SRS.mbtiles"
 if [[ "$SRS" == "3857" ]]; then
   PARTSDIR="$OUTDIR/parts"
-  OUT="$OUTDIR/building_polygon_3857.mbtiles"
   PROJ_FLAG=()
 else
   # Parts were already reprojected to EPSG:$SRS by shard.sh and tagged 3857;
   # --projection=EPSG:3857 tells tippecanoe to take them as-is.
-  # .btis, not .mbtiles: the file is sqlite in the usual layout, but the tiles are
-  # not web mercator, so the extension keeps it from being consumed as one.
   PARTSDIR="$OUTDIR/parts_$SRS"
-  OUT="$OUTDIR/building_polygon_$SRS.btis"
   PROJ_FLAG=(--projection=EPSG:3857)
 fi
 
@@ -63,7 +68,7 @@ fi
 
 # Opt-in: drop the .fgb shards this build just consumed. A planet parts dir runs
 # to hundreds of GB and there is one per projection, so they are usually the
-# pipeline's dominant disk cost once the .mbtiles/.btis exists. Deliberately the
+# pipeline's dominant disk cost once the .mbtiles exists. Deliberately the
 # last thing here: under set -e a failed tippecanoe or tag_crs.py never reaches
 # it, leaving the shards in place to retry from. Nothing regenerates them, so a
 # later re-run of this projection has to re-shard (fetch.sh / shard.sh) first.

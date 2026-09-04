@@ -49,7 +49,7 @@ def init_bundler(
         additional_mbtiles: Paths to externally-produced mbtiles files (e.g.
             contours) to fold into the bundle. Defaults to none.
         output_name: Optional filename for the bundled output. Defaults to
-            joined.mbtiles (joined.btis under --projection-override).
+            joined.mbtiles.
         max_zoom: Optional zoom cap for the bundled output (e.g. for an RBT
             Small package). Omit for no cap (full resolution).
     """
@@ -72,7 +72,6 @@ def init_bundler(
         additional_mbtiles=additional_mbtiles or [],
         metadata=joined_metadata,
         package_name=output_name or "joined.mbtiles",
-        package_name_explicit=output_name is not None,
         max_zoom=max_zoom,
     )
     print("--- Bundling tile layers ---")

@@ -448,7 +448,7 @@ Three shell scripts that build the `building_polygon` layer from
 [Overture Maps](https://overturemaps.org) building footprints, entirely
 outside `abt-tools.py`/Postgres — DuckDB reads Overture's GeoParquet
 directly from S3, shards it to per-file FlatGeobuf, and tippecanoe tiles it
-straight to `.mbtiles` (or `.btis` for a reprojected build; see below):
+straight to `.mbtiles` (a reprojected build gets the same extension; see below):
 
 ```bash
 ./fetch.sh /path/to/data_dir [jobs] [shard_threads]
@@ -497,6 +497,16 @@ an interruption. `SRS_LIST`/`OVERTURE_RELEASE` (on `fetch.sh`) and
 projections get sharded, which Overture release to use, per-shard DuckDB
 threading, and reprojection to any other projected EPSG code (e.g. 3395,
 4087) — see the script's own README for the mechanics.
+
+`init.sh --from export` skips `[1/6]`-`[3/6]` (download/import/carto) and
+jumps straight to `[4/6]`, once a preflight confirms with `ogrinfo` that
+every projection's workspace already has a complete, readable `.fgb` for
+each export layer. It aborts up front — before touching Postgres or
+launching `--overture`'s background pipeline — if any `.fgb` is missing or
+unreadable. Combined with `--overture`, it also skips re-launching the
+fetch+tile pipeline whenever every projection's `building_polygon_<srs>`
+output already exists, folding that existing file into the bundle exactly
+as a fresh run would.
 
 ## The `.skip` convention
 
