@@ -3,7 +3,9 @@
 #./tile.sh /path/to/data_dir [srs]   srs: 3857 (default) | any reprojected code, e.g. 3395, 4087
 # See README.md for what the reprojected path does.
 # Env: CLEAN_PARTS (default false -- delete this projection's .fgb shards once
-#      tiling succeeds), PYTHON (interpreter used for tag_crs.py)
+#      tiling succeeds), PYTHON (interpreter used for tag_crs.py),
+#      TIPPECANOE_MAX_THREADS (caps tippecanoe's own reader pool directly --
+#      see raise_open_file_limit below for why that pool size matters)
 
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -36,6 +38,51 @@ else
 fi
 
 mkdir -p "$OUTDIR/tippe_temp"
+
+# tippecanoe sizes its reader pool to the host's core count and opens ~10
+# descriptors per reader during setup (pool/tree/geom/index/vertex/node
+# temp files) before it reads a single input feature -- see felt/
+# tippecanoe's init_cpus()/read_input(). On a many-core host that blows
+# past the usual 1024 soft `ulimit -n`, dying partway through setup with
+# "Too many open files" (EXIT_OPEN, exit 111) -- for every layer, since
+# every layer hits the same setup on the same host. This process's limit
+# is all that matters: tippecanoe is exec'd directly below, so it inherits
+# whatever we set here.
+#
+# Same fix as abt/utils/rlimit.py's raise_open_file_limit() applies for the
+# Python CLI; kept in lockstep with it by hand rather than shared, since
+# nothing else that sources this file needs it.
+#
+# TIPPECANOE_MAX_THREADS is tippecanoe's own escape hatch when a host's
+# hard limit genuinely can't be raised far enough: it caps CPUS (and so the
+# reader pool) directly, and this script passes the environment through
+# unchanged, e.g. `TIPPECANOE_MAX_THREADS=32 ./tile.sh ...`.
+raise_open_file_limit() {
+  local soft hard target
+  soft="$(ulimit -Sn)"
+  hard="$(ulimit -Hn)"
+
+  if [[ "$soft" != "$hard" ]]; then
+    if [[ "$hard" != unlimited ]]; then
+      ulimit -n "$hard"
+    else
+      # macOS shape: the hard limit claims unlimited but the kernel still
+      # refuses any soft value above some real ceiling, so there's no
+      # single value to ask for -- walk the same ladder rlimit.py's
+      # UNLIMITED_FALLBACK_TARGETS does, top down, stopping at the first
+      # the kernel accepts. The ladder descends, so once a rung is no
+      # higher than what we already have there's nothing left worth
+      # trying.
+      for target in 1048576 262144 65536 10240; do
+        (( target <= soft )) && break
+        ulimit -n "$target" 2>/dev/null && break
+      done
+    fi
+  fi
+
+  echo "open file limit: $(ulimit -n) (was $soft)" >&2
+}
+raise_open_file_limit
 
 tippecanoe \
   -o "$OUT" \
