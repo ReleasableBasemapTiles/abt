@@ -1,6 +1,19 @@
 # MkDocs and theme
-mkdocs>=1.5.0
-mkdocs-material>=9.0.0
+#
+# mkdocs is capped below 2.0 on purpose: MkDocs 2.0 is a from-scratch rewrite
+# by the original maintainer that removes the plugin system entirely,
+# rewrites the theme API, has no upgrade path, and (as of this writing) ships
+# with no open-source license -- see
+# https://squidfunk.github.io/mkdocs-material/blog/2026/02/18/mkdocs-2.0/.
+# Every plugin below, plus docs/_hooks/*.py's use of `hooks:`, depends on the
+# plugin system 2.0 removes, so an uncapped `pip install` picking up a future
+# `mkdocs==2.0.0` from PyPI would break this build outright. If that day
+# comes, the fix is almost certainly switching to properdocs (a maintained,
+# drop-in-compatible fork of classic MkDocs 1.x: `pip install properdocs`,
+# same mkdocs.yml, same plugins, just swap the `mkdocs` command for
+# `properdocs`) rather than chasing 2.0 compatibility.
+mkdocs>=1.5.0,<2.0.0
+mkdocs-material>=9.0.0,<10.0.0
 
 # MkDocs plugins
 mkdocs-mermaid2-plugin>=0.6.0
