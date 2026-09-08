@@ -4,7 +4,10 @@
 that read `osm.*`/`aux_data.*` and build every `export.*` table — always as a
 `CREATE MATERIALIZED VIEW` (zero plain `CREATE VIEW` objects under `export`;
 every layer's data is materialized at [Carto](../pipeline/carto.md) time, not
-read live at export time).
+read live at export time). Every script's own header comment (`LAYER`/
+`Sources`/`Intermediates`, see below) is parsed to build the
+[Database Schema](database.md) page — a by-theme, source-to-view trace
+through all 60 `export.*` views.
 
 Each script follows the same shape: a header comment naming the
 layer/schema/sources, then one or more

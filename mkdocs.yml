@@ -63,6 +63,7 @@ hooks:
   - docs/_hooks/gen_layer_registry.py
   - docs/_hooks/gen_data_sources.py
   - docs/_hooks/gen_carto_dag.py
+  - docs/_hooks/gen_db_schema.py
 
 # Plugins
 plugins:
@@ -143,6 +144,7 @@ nav:
     - Overture Buildings: pipeline/overture.md
   - Schema Reference:
     - Overview: schema/index.md
+    - Database Schema: schema/database.md
     - OSM Mappings: schema/osm-mappings.md
     - Auxiliary Data: schema/aux-data.md
     - Carto SQL: schema/carto-sql.md
