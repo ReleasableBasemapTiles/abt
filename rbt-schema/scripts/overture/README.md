@@ -7,8 +7,11 @@ Standard (EPSG:3857):
 # -> data_dir/building_polygon_3857.mbtiles
 ```
 
-Any other projected SRS (reprojected in `shard.sh`, then tippecanoe is told it's
-already 3857 so it doesn't reproject again). Substitute the EPSG code — e.g. 3395
+Any other projected SRS (reprojected in `shard.sh` via the system `ogr2ogr`/PROJ,
+then tippecanoe is told with `--projection=EPSG:3857` to read the resulting
+metres as-is rather than reproject them again -- tippecanoe ignores a
+FlatGeobuf's own header CRS regardless of what it says, so this flag, not the
+header, is what actually governs). Substitute the EPSG code — e.g. 3395
 (World Mercator) or 4087 (World Equidistant Cylindrical):
 ```bash
 SRS=4087
@@ -70,6 +73,31 @@ filters in `tile.sh` mean the same thing in every projection.
 Both `shard.sh`'s `TARGET_SRS` and `tile.sh`'s `srs` argument accept any numeric
 EPSG code, not just 3395/4087 -- each rejects a non-numeric value outright rather
 than silently mishandling a typo.
+
+## PROJ version agreement
+
+PROJ 9.8.0 added the ellipsoidal Equidistant Cylindrical method (EPSG:1028) --
+see [PROJ#4654](https://github.com/OSGeo/PROJ/issues/4654) -- fixing a northing
+error of tens of kilometers that older PROJ's spherical-only formulas produced
+for EPSG:4087-style codes. DuckDB's bundled PROJ (9.1.1 as of duckdb 1.5.5)
+predates that fix; this is exactly why `shard.sh` reprojects non-4326
+`TARGET_SRS` through the system `ogr2ogr`/PROJ instead of DuckDB's own
+`ST_Transform` -- see "Other projections" above. `abtv2-tools/env.yaml` pins
+`proj>=9.8` so that engine stays correct too.
+
+`check_proj_agreement.py` verifies this agreement at runtime: it transforms a
+handful of fixed control points via every engine it can reach on this box --
+`pyproj` (required), plus `duckdb` and Postgres/PostGIS (each skipped, not
+failed, if unreachable) -- and fails if any two disagree by more than 1mm
+(`PROJ_AGREEMENT_TOLERANCE_M` to change that):
+
+```bash
+python check_proj_agreement.py 4087 [3395 ...]
+```
+
+[`init.sh`](../../../init.sh) runs this for every non-3857 entry in
+`--projections`, before either the background Overture pipeline or `[4/6]
+export` starts -- see the top-level [README.md](../../README.md).
 
 ## Concurrency
 

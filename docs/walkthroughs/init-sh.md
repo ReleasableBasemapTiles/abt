@@ -88,9 +88,10 @@ The default, `download`, runs the full pipeline from the top.
 Before any multi-hour work starts, `init.sh` checks (and exits immediately on failure):
 
 - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_SESSION_TOKEN` are exported (required for the `[6/6]` upload).
-- If `--overture` was passed: `duckdb` and `aws` are on `PATH`.
+- If `--overture` was passed: `duckdb`, `aws`, and `ogr2ogr` are on `PATH` (`ogr2ogr` is what `shard.sh` now uses to reproject non-3857 targets -- see [Overture Buildings](../pipeline/overture.md)).
 - If `--contours` was passed: `sqlite3` is on `PATH`, plus the per-file CRS-tag checks described above.
 - If `--from export` was passed: `ogrinfo` is on `PATH`, plus the `.fgb` completeness/readability checks described above.
+- If `--projections`/`--overture`/`--overture-clean` list any non-`3857` code: `check_proj_agreement.py` confirms every reachable PROJ engine (pyproj, DuckDB, PostGIS) agrees on that code's coordinates, regardless of `--from`/`--overture` -- see [Overture Buildings](../pipeline/overture.md#proj-version-agreement).
 
 ## Cleanup on exit
 

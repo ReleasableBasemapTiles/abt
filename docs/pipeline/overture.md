@@ -23,10 +23,14 @@ instead. The resulting `building_polygon_*` files aren't picked up by
 
 ## Other projections
 
-Any other projected SRS is reprojected in `shard.sh`, and `tile.sh` then tells
-tippecanoe the data is already EPSG:3857 so it doesn't reproject a second time.
-Substitute the EPSG code — e.g. 3395 (World Mercator) or 4087 (World Equidistant
-Cylindrical). Manually, sharding each Overture parquet file yourself:
+Any other projected SRS is reprojected in `shard.sh`, via the system `ogr2ogr`/
+PROJ rather than DuckDB itself -- see [PROJ version agreement](#proj-version-agreement)
+below for why -- and `tile.sh` then tells tippecanoe with `--projection=EPSG:3857`
+to read the resulting metres as-is instead of reprojecting them again. tippecanoe
+ignores a FlatGeobuf's own header CRS regardless of what it says, so this flag,
+not the header, is what actually governs. Substitute the EPSG code — e.g. 3395
+(World Mercator) or 4087 (World Equidistant Cylindrical). Manually, sharding each
+Overture parquet file yourself:
 
 ```bash
 SRS=4087
@@ -67,6 +71,39 @@ writes (see below), not the filename, that marks a build as not Web Mercator. Th
 layer name is always `building_polygon`. `area` is always `ST_Area_Spheroid` off
 the source WGS84 geometry, so the zoom filters in `tile.sh` mean the same thing in
 every projection.
+
+## PROJ version agreement
+
+PROJ 9.8.0 added the ellipsoidal Equidistant Cylindrical method (EPSG:1028) —
+see [PROJ#4654](https://github.com/OSGeo/PROJ/issues/4654) — fixing a northing
+error of tens of kilometers that older PROJ's spherical-only formulas produced
+for EPSG:4087-style codes (zero at the equator, largest around 50-60 degrees
+latitude). DuckDB's bundled PROJ (9.1.1 as of duckdb 1.5.5) predates that fix,
+which is exactly why `shard.sh` reprojects through the system `ogr2ogr`/PROJ
+instead of DuckDB's own `ST_Transform` for any non-4326 `TARGET_SRS` — see
+[Other projections](#other-projections) above. `abtv2-tools/env.yaml` pins
+`proj>=9.8` so that engine stays correct too.
+
+The export path's own `--projection-override` reprojects inside PostGIS — a
+third, independently-versioned PROJ install — and DuckDB is kept around here
+purely as a regression trip-wire in case its `ST_Transform` is ever
+reintroduced into the reprojection path. `check_proj_agreement.py` checks
+that every reachable engine on this box — `pyproj`, `duckdb`, and
+Postgres/PostGIS — agrees on a handful of fixed control-point transforms
+before committing to hours of work on a given EPSG code:
+
+```bash
+python check_proj_agreement.py 4087 [3395 ...]
+```
+
+Every engine except `pyproj` itself is optional: a missing `duckdb` binary or
+an unreachable Postgres is reported as a skipped check, not a failure, so
+this still runs standalone. Two reachable engines disagreeing by more than
+1mm (`PROJ_AGREEMENT_TOLERANCE_M` to change that) at any control point fails
+with a report naming both engines' PROJ versions and the size of the
+disagreement. [`init.sh`](../walkthroughs/init-sh.md) runs this automatically
+for every non-`3857` entry in `--projections`, before either the background
+Overture pipeline or `[4/6] export` starts.
 
 ## Pinning the Overture release
 

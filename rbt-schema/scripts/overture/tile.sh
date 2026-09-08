@@ -31,8 +31,12 @@ if [[ "$SRS" == "3857" ]]; then
   PARTSDIR="$OUTDIR/parts"
   PROJ_FLAG=()
 else
-  # Parts were already reprojected to EPSG:$SRS by shard.sh and tagged 3857;
-  # --projection=EPSG:3857 tells tippecanoe to take them as-is.
+  # Parts already hold EPSG:$SRS metres (correctly labelled as such in their
+  # own FlatGeobuf header -- see shard.sh) rather than the lon/lat degrees
+  # tippecanoe expects by default. --projection=EPSG:3857 tells it to read
+  # the numbers as-is instead of reprojecting them: tippecanoe ignores a
+  # FlatGeobuf's own header CRS regardless of what it says, so this flag --
+  # not the header -- is what actually governs.
   PARTSDIR="$OUTDIR/parts_$SRS"
   PROJ_FLAG=(--projection=EPSG:3857)
 fi

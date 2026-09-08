@@ -171,9 +171,14 @@ export AWS_DEFAULT_REGION="us-east-1"
 # duckdb -- only this pipeline needs it -- and the pipeline runs in the
 # background (see below), so a missing binary would otherwise only surface
 # in $OVERTURE_DIR/overture.log at the [5/6] wait_jobs join instead of here.
+# ogr2ogr (from the same GDAL install --from export's own ogrinfo check
+# below already relies on) is what shard.sh now uses to reproject non-3857
+# targets -- see rbt-schema/scripts/overture/README.md's "Other projections"
+# section for why DuckDB's own bundled PROJ can't be trusted for that.
 if [[ "$RUN_OVERTURE" == true ]]; then
     command -v duckdb >/dev/null 2>&1 || { echo "duckdb is required for --overture but was not found on PATH" >&2; exit 1; }
     command -v aws >/dev/null 2>&1 || { echo "aws CLI is required for --overture but was not found on PATH" >&2; exit 1; }
+    command -v ogr2ogr >/dev/null 2>&1 || { echo "ogr2ogr is required for --overture but was not found on PATH" >&2; exit 1; }
 fi
 
 # Same fail-fast rationale again, for --contours: checked (and, for
@@ -279,6 +284,26 @@ if [[ "$START_STAGE" == export ]]; then
         exit 1
     fi
     echo "[preflight] all .fgb files present and readable"
+fi
+
+# Same fail-fast rationale again: verifies every non-3857 projection's PROJ
+# transform agrees between whichever engines are reachable (pyproj, DuckDB,
+# PostGIS) before either the background Overture pipeline or [4/6] export
+# spends hours producing coordinates that later turn out to disagree by
+# tens of kilometers -- see check_proj_agreement.py and this pipeline's
+# README.md for the PROJ 9.8.0 ellipsoidal-eqc background that motivates
+# this. Runs regardless of --overture/--from: [4/6] export's own PostGIS
+# ST_Transform is just as exposed to a stale PROJ as the Overture pipeline
+# is, so this isn't specific to either one. A mismatch aborts here via
+# check_proj_agreement.py's own nonzero exit plus this script's set -e,
+# same as every other preflight/stage command below.
+NON_3857_PROJECTIONS=()
+for srs in "${PROJECTIONS[@]}"; do
+    [[ "$srs" == 3857 ]] || NON_3857_PROJECTIONS+=("$srs")
+done
+if [[ "${#NON_3857_PROJECTIONS[@]}" -gt 0 ]]; then
+    echo "[preflight] checking PROJ agreement across engines for ${NON_3857_PROJECTIONS[*]}"
+    python "$OVERTURE_SCRIPTS/check_proj_agreement.py" "${NON_3857_PROJECTIONS[@]}"
 fi
 
 # Waits for each given "label:pid" background job and reports its outcome.
