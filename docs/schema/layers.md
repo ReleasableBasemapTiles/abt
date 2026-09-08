@@ -8,7 +8,9 @@
 
 Every row below is one [`rbt-schema/export/*.json`](../schema/adding-a-layer.md)
 file -- one output vector tile layer. See [Adding a Layer](adding-a-layer.md)
-for the field reference and how to add a new one.
+for the field reference and how to add a new one, or
+[Database Schema](database.md) for how each view is actually built, traced
+back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 
 59 layers total (58 enabled, 1 disabled).
 

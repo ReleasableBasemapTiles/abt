@@ -73,6 +73,7 @@ flowchart LR
 
 ## See also
 
+- [Database Schema](database.md) — every `export.*` materialized view traced back to its `osm.*`/`aux_data.*` sources and carto-owned intermediates, generated from `carto_sql/*.sql`'s own header comments
 - [OSM Mappings](osm-mappings.md) — `import/osm/`
 - [Auxiliary Data](aux-data.md) — `import/aux_data/` and top-level `static_data/`
 - [Carto SQL](carto-sql.md) — `carto_sql/`

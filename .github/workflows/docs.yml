@@ -10,14 +10,14 @@ on:
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
       # docs/_hooks/*.py import or read these at build time (CLI reference,
-      # layer registry, data sources, carto execution graph), so a change
-      # here can break -- or silently go stale in -- the docs build even
-      # with no docs/ edit.
+      # layer registry, data sources, carto execution graph, database
+      # schema), so a change here can break -- or silently go stale in --
+      # the docs build even with no docs/ edit.
       - "abtv2-tools/**"
       - "rbt-schema/export/**"
       - "rbt-schema/import/aux_data/**"
       - "rbt-schema/tile-metadata/**"
-      - "rbt-schema/carto_sql/execution_plan.yml"
+      - "rbt-schema/carto_sql/**"
 
 permissions:
   contents: read
