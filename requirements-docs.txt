@@ -1,0 +1,18 @@
+# MkDocs and theme
+mkdocs>=1.5.0
+mkdocs-material>=9.0.0
+
+# MkDocs plugins
+mkdocs-mermaid2-plugin>=0.6.0
+mkdocs-git-revision-date-localized-plugin>=1.2.0
+mkdocs-print-site-plugin>=2.3.0
+
+# Additional dependencies for markdown extensions
+pymdown-extensions>=10.0
+
+# Reference-page generation: docs/_hooks/*.py shells out to `python -m typer`
+# to render docs/reference/cli.md, which needs abtv2-tools' `abt` package
+# importable -- also install abtv2-tools/requirements-dev.txt (or activate
+# its env.yaml conda env) alongside this file. The other hooks only read
+# rbt-schema/*.json, */*.yml, and tile-metadata/metadata.py directly with
+# the standard library plus PyYAML (already required by requirements-dev.txt).

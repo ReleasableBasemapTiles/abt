@@ -1,0 +1,160 @@
+site_name: ABT (Releasable Basemap Tiles) Documentation
+site_description: Pipeline for generating multi-projection Mapbox Vector Tiles from OpenStreetMap and other authoritative geospatial sources
+site_author: ReleasableBasemapTiles
+site_url: https://ReleasableBasemapTiles.github.io/abt/
+
+# Repository
+repo_name: ReleasableBasemapTiles/abt
+repo_url: https://github.com/ReleasableBasemapTiles/abt
+edit_uri: edit/main/docs/
+
+# Configuration
+theme:
+  name: material
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - navigation.tracking
+    - search.suggest
+    - search.highlight
+    - search.share
+    - header.autohide
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - toc.follow
+    - toc.integrate
+  icon:
+    repo: fontawesome/brands/git-alt
+    edit: material/pencil
+    view: material/eye
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+# Build hooks -- regenerate reference pages from code/config at build time so
+# they can never drift from the source of truth. See each hook's own
+# docstring under docs/_hooks/ for exactly what it reads and writes.
+hooks:
+  - docs/_hooks/gen_cli_reference.py
+  - docs/_hooks/gen_layer_registry.py
+  - docs/_hooks/gen_data_sources.py
+  - docs/_hooks/gen_carto_dag.py
+
+# Plugins
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+  - mermaid2
+  - git-revision-date-localized:
+      enable_creation_date: true
+  - print-site:
+      add_to_navigation: true
+
+# Extensions
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: [".", "docs"]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+
+# Customization
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/ReleasableBasemapTiles/abt
+      name: GitHub Repository
+  status:
+    new: Recently added
+    deprecated: Deprecated
+
+# Page tree
+nav:
+  - Home: index.md
+  - Overview:
+    - Pipeline: overview/pipeline.md
+    - Architecture: overview/architecture.md
+    - Repository Tour: overview/repo-tour.md
+    - Data Sources & Licensing: overview/data-sources.md
+  - Install & Deploy:
+    - Ubuntu Setup: install/ubuntu.md
+    - Configuration: install/configuration.md
+    - Performance & Sizing: install/performance.md
+  - Walkthroughs:
+    - Norway (small extract): walkthroughs/norway.md
+    - Planet (full build): walkthroughs/planet.md
+    - init.sh Orchestrator: walkthroughs/init-sh.md
+  - Pipeline Stages:
+    - Download: pipeline/download.md
+    - Import: pipeline/import.md
+    - Carto: pipeline/carto.md
+    - Export: pipeline/export.md
+    - Bundler: pipeline/bundler.md
+    - Vundler: pipeline/vundler.md
+    - Overture Buildings: pipeline/overture.md
+  - Schema Reference:
+    - Overview: schema/index.md
+    - OSM Mappings: schema/osm-mappings.md
+    - Auxiliary Data: schema/aux-data.md
+    - Carto SQL: schema/carto-sql.md
+    - Layer Registry: schema/layers.md
+    - Tile Metadata: schema/tile-metadata.md
+    - Adding a Layer: schema/adding-a-layer.md
+  - Reference:
+    - abt-tools CLI: reference/cli.md
+    - vundler-rs: reference/vundler-rs.md
+    - Troubleshooting: reference/troubleshooting.md
+  - Project:
+    - Contributing: project/contributing.md
+    - Testing: project/testing.md
+    - Code Review Findings: project/code-review-findings.md
+    - Security: project/security.md
