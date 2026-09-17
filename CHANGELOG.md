@@ -82,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overture tile.sh: raise open-file limit before invoking tippecanoe
 - Cap mkdocs/mkdocs-material below their next major
 - Pin to python3.13 to fix pyclipper install not available in python3.14
+- Add git-cliff changelog and Conventional Commit linting
 
 ### Fixed
 
