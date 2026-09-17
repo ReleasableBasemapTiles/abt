@@ -7,7 +7,7 @@ This monorepo contains two components used together:
 - [`abtv2-tools/`](abtv2-tools/) — the Python CLI/orchestration engine (`abt-tools.py`). This is the code that chains external geo tools together.
 - [`rbt-schema/`](rbt-schema/) — the schema/config content (imposm mappings, aux-data source configs, SQL transforms, tile export configs) that gets passed to the CLI as `--schema-dir`.
 
-Neither is useful without the other: `abtv2-tools` is a generic pipeline runner, and `rbt-schema` defines the specific dataset it builds. They used to be two separate git repositories and were merged into this single repo with their full commit history preserved — see each subdirectory's own history via `git log -- abtv2-tools/` / `git log -- rbt-schema/`.
+Neither is useful without the other: `abtv2-tools` is a generic pipeline runner, and `rbt-schema` defines the specific dataset it builds. They used to be two separate git repositories and were merged into this single repo with their full commit history preserved — see each subdirectory's own history via `git log -- abtv2-tools/` / `git log -- rbt-schema/`. Release history is in [CHANGELOG.md](CHANGELOG.md); commit and pull-request titles follow [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 

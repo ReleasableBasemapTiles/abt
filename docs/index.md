@@ -37,7 +37,7 @@ ABT turns OpenStreetMap data plus a handful of authoritative auxiliary open data
 
     ---
 
-    How the test suites work and what's missing from the project's process today.
+    Conventional Commits, tests, and what's still missing from the project's process.
 
     [Contributing](project/contributing.md) · [abt-tools CLI Reference](reference/cli.md)
 
