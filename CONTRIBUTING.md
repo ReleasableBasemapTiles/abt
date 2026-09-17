@@ -33,7 +33,7 @@ Squash-merging uses the **PR title** as the commit on `main`, which is the line 
 
 Do not edit `CHANGELOG.md` by hand for ordinary work. After merge (or after you push a `v*` tag), the Changelog workflow rewrites the file and commits `chore(changelog): update CHANGELOG.md [skip ci]`.
 
-GitHub Releases are still created by hand (`gh release create`). Repo tags like `v1.0.0` become changelog versions. This repository has no `v*` tags yet, so `CHANGELOG.md` is an `[Unreleased]` history until the first one is cut.
+GitHub Releases are still created by hand (`gh release create`). Repo tags like `v2.0.0` become changelog versions.
 
 ## Local commit-msg hook (optional)
 
