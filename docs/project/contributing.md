@@ -1,9 +1,24 @@
 # Contributing
 
-This page is a starting point, not a claim that a formal contribution process already exists. As of this writing, this repository has no `CONTRIBUTING.md`, no `LICENSE`, no `CHANGELOG.md`, and no linter/formatter config (no `ruff.toml`, `.flake8`, `mypy.ini`, or `.pre-commit-config.yaml`) anywhere in it. Everything below reflects what's actually here today.
+Commit and pull-request titles must be [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) so [git-cliff](https://git-cliff.org/) can keep `CHANGELOG.md` up to date. The repository-root `CONTRIBUTING.md` is the source of truth for commit format, squash-merge guidance, and changelog automation.
+
+This page covers tests and local workflow. As of this writing, this repository has no `LICENSE` and no Python linter/formatter config (no `ruff.toml`, `.flake8`, `mypy.ini`, or `.pre-commit-config.yaml`).
 
 !!! warning "License note"
     This repository does not currently include a `LICENSE` file. Contributors and reusers should confirm licensing terms with the maintainers before assuming any particular license applies — don't guess a license or state one on the project's behalf.
+
+## Conventional Commits
+
+Use `type(scope): short description`. Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. `scope` is optional (`init`, `overture`, `schema`, `bundler`, `vundler`, `docs`, `ci`, …).
+
+```text
+feat(init): add --from export flag for existing mbtiles
+fix(overture): raise open-file limit before invoking tippecanoe
+docs: add MkDocs documentation site
+chore(ci): add git-cliff changelog workflow
+```
+
+The **Lint PR** workflow rejects pull requests whose title or commits do not match. Prefer squash-merge so the PR title becomes the `main` commit that git-cliff publishes. Do not hand-edit `CHANGELOG.md`; the Changelog workflow regenerates it on pushes to `main` and on `v*` tags.
 
 ## Running tests before submitting a change
 
@@ -18,9 +33,9 @@ See [Configuration](../install/configuration.md) for more on `env.yaml` vs. `req
 
 `vundler-rs/` (the Rust component) has its own, separate test workflow — see [vundler-rs](../reference/vundler-rs.md) and [Testing](testing.md).
 
-## No enforced CI for code changes today
+## CI that exists today
 
-There is currently no automated lint/test CI pipeline in this repository — only a docs build (which this very documentation site adds). Running the test suites above locally before opening a PR is the only check that exists today. Since there's no formatter or linter config yet, match the existing code style by eye.
+Pull requests are checked for Conventional Commit titles and commit messages (`Lint PR`). Pushes to `main` also rebuild `CHANGELOG.md` and `--strict`-validate this documentation site. There is still no automated lint/test CI for `abtv2-tools` or `vundler-rs` — run those suites locally before opening a PR. Since there's no Python formatter or linter config yet, match the existing code style by eye.
 
 ## Style conventions observed in the existing code
 

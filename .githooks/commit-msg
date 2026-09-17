@@ -1,0 +1,26 @@
+#!/bin/sh
+# Enforce Conventional Commits on the subject line.
+# Enable with: git config core.hooksPath .githooks
+
+subject=$(head -n1 "$1")
+
+case "$subject" in
+  Merge\ *|Revert\ *)
+    exit 0
+    ;;
+esac
+
+if printf '%s\n' "$subject" | grep -Eq '^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9._/-]+\))?(!)?: .{1,}'; then
+  exit 0
+fi
+
+cat >&2 <<'EOF'
+Commit subject must be a Conventional Commit:
+
+  type(scope): short description
+
+Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+
+Example: feat(init): add --from export flag for existing mbtiles
+EOF
+exit 1

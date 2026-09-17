@@ -1,0 +1,28 @@
+---
+description: Conventional Commits for git commits and pull request titles (git-cliff changelog)
+alwaysApply: true
+---
+
+# Conventional Commits
+
+Commit messages and pull request titles must be [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) so git-cliff can update `CHANGELOG.md`.
+
+```text
+type(scope): short description
+```
+
+Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+
+```text
+# ❌ BAD
+Add changelog automation
+Updated the init script
+
+# ✅ GOOD
+feat(init): add --from export flag for existing mbtiles
+fix(overture): raise open-file limit before invoking tippecanoe
+docs: add MkDocs documentation site
+chore(ci): add git-cliff changelog workflow
+```
+
+Breaking changes: `feat!: ...` or a `BREAKING CHANGE:` footer. Do not hand-edit `CHANGELOG.md` for ordinary work; the Changelog workflow regenerates it. Changelog bot commits use `chore(changelog): update CHANGELOG.md [skip ci]`.
