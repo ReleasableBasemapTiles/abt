@@ -57,4 +57,4 @@ The pipeline shells out to PostgreSQL/PostGIS, GDAL/OGR, imposm3, tippecanoe, an
 
 ## License and attribution
 
-See [Data Sources & Licensing](overview/data-sources.md) for the full list of data sources and their license terms — notably OpenStreetMap, FieldMaps, and Overture Maps buildings under ODbL (share-alike, attribution required). This repository does not currently include a code `LICENSE` file; see [Contributing](project/contributing.md).
+The code in this repository is a work of the United States Government and is dedicated to the public domain under [CC0 1.0](https://github.com/ReleasableBasemapTiles/abt/blob/main/LICENSE). See [NOTICE](https://github.com/ReleasableBasemapTiles/abt/blob/main/NOTICE) for the MIT-licensed planet-mirror code adapted from openmaptiles-tools. Generated tiles stay under their source-data licenses: see [Data Sources & Licensing](overview/data-sources.md), notably OpenStreetMap, FieldMaps, and Overture Maps buildings under ODbL (share-alike, attribution required).

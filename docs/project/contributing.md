@@ -2,10 +2,9 @@
 
 Commit and pull-request titles must be [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) so [git-cliff](https://git-cliff.org/) can keep `CHANGELOG.md` up to date. The repository-root `CONTRIBUTING.md` is the source of truth for commit format, squash-merge guidance, and changelog automation.
 
-This page covers tests and local workflow. As of this writing, this repository has no `LICENSE` and no Python linter/formatter config (no `ruff.toml`, `.flake8`, `mypy.ini`, or `.pre-commit-config.yaml`).
+This page covers tests and local workflow. As of this writing, this repository has no Python linter or formatter config (no `ruff.toml`, `.flake8`, `mypy.ini`, or `.pre-commit-config.yaml`).
 
-!!! warning "License note"
-    This repository does not currently include a `LICENSE` file. Contributors and reusers should confirm licensing terms with the maintainers before assuming any particular license applies — don't guess a license or state one on the project's behalf.
+The code is a work of the United States Government, dedicated to the public domain under [CC0 1.0](https://github.com/ReleasableBasemapTiles/abt/blob/main/LICENSE). See [NOTICE](https://github.com/ReleasableBasemapTiles/abt/blob/main/NOTICE) for the MIT-licensed planet-mirror code adapted from openmaptiles-tools and for the source-data licenses that apply to generated tiles.
 
 ## Conventional Commits
 
