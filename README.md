@@ -11,7 +11,7 @@ Neither is useful without the other: `abtv2-tools` is a generic pipeline runner,
 
 ## Documentation
 
-Full documentation lives under [`docs/`](docs/index.md) — a MkDocs Material site (see [Building the docs site](#building-the-docs-site) below to render it locally; it isn't published anywhere yet, see [`.github/workflows/docs.yml`](.github/workflows/docs.yml) for why):
+Full documentation is published at <https://ReleasableBasemapTiles.github.io/abt/>. The source is [`docs/`](docs/index.md) (MkDocs Material); to render it locally, see [Building the docs site](#building-the-docs-site):
 
 - **New here?** Start with the [Repository Tour](docs/overview/repo-tour.md) and [Architecture](docs/overview/architecture.md).
 - **Setting up a host?** [Ubuntu Setup](docs/install/ubuntu.md) and [Performance & Sizing](docs/install/performance.md).
