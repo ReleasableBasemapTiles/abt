@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Publish the MkDocs site to GitHub Pages
+- Add CC0 license for the U.S. Government work
 
 ## [2.0.0] - 2026-09-17
 
