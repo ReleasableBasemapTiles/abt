@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Record task durations and per-script carto timings
+- Run init.sh from any checkout, add --no-upload and --help
+
 ### Changed
 
 - Publish the MkDocs site to GitHub Pages
@@ -20,10 +25,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overwrite the abtv2-tools mirror commits ported in #2
 - Point the abtv2-tools overwrite at e2ea95c
 - Point the abtv2-tools overwrite at eeb8f4a
+- Render the CLI reference for a fixed 48 vCPU host
+- Skip duplicate GiST builds, weight group budgets, start long poles first
+- Compute each island's geodesic area once in 026
+- Take each layer straight from FlatGeobuf to MBTiles, largest first
+- Run OSM alongside the aux sources, extract each zip as it lands
+- Tune Postgres for bulk loads and size it to the host's tier
+- Skip the overture PROJ tests where rbt-schema isn't checked out
+- Guard export layer names, shard counts and the carto plan against drift
+- Run the Python, Rust and shell checks on pushes and pull requests
+- Match the manual setup to setup_ubuntu.sh and fill in its gaps
+- Correct vundler, carto order, work_mem, tile-join and export claims
+- Update troubleshooting for TLS checks, reruns, bundler and abt-vundler
+- Show how to run every test suite on macOS or Linux
+- Add working-directory, glossary and prerequisites pages and a flag matrix
+- Record the September 2026 review and track the earlier one's status
+- Drop the packages nothing imports from env.yaml
 
 ### Fixed
 
 - Correct the GitHub org name in clone URLs and User-Agents
+- Scale 005a shard columns with abt.dissolve_shards
+- Load the OSM tag keys that carto_sql and mapping filters read
+- Verify TLS, write downloads and extractions atomically
+- Stage FlatGeobuf and MBTiles outputs and move them into place
+- Redact passwords, decode tool output leniently, quote conninfo for libpq
+- Run FileGDB pre-conversion inside the import task, isolate prep failures
+- Drop the no-op PRAGMA pass and the duplicate tile checks
+- Correct help text and hide docstring Args from --help
+- Import fieldmaps_adm2_polygons as polygons
 
 ## [2.0.0] - 2026-09-17
 
