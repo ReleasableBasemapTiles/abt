@@ -27,7 +27,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Identifies this pipeline to aria2c's remote servers, mirroring the
 # politeness convention openmaptiles-tools' download-osm follows for its own
 # planet-mirror requests (see download/planet_mirrors.py's USER_AGENT).
-ARIA2_USER_AGENT = "abt-planet-downloader/1.0 (+https://github.com/ReleaseableBasemapTiles/abt)"
+ARIA2_USER_AGENT = "abt-planet-downloader/1.0 (+https://github.com/ReleasableBasemapTiles/abt)"
 
 
 def get_retry_session() -> requests.Session:

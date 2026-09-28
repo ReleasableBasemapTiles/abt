@@ -35,7 +35,7 @@ from bs4 import BeautifulSoup
 
 from ..utils.logger import get_logger
 
-USER_AGENT = "abt-planet-downloader/1.0 (+https://github.com/ReleaseableBasemapTiles/abt)"
+USER_AGENT = "abt-planet-downloader/1.0 (+https://github.com/ReleasableBasemapTiles/abt)"
 
 _PLANET_FILE_RE = re.compile(r'^planet-(\d{6}|latest)\.osm\.pbf(\.md5)?$')
 _MD5_RE = re.compile(r'^[a-fA-F0-9]{32}$')

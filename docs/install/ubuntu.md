@@ -200,10 +200,7 @@ Host abt
 git clone git@abt:ReleasableBasemapTiles/abt.git .
 ```
 
-`setup_ubuntu.sh` defaults `ABT_REPO` to this alias-based URL, override it if you're using a different SSH setup or the plain HTTPS URL (see [Configuration](configuration.md)) — with one catch, see the warning below.
-
-!!! warning "`ABT_REPO`'s built-in default has a typo"
-    The GitHub organization is `ReleasableBasemapTiles` (confirmed against this repo's own `origin` remote), but `setup_ubuntu.sh`'s hardcoded `ABT_REPO` default, and a couple of `User-Agent` strings elsewhere in `abtv2-tools/abt/download/`, spell it `ReleaseableBasemapTiles` (extra "e"). The clone commands above use the correct spelling; if you instead let `setup_ubuntu.sh` clone the repo for you via its default `ABT_REPO`, override that variable first (see [Configuration](configuration.md)) or the clone step will fail against the misspelled path.
+`setup_ubuntu.sh` defaults `ABT_REPO` to this alias-based URL; override it if you're using a different SSH setup or the plain HTTPS URL (see [Configuration](configuration.md)).
 
 ## Automated setup: `setup_ubuntu.sh`
 
