@@ -117,8 +117,9 @@ COMMIT;
 -- water.water_surface — classified, simplified permanent water polygons
 --
 -- Per-row classify/validate/simplify over the full osm.osm_water_polygon
--- table, fanned out over 16 dblink workers sharded by abs(osm_id) % 16
--- (osm_id is signed — imposm negative-ids relations) into the UNLOGGED
+-- table, fanned out over nshards dblink workers (abt.dissolve_shards, 16
+-- when unset) sharded by abs(osm_id) % nshards (osm_id is signed —
+-- imposm negative-ids relations) into the UNLOGGED
 -- staging table water.water_surface_parts. The materialized view is a
 -- trivial copy plus the cheap water_type derivation.
 -- -----------------------------------------------------------------------------
@@ -232,7 +233,7 @@ COMMIT;
 -- export.inland_water_intermittent_polygon — seasonal / intermittent water polygons
 --
 -- Same per-row validate/simplify shape as water.water_surface above (just
--- the intermittent/seasonal slice), same 16-worker dblink fan-out into
+-- the intermittent/seasonal slice), same nshards-worker dblink fan-out into
 -- water.inland_water_intermittent_parts.
 -- -----------------------------------------------------------------------------
 
@@ -417,11 +418,15 @@ COMMIT;
 -- (min-label propagation with pointer jumping, no geometry). The result
 -- feeds the per-cluster ST_Union below.
 --
--- Sharding: plain abs(osm_id) % 16 can land several of the very largest
--- features (millions of vertices) in the same shard by chance and stall
--- it behind its siblings. water.water_polygon_shard_override round-robins
--- the ~50 largest across shards explicitly; everything else hashes
--- normally via COALESCE(override.shard, abs(osm_id) % 16).
+-- Sharding: plain abs(osm_id) % nshards can land several of the very
+-- largest features (millions of vertices) in the same shard by chance and
+-- stall it behind its siblings. water.water_polygon_shard_override
+-- round-robins the ~50 largest across shards explicitly; everything else
+-- hashes normally via COALESCE(override.shard, abs(osm_id) % nshards).
+--
+-- Every materialized shard column in this file must use the same modulus
+-- the fan-out loops iterate over (abt.dissolve_shards, 16 when unset): a
+-- row whose shard is >= nshards is silently never processed by any worker.
 -- -----------------------------------------------------------------------------
 
 BEGIN;
@@ -435,15 +440,26 @@ CREATE UNLOGGED TABLE water.water_polygon_parts (
     capped   boolean NOT NULL DEFAULT false
 );
 
+-- Largest by stored (TOAST) size rather than ST_NPoints: the ranking only
+-- balances load, and pg_column_size reads the datum header instead of
+-- detoasting every geometry in water_surface. The inner LIMIT lets the
+-- planner use a bounded top-N sort instead of sorting the whole table
+-- under the window function.
 DROP TABLE IF EXISTS water.water_polygon_shard_override CASCADE;
 CREATE UNLOGGED TABLE water.water_polygon_shard_override AS
-SELECT osm_id, (row_number() OVER (ORDER BY ST_NPoints(geometry) DESC) - 1) % 16 AS shard
-FROM water.water_surface
-WHERE subclass NOT IN ('bay', 'harbour', 'sea', 'strait')
-  AND geometry IS NOT NULL
-  AND NOT ST_IsEmpty(geometry)
-ORDER BY ST_NPoints(geometry) DESC
-LIMIT 50;
+SELECT
+    osm_id,
+    (row_number() OVER (ORDER BY stored_size DESC) - 1)
+        % COALESCE(current_setting('abt.dissolve_shards', true)::int, 16) AS shard
+FROM (
+    SELECT osm_id, pg_column_size(geometry) AS stored_size
+    FROM water.water_surface
+    WHERE subclass NOT IN ('bay', 'harbour', 'sea', 'strait')
+      AND geometry IS NOT NULL
+      AND NOT ST_IsEmpty(geometry)
+    ORDER BY pg_column_size(geometry) DESC
+    LIMIT 50
+) largest;
 
 CREATE UNIQUE INDEX idx_water_polygon_shard_override_osm_id
     ON water.water_polygon_shard_override USING btree(osm_id);
@@ -483,12 +499,15 @@ CREATE UNLOGGED TABLE water.cluster_src AS
 --
 -- shard is materialized (not computed inline in phase 0/1's WHERE) so
 -- both fan-outs filter on an indexed column instead of every worker
--- scanning the full table to evaluate the modulo and discard 15/16 of it.
+-- scanning the full table to evaluate the modulo and discard all but
+-- 1/nshards of it. The modulus must match the fan-outs' nshards (see the
+-- Sharding note above).
 SELECT
     osm_id,
     cell_x,
     cell_y,
-    abs(cell_x * 92821 + cell_y) % 16                                     AS shard,
+    abs(cell_x * 92821 + cell_y)
+        % COALESCE(current_setting('abt.dissolve_shards', true)::int, 16) AS shard,
     CASE WHEN ST_IsValid(rp) THEN rp ELSE ST_MakeValid(rp, 'method=structure') END AS geometry
 FROM (
     SELECT
@@ -521,7 +540,7 @@ COMMIT;
 
 -- Phase 0: every pair of features that touch, of ANY type (not grouped) — a
 -- lake touching its inflow river belongs in the same cluster. Fanned out
--- over 16 dblink workers by shard: a.osm_id < b.osm_id ensures each pair is
+-- over nshards dblink workers by shard: a.osm_id < b.osm_id ensures each pair is
 -- emitted exactly once. The pair list doubles as the adjacency graph for
 -- phase 2. Isolated features (the large majority) never enter phases 1-2.
 DO $$
@@ -601,7 +620,7 @@ CREATE UNLOGGED TABLE water.cluster_pass1 (
 COMMIT;
 
 -- Phase 1: local (within-cell) clustering of touching features, fanned out
--- over 16 dblink workers. cluster_src/cluster_adjacent are committed above,
+-- over nshards dblink workers. cluster_src/cluster_adjacent are committed above,
 -- so the workers (separate sessions) can see them.
 DO $$
 DECLARE
@@ -760,8 +779,8 @@ COMMIT;
 
 -- -----------------------------------------------------------------------------
 -- Per-cluster ST_Union — the real merged geometry, fixed z_level = 12.
--- Scoped only to touching clusters (a small minority), fanned out over 16
--- dblink workers sharded by cluster id.
+-- Scoped only to touching clusters (a small minority), fanned out over
+-- nshards dblink workers sharded by cluster id.
 -- -----------------------------------------------------------------------------
 
 DO $$

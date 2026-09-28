@@ -137,7 +137,7 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
     SELECT
         g.desig_cd,
-        split_part(g.display, ',', -1)::int AS display_max
+        NULLIF(split_part(g.display, ',', -1), '')::int AS display_max
     FROM aux_data.nga_geonames_populated_places g
     WHERE g.ufi = g_match.ufi
       AND g.name_rank::text = '1'

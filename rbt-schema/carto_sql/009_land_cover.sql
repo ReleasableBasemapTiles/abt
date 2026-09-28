@@ -295,8 +295,9 @@ COMMIT;
 -- per cell and attribute combination, then the cross-cell touchers merged
 -- exactly.
 --
--- The per-cell unions of each level are sharded by cell hash across 16 dblink
--- worker connections, so every level gets the whole machine. (The previous
+-- The per-cell unions of each level are sharded by cell hash across nshards
+-- (abt.dissolve_shards, 16 when unset) dblink worker connections, so every
+-- level gets the whole machine. (The previous
 -- level-per-worker layout serialised on z13: ~4 of its ~5.5 hours ran on a
 -- single core while the other levels' workers sat finished.) Levels run
 -- sequentially, largest first, and the passthrough insert of each level
