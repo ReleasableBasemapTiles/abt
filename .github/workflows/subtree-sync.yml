@@ -31,7 +31,10 @@ env:
   # main is still that commit, publish force-pushes the split over it, and
   # check reports that it will. See "When a mirror has diverged" in
   # docs/project/mirrors.md.
-  SUBTREE_SYNC_OVERWRITE: ""
+  #
+  # abtv2-tools@495cfbd: five --max-zoom bundler commits that pull request
+  # #2 copied into abtv2-tools/ by hand.
+  SUBTREE_SYNC_OVERWRITE: abtv2-tools@495cfbd
 
 jobs:
   check:
