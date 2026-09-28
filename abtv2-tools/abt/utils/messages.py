@@ -9,6 +9,3 @@ Data Schema Directory Must include
     -- carto_sql
     --- <ordered directory of postgresql/postgis>.sql 
 """
-
-class MbtilesNotFound(Exception):
-    pass
