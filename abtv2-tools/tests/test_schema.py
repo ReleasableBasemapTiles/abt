@@ -57,6 +57,29 @@ def test_imposm_mapping_files_finds_yaml_and_yml(tmp_path):
     assert names == {"roads.yml", "water.yaml"}
 
 
+def test_imposm_base_file_is_none_when_absent(tmp_path):
+    make_valid_schema_dir(tmp_path)
+    schema = DataSchema(base_schema_dir=tmp_path)
+    assert schema.imposm_base_file is None
+
+
+@pytest.mark.parametrize("name", ["imposm_base.yml", "imposm_base.yaml"])
+def test_imposm_base_file_found_beside_the_osm_dir(tmp_path, name):
+    make_valid_schema_dir(tmp_path)
+    (tmp_path / "import" / name).write_text("tags: {include: [covered]}")
+    schema = DataSchema(base_schema_dir=tmp_path)
+    assert schema.imposm_base_file == tmp_path / "import" / name
+
+
+def test_imposm_base_file_is_not_picked_up_as_a_table_mapping(tmp_path):
+    # It lives in import/, not import/osm/, precisely so the table glob skips it.
+    make_valid_schema_dir(tmp_path)
+    (tmp_path / "import" / "imposm_base.yml").write_text("tags: {include: [covered]}")
+    (tmp_path / "import" / "osm" / "roads.yml").write_text("roads: {}")
+    schema = DataSchema(base_schema_dir=tmp_path)
+    assert [p.name for p in schema.imposm_mapping_files] == ["roads.yml"]
+
+
 def test_aux_files_returns_empty_list_without_erroring_when_none_present(tmp_path):
     make_valid_schema_dir(tmp_path)
     schema = DataSchema(base_schema_dir=tmp_path)

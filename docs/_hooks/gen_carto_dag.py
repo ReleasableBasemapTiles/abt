@@ -42,9 +42,17 @@ def _build_diagram(plan: dict) -> str:
     suffix = plan.get("suffix") or []
     custom_schemas = plan.get("custom_schemas") or []
     extensions = plan.get("extensions") or []
+    weights = plan.get("weights") or {}
 
     lines = ["```mermaid", "flowchart TD"]
     prev_id: str | None = None
+
+    # carto creates these before anything else runs, prefix included (see
+    # CartoProcessingModel._process_with_plan).
+    if custom_schemas or extensions:
+        schema_label = ", ".join(custom_schemas + extensions)
+        lines.append(f'    setupSchemas["create schemas/extensions up front:<br/>{schema_label}"]')
+        prev_id = "setupSchemas"
 
     for i, script in enumerate(prefix, start=1):
         node = f"prefix{i:02d}"
@@ -53,19 +61,15 @@ def _build_diagram(plan: dict) -> str:
             lines.append(f"    {prev_id} --> {node}")
         prev_id = node
 
-    if custom_schemas or extensions:
-        schema_label = ", ".join(custom_schemas + extensions)
-        lines.append(f'    setupSchemas["create schemas/extensions up front:<br/>{schema_label}"]')
-        if prev_id:
-            lines.append(f"    {prev_id} --> setupSchemas")
-        prev_id = "setupSchemas"
-
     if groups:
         box_label = f"{len(groups)} independent groups -- concurrent, up to --carto-concurrency at a time"
         lines.append(f'    subgraph groupsBox ["{box_label}"]')
         for i, group in enumerate(groups, start=1):
             node = f"group{i:02d}"
             label = " then ".join(_script_label(s) for s in group)
+            weight = max((weights.get(s, 1) for s in group), default=1)
+            if weight > 1:
+                label += f" (weight {weight})"
             lines.append(f'        {node}["{label}"]')
         lines.append("    end")
         if prev_id:
@@ -88,7 +92,7 @@ def _build_diagram(plan: dict) -> str:
         "concurrently, up to `-n/--carto-concurrency` at a time, between a "
         f"{len(prefix)}-script sequential prefix and a {len(suffix)}-script "
         "sequential suffix. Custom schemas/extensions are created once up "
-        f"front, before any group starts: {schema_bits}."
+        f"front, before the prefix runs: {schema_bits}."
     )
     return "\n".join(lines) + "\n"
 

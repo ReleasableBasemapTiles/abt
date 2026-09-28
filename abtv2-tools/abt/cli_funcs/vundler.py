@@ -70,7 +70,7 @@ def cli_vundler(
     max_zoom: Annotated[int, max_zoom_field] = 13,
     num_workers: Annotated[int, num_workers_field] = default_num_workers(divisor=1),
 ):
-    """CLI command to convert a bundled mbtiles file into Esri Compact Cache V2 tile bundles.
+    """Convert a bundled MBTiles file into Esri Compact Cache V2 tile bundles.
 
     Not a complete .vtpk -- produces the raw tile bundle structure and a bare
     metadata.json only, no conf.xml/root.json/styles.

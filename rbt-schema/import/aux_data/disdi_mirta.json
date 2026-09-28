@@ -3,6 +3,7 @@
     "url": "https://www.acq.osd.mil/eie/imr/rpid/disdi/Downloads/installations_ranges.zip",
     "type": "gdb",
     "zipped":true,
+    "verify_tls": false,
     "aux_load": [
         {
             "aux_folder_name": "disdi",

@@ -26,10 +26,12 @@ python abt-tools.py carto -w <working_dir> -s <schema_dir> [-p pg_config] [-n ca
   script's own `DROP ... IF EXISTS ... CASCADE` at the top of each block is what
   makes a full re-run safe.
 - **Three-phase execution when `execution_plan.yml` is present:**
-    1. **Sequential prefix** — schema setup and aux-geometry normalization, always
-       first.
+    1. **Sequential prefix** — aux-geometry normalization and the `export`
+       schema. It runs first, right after `carto` creates the plan's custom
+       schemas and extensions.
     2. **Concurrent groups** — independent groups of scripts run up to
-       `-n`/`--carto-concurrency` at a time.
+       `-n`/`--carto-concurrency` at a time, started in `execution_plan.yml`
+       order (longest first), each sized by its `weights:` share of the host.
     3. **Sequential suffix** — final normalization over every `export.*` table,
        and only runs if every group in phase 2 succeeded.
 - **A script failing inside a concurrent group only aborts that group** — other
@@ -37,6 +39,10 @@ python abt-tools.py carto -w <working_dir> -s <schema_dir> [-p pg_config] [-n ca
   contrast, abort the *whole* run if they fail. See
   [Troubleshooting](../reference/troubleshooting.md) for the exact failure/error
   behavior and recovery steps.
+- **Every script is timed.** The run's `summary.json` has a `carto_scripts`
+  stage with each script's `duration_s` (a script that failed included), and
+  `carto` prints the 10 slowest when it finishes. Use them to re-check
+  `execution_plan.yml`'s longest-first order and its `weights:`.
 - **Falls back to strict sequential filename order** if `-s/--schema-dir`'s
   `carto_sql/execution_plan.yml` is absent, or if `-n 1` is passed explicitly.
 - This page covers the CLI command itself; for how scripts are grouped, numbered,

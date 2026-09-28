@@ -21,8 +21,19 @@ class ImportOGR(BaseModel):
 
     Attributes:
         cmd: A list of strings representing the full 'ogr2ogr' command to be executed.
+        pre_cmd: An optional command run first, inside the same import task
+            (e.g. converting a FileGDB layer to an intermediate FlatGeobuf).
+        pre_output: The file pre_cmd writes, deleted before it runs (the
+            FlatGeobuf driver can't overwrite an existing file).
+        prep_error: Set instead of a usable cmd when preparing this import
+            failed (e.g. no source layer matched its glob). The task then
+            fails with this message when it runs, so one bad source is
+            reported against its own layer instead of aborting every import.
     """
-    cmd: List[str]
+    cmd: List[str] = []
+    pre_cmd: Optional[List[str]] = None
+    pre_output: Optional[Path] = None
+    prep_error: Optional[str] = None
 
 
 class ImportImposm(BaseModel):
@@ -104,6 +115,18 @@ class Importer(BaseModel):
         """Runs the import via ogr2ogr or imposm, depending on the configured importer type."""
         if isinstance(self.importer, ImportOGR):
             tool_name = "ogr2ogr"
+            if self.importer.prep_error:
+                raise RuntimeError(self.importer.prep_error)
+            if self.importer.pre_cmd:
+                if self.importer.pre_output is not None:
+                    self.importer.pre_output.unlink(missing_ok=True)
+                run_subprocess(
+                    cmd=self.importer.pre_cmd,
+                    layer=self.layer,
+                    process_stage=f"{self.layer}_import",
+                    log_dir=self.log_dir,
+                    tool_name="ogr2ogr (pre-conversion)",
+                )
         elif isinstance(self.importer, ImportImposm):
             tool_name = "imposm"
         else:

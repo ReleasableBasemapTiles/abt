@@ -8,7 +8,8 @@ suite and its pyproj/psycopg2 dependencies -- see requirements-dev.txt --
 rather than needing its own test runner. Loaded by file path via importlib
 rather than a normal import: the script lives in rbt-schema/scripts/overture/,
 outside abtv2-tools' own package, by design -- see tag_crs.py's "no
-abtv2-tools" note in that directory.
+abtv2-tools" note in that directory. So in abtv2-tools' standalone mirror,
+which has no rbt-schema/ next to it, the whole module is skipped.
 """
 
 import importlib.util
@@ -22,6 +23,11 @@ _SCRIPT_PATH = (
     Path(__file__).resolve().parents[2]
     / "rbt-schema" / "scripts" / "overture" / "check_proj_agreement.py"
 )
+if not _SCRIPT_PATH.exists():
+    pytest.skip(
+        f"{_SCRIPT_PATH} not found: these tests need the monorepo's rbt-schema/ next to abtv2-tools/",
+        allow_module_level=True,
+    )
 _spec = importlib.util.spec_from_file_location("check_proj_agreement", _SCRIPT_PATH)
 check_proj_agreement = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = check_proj_agreement

@@ -6,6 +6,10 @@ standard HTTP(S) endpoints and the Overture Maps S3 bucket. It features
 automatic retries for network requests, progress tracking, and specific logic
 for discovering and downloading Overture Maps data releases. The module also
 includes a simple utility for extracting zip archives.
+
+Downloads and extractions are atomic: a file only appears at its final path
+once it has been fully written, so an interrupted run never leaves a
+truncated file or half-extracted folder that a rerun would mistake for done.
 """
 from pydantic import BaseModel, HttpUrl
 from typing import Union, List
@@ -13,16 +17,20 @@ from pathlib import Path
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
-import urllib3
 import functools
 import datetime
+import os
+import shutil
 
 from ..utils.logger import get_logger
 from ..utils.subprocess_tools import run_subprocess
 from ..utils.zip_tools import extract_zip
 from .boto_configuration import s3, multipart_transfer_config
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+# TLS certificates are verified by default. Setting this to 1/true/yes turns
+# verification off for HTTP(S) downloads (with a warning), as an escape hatch
+# for a source host whose certificate chain is temporarily broken.
+INSECURE_DOWNLOADS_ENV = "ABT_INSECURE_DOWNLOADS"
 
 # Identifies this pipeline to aria2c's remote servers, mirroring the
 # politeness convention openmaptiles-tools' download-osm follows for its own
@@ -59,38 +67,64 @@ def get_retry_session() -> requests.Session:
     return http
 
 
-def get_file(file_url: str, file_path: Path, logger):
+def tls_verification_enabled() -> bool:
+    """False only when ABT_INSECURE_DOWNLOADS is set to 1/true/yes."""
+    return os.environ.get(INSECURE_DOWNLOADS_ENV, "").strip().lower() not in {"1", "true", "yes"}
+
+
+def partial_path(final_path: Path) -> Path:
+    """The sibling path a download streams into before it's complete."""
+    return final_path.with_name(final_path.name + ".part")
+
+
+def get_file(file_url: str, file_path: Path, logger, verify_tls: bool = True) -> Path:
     """
     Downloads a single file from a URL to a local path.
 
     It checks if the file already exists to prevent re-downloading. It uses a
     session with retry logic and streams the download in chunks to handle
-    large files efficiently.
+    large files efficiently. The body is streamed into `<name>.part` and only
+    renamed to `file_path` once complete, so an existing `file_path` is
+    always a whole file.
 
     Args:
         file_url: The URL of the file to download.
         file_path: The local path where the file should be saved.
         logger: The logger instance to use for recording progress and errors.
+        verify_tls: False to skip certificate verification for this one
+            source (see AuxDataLayer.verify_tls). ABT_INSECURE_DOWNLOADS
+            turns it off for every source.
 
     Returns:
-        The local file path on success, or None if the download fails.
+        The local file path.
+
+    Raises:
+        RuntimeError: If the server answers with anything but HTTP 200.
+        requests.RequestException: On connection errors, timeouts, or a body
+            shorter than its Content-Length.
     """
-    if not file_path.exists():
-        logger.info(f"Attempting download of {file_url} to {file_path}")
-        session = get_retry_session()
-        response = session.get(file_url, stream=True, verify=False)
-        if response.status_code == 200:
-            with open(file_path, "wb") as file:
-                for chunk in response.iter_content(chunk_size=8192 * 1000):
-                    file.write(chunk)
-            logger.info(f"Successfully downloaded {file_path}")
-            return file_path
-        else:
-            logger.error(f"Failed to download {file_url}. Status Code: {response.status_code}")
-            return None
-    else:
+    if file_path.exists():
         logger.info(f"File {file_path} already exists. Skipping download.")
         return file_path
+
+    verify = verify_tls and tls_verification_enabled()
+    if not verify:
+        reason = "the source sets verify_tls: false" if not verify_tls else f"{INSECURE_DOWNLOADS_ENV} is set"
+        logger.warning(f"TLS certificate verification is disabled for {file_url} ({reason}).")
+    logger.info(f"Attempting download of {file_url} to {file_path}")
+    part = partial_path(file_path)
+    session = get_retry_session()
+    with session.get(file_url, stream=True, verify=verify) as response:
+        if response.status_code != 200:
+            message = f"Failed to download {file_url}: HTTP {response.status_code}"
+            logger.error(message)
+            raise RuntimeError(message)
+        with open(part, "wb") as file:
+            for chunk in response.iter_content(chunk_size=8192 * 1000):
+                file.write(chunk)
+    os.replace(part, file_path)
+    logger.info(f"Successfully downloaded {file_path}")
+    return file_path
 
 def overture_folder_release_by_date(datestr: str) -> datetime.datetime:
     """Parses a datetime object from an Overture Maps S3 release folder string."""
@@ -100,6 +134,7 @@ def overture_folder_release_by_date(datestr: str) -> datetime.datetime:
 class DownloadFile(BaseModel):
     """A Pydantic model for a standard file download via a direct URL."""
     url: HttpUrl
+    verify_tls: bool = True
 
 
 class DownloadAria2(BaseModel):
@@ -220,7 +255,12 @@ class Downloader(BaseModel):
 
         if isinstance(self.downloader, DownloadFile):
             download_path = self.output_dir / self.filename
-            get_file(file_url=self.downloader.url, file_path=download_path, logger=logger)
+            get_file(
+                file_url=str(self.downloader.url),
+                file_path=download_path,
+                logger=logger,
+                verify_tls=self.downloader.verify_tls,
+            )
 
         elif isinstance(self.downloader, DownloadAria2):
             run_subprocess(
@@ -256,6 +296,14 @@ class Extractor(BaseModel):
     """
     A simple model to handle the extraction of a zip file.
 
+    Extraction is atomic: the archive is unpacked into a sibling
+    `<output_dir>.partial` folder, which is renamed into place only once
+    every member is written, and a hidden `.<output_dir name>.complete`
+    marker is then written beside it. A rerun skips extraction only when
+    that marker exists, so a folder left half-full by an interrupted run is
+    re-extracted rather than imported incomplete. (Folders extracted before
+    the marker existed are re-extracted once.)
+
     Attributes:
         output_dir: The directory where the contents will be extracted.
         filename: The path to the zip file to be extracted.
@@ -263,13 +311,31 @@ class Extractor(BaseModel):
     output_dir: Path
     filename: Path
 
-    def extract(self):
+    @property
+    def name(self) -> str:
+        """Used by ParallelExecutor for per-task reporting."""
+        return self.filename.name
+
+    @property
+    def complete_marker(self) -> Path:
+        """Written beside output_dir once extraction has fully finished."""
+        return self.output_dir.parent / f".{self.output_dir.name}.complete"
+
+    def extract(self) -> str:
         """
-        Extracts the zip file if the output directory is empty.
+        Extracts the zip file unless a previous extraction completed.
         """
-        # Check if the directory is empty to avoid re-extraction.
-        if not any(self.output_dir.iterdir()):
-            extract_zip(file_path=self.filename, extraction_folder=self.output_dir)
-            return f"Extracted {self.filename}"
-        else:
-            return f"Output directory {self.output_dir} not empty. Skipping extraction."
+        if self.complete_marker.exists():
+            return f"{self.output_dir} already extracted. Skipping extraction."
+
+        staging = self.output_dir.with_name(self.output_dir.name + ".partial")
+        shutil.rmtree(staging, ignore_errors=True)
+        staging.mkdir(parents=True)
+        extract_zip(file_path=self.filename, extraction_folder=staging)
+        # Replace whatever is at output_dir: an empty folder pre-created by
+        # AuxDataLayer.extraction_folder(), or leftovers from an earlier run.
+        if self.output_dir.exists():
+            shutil.rmtree(self.output_dir)
+        staging.rename(self.output_dir)
+        self.complete_marker.touch()
+        return f"Extracted {self.filename}"

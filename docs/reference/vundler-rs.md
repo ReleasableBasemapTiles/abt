@@ -58,7 +58,7 @@ All three files carry detailed module- and function-level doc comments; read the
 
 ## Testing and verification
 
-There is no shared CI suite in this repo (see [Testing](../project/testing.md) and [Contributing](../project/contributing.md)) — the harness below is what backs the Rust port's correctness claims, and is run locally.
+The Tests workflow runs `cargo test` and `test_golden.py` on every change that touches `abtv2-tools/` (see [Testing](../project/testing.md)); run them locally before a PR too.
 
 - **`abtv2-tools/vundler-rs/tests/`** — a golden-oracle regression suite:
     - `tests/reference/vundler_reference.py` — a frozen, dependency-free transcription of the pre-port Python `BundleWriter`/`_convert_level`, taken from a specific pinned git commit and never edited to match new output.
@@ -72,12 +72,12 @@ There is no shared CI suite in this repo (see [Testing](../project/testing.md) a
     cargo test --manifest-path abtv2-tools/vundler-rs/Cargo.toml
     ```
 
-  The Python golden tests need `pydantic` (the only third-party import in `abt/vundler_model.py`'s import chain) available in whichever interpreter runs `pytest` against `test_golden.py`.
+  The Python golden tests need only `pytest`: the fixtures, the frozen reference and the oracle use nothing but the standard library. Build the binary first (`cargo build`); `test_golden.py` skips if it can't find one.
 
 - **`abtv2-tools/vundler-rs/bench/`** — a separate wall-clock/RSS benchmark and semantic-diff harness, *not* a correctness test suite:
     - `oracle.py` — an independent reader for the Esri Compact Cache V2 format, built from the documented byte layout rather than either implementation's own writer code. Its `compare_trees()` walks every `(zoom, row, col)` tile plus `metadata.json` and reports mismatches; bundle files aren't expected to be byte-identical since tile write order differs between implementations, so the comparison is semantic per-tile-payload equality.
     - `make_fixtures.py` — generates synthetic fixtures into a gitignored `fixtures/` directory.
-    - `run_python.py` / `run_rust.py` — measure wall time and peak child RSS for each implementation.
+    - `run_python.py` / `run_rust.py` — measure wall time and peak child RSS. Since `abt/vundler.py` now shells out to `abt-vundler`, `run_python.py` times the same binary through its Python wrapper, so the pair no longer compares two implementations; `test_golden.py`'s frozen reference is the check against the pre-port Python.
     - `compare.py` — a CLI wrapper around `oracle.compare_trees`.
 
   Usage:

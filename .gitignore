@@ -12,3 +12,9 @@ __pycache__/
 # MkDocs
 site/
 .docs-venv/
+
+# Local virtual environment (docs/project/testing.md)
+.venv/
+
+# Walkthrough working directories created inside the checkout
+/run-*/

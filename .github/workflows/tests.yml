@@ -1,0 +1,90 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - "abtv2-tools/**"
+      - "rbt-schema/**"
+      # Cross-component checks between abtv2-tools and rbt-schema, kept at
+      # the root because neither mirrored subtree has the other.
+      - "tests/**"
+      - "init.sh"
+      - "setup_ubuntu.sh"
+      - ".github/scripts/**"
+      - ".github/workflows/tests.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "tests-${{ github.ref }}"
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  python:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: abtv2-tools/requirements-dev.txt
+      - name: Install test dependencies
+        run: pip install -r abtv2-tools/requirements-dev.txt
+      - name: abtv2-tools tests
+        working-directory: abtv2-tools
+        run: python -m pytest
+      - name: Cross-component tests
+        run: python -m pytest tests
+
+  vundler:
+    name: abt-vundler tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: abtv2-tools/vundler-rs
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            abtv2-tools/vundler-rs/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('abtv2-tools/vundler-rs/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      - name: cargo test
+        run: cargo test --locked
+      # test_golden.py runs the built binary against the frozen Python
+      # reference implementation, so it needs the build first. It needs
+      # nothing beyond pytest and the standard library.
+      - name: Build abt-vundler
+        run: cargo build --locked
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Golden cross-check against the Python reference
+        run: |
+          pip install pytest
+          python -m pytest tests/test_golden.py
+
+  shell:
+    name: Shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # shellcheck ships on the runner image. The Overture scripts under
+      # rbt-schema/scripts/overture/ aren't checked yet: they have findings
+      # of their own to fix first.
+      - name: shellcheck
+        run: shellcheck init.sh setup_ubuntu.sh .github/scripts/subtree-sync.sh
+      - name: init.sh --help
+        run: bash init.sh --help

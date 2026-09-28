@@ -10,8 +10,9 @@ entire program.
 
 import concurrent.futures
 import logging
+import time
 from pathlib import Path
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, List, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict
 
@@ -19,12 +20,28 @@ from .utils.logger import get_logger
 from .utils.run_reporter import RunReporter
 
 
+def _run_timed(instance: Any, action: Callable[[Any], Any], logger: logging.Logger) -> Tuple[str, str, Any, float]:
+    """run_action_on_instance, plus the task's wall-clock seconds."""
+    instance_name = getattr(instance, 'name', str(instance))
+    started = time.monotonic()
+    try:
+        logger.info(f"Starting task for instance '{instance_name}'.")
+        result = action(instance)
+        seconds = time.monotonic() - started
+        logger.info(f"Task for '{instance_name}' completed successfully in {seconds:.1f}s.")
+        return (instance_name, "SUCCESS", result, seconds)
+    except Exception as e:
+        seconds = time.monotonic() - started
+        logger.error(f"Task for '{instance_name}' failed after {seconds:.1f}s with an exception: {e}", exc_info=True)
+        return (instance_name, "FAILURE", str(e), seconds)
+
+
 def run_action_on_instance(instance: Any, action: Callable[[Any], Any], logger: logging.Logger) -> tuple:
     """
     A worker function designed to be run in a separate thread.
 
-    It safely calls `action(instance)`, logs the progress, and captures any
-    exception that occurs.
+    It safely calls `action(instance)`, logs the progress (and how long the
+    task took), and captures any exception that occurs.
 
     Args:
         instance: The object instance to pass to `action`.
@@ -35,15 +52,8 @@ def run_action_on_instance(instance: Any, action: Callable[[Any], Any], logger: 
         A tuple containing the instance name, the execution status ('SUCCESS' or
         'FAILURE'), and the result or error message.
     """
-    instance_name = getattr(instance, 'name', str(instance))
-    try:
-        logger.info(f"Starting task for instance '{instance_name}'.")
-        result = action(instance)
-        logger.info(f"Task for '{instance_name}' completed successfully.")
-        return (instance_name, "SUCCESS", result)
-    except Exception as e:
-        logger.error(f"Task for '{instance_name}' failed with an exception: {e}", exc_info=True)
-        return (instance_name, "FAILURE", str(e))
+    name, status, data, _seconds = _run_timed(instance, action, logger)
+    return (name, status, data)
 
 
 class ParallelExecutor(BaseModel):
@@ -92,9 +102,9 @@ class ParallelExecutor(BaseModel):
             action: A callable taking one argument (an object from `objects`)
                 that performs the task.
             reporter: Optional `RunReporter` to record each task's pass/fail
-                outcome into the run's consolidated summary. `.record()` is
-                thread-safe, so it can be called directly as each future
-                completes without additional synchronization here.
+                outcome and duration into the run's consolidated summary.
+                `.record()` is thread-safe, so it can be called directly as
+                each future completes without additional synchronization here.
             stage: Label used when recording into `reporter` (defaults to
                 `self.instance`).
 
@@ -111,14 +121,14 @@ class ParallelExecutor(BaseModel):
             max_workers=self.max_workers, thread_name_prefix=f"{self.instance}_Worker"
         ) as executor:
             future_to_obj = {
-                executor.submit(run_action_on_instance, obj, action, logger): obj
+                executor.submit(_run_timed, obj, action, logger): obj
                 for obj in objects
             }
 
             # Process futures as they complete.
             for future in concurrent.futures.as_completed(future_to_obj):
                 try:
-                    name, status, data = future.result()
+                    name, status, data, seconds = future.result()
                     logger.info(f"Future completed for '{name}' with status '{status}'.")
                     all_results.append((name, status, data))
                     if reporter is not None:
@@ -127,6 +137,7 @@ class ParallelExecutor(BaseModel):
                             task=name,
                             status="SUCCESS" if status == "SUCCESS" else "FAILED",
                             error=None if status == "SUCCESS" else str(data),
+                            duration_s=seconds,
                         )
                 except Exception as e:
                     # This is a fallback for errors that might occur outside the worker function

@@ -3,11 +3,13 @@
 For fast iteration on schema/SQL changes — without planet-scale time or disk cost — the same pipeline can build a single Geofabrik extract instead. This walks through Norway (Geofabrik key `norway`, PBF currently ~1.4 GB); swap in any other Geofabrik key for a different extract (see "Confirming your Geofabrik key" in [Troubleshooting](../reference/troubleshooting.md)).
 
 !!! note "Prerequisites"
-    This walkthrough assumes the 8 vCPU / 32 GB tier from [Performance & Sizing](../install/performance.md), and a separate `abt_norway` database so it can coexist with a planet build on the same host — see [Ubuntu Setup](../install/ubuntu.md).
+    This walkthrough assumes the 8 vCPU / 32 GB tier from [Performance & Sizing](../install/performance.md), and a separate `rbt_norway` database so it can coexist with a planet build on the same host — see [Ubuntu Setup](../install/ubuntu.md#create-a-database-and-role) to create it.
 
 For the full-scale version of this same sequence, see the [Planet walkthrough](planet.md). For the production, multi-projection, S3-uploading path that wraps all of these stages into one script, see [init.sh Orchestrator](init-sh.md).
 
 ## Configure the database connection
+
+The paths below follow the manual [Ubuntu Setup](../install/ubuntu.md): the repo cloned to `~/abt`, a conda env, and each run's working directory next to the clone. On a host [`setup_ubuntu.sh`](../install/ubuntu.md#automated-setup-setup_ubuntush) set up, activate the env with `micromamba activate abtv2` and `cd` into the `abtv2-tools/` of the checkout you ran it from (`/rbt/abtv2-tools` if you cloned to `/rbt`); every other command is the same.
 
 ```bash
 conda activate abtv2
@@ -15,9 +17,9 @@ cd ~/abt/abtv2-tools
 
 export PGHOST=127.0.0.1
 export PGPORT=5432
-export PGUSER=abt
-export PGPASSWORD=abt
-export PGDATABASE=abt_norway
+export PGUSER=rbt
+export PGPASSWORD=rbt
+export PGDATABASE=rbt_norway
 ```
 
 With these exported, every command below can use `-p env` for `--pg-config`.
@@ -88,7 +90,16 @@ python abt-tools.py bundler \
   -p env
 ```
 
-Writes `~/abt/run-norway/bundled/joined.mbtiles`. Add `-z`/`--max-zoom` for a smaller "RBT Small" build.
+Writes `~/abt/run-norway/bundled/joined.mbtiles`. For a smaller "RBT Small" build, add a zoom cap and an output name of its own, since the bundler rebuilds its output from scratch and `-z` alone would overwrite the full-resolution `joined.mbtiles`:
+
+```bash
+python abt-tools.py bundler \
+  -w ~/abt/run-norway \
+  -s ../rbt-schema \
+  -p env \
+  -z 8 \
+  -o rbt_small.mbtiles
+```
 
 ## (Optional) Vundler
 

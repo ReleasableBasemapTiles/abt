@@ -137,7 +137,7 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
     SELECT
         g.desig_cd,
-        split_part(g.display, ',', -1)::int AS display_max
+        NULLIF(split_part(g.display, ',', -1), '')::int AS display_max
     FROM aux_data.nga_geonames_populated_places g
     WHERE g.ufi = g_match.ufi
       AND g.name_rank::text = '1'
@@ -223,7 +223,11 @@ WHERE o.place IN ('village', 'hamlet', 'suburb', 'neighbourhood')
 UNION ALL
 
 -- Islands from polygons: rank derived from area using OMT thresholds (m²).
--- Label placed at polygon centroid.
+-- Label placed at polygon centroid. The geodesic area is computed once, in
+-- the LATERAL below: Postgres evaluates each WHEN's expression separately,
+-- so the rank CASE used to compute it up to six times per island (six for
+-- every island under 1e7 m², i.e. most of them). OFFSET 0 keeps the planner
+-- from inlining the subquery back into each WHEN.
 SELECT
     osm_id,
     COALESCE(
@@ -240,18 +244,19 @@ SELECT
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
     CASE
-        WHEN ST_Area(geometry::geography) >= 1e12 THEN 1
-        WHEN ST_Area(geometry::geography) >= 1e11 THEN 2
-        WHEN ST_Area(geometry::geography) >= 8e9  THEN 3
-        WHEN ST_Area(geometry::geography) >= 1e9  THEN 4
-        WHEN ST_Area(geometry::geography) >= 1e8  THEN 5
-        WHEN ST_Area(geometry::geography) >= 1e7  THEN 6
-        ELSE                                           7
+        WHEN island.area_m2 >= 1e12 THEN 1
+        WHEN island.area_m2 >= 1e11 THEN 2
+        WHEN island.area_m2 >= 8e9  THEN 3
+        WHEN island.area_m2 >= 1e9  THEN 4
+        WHEN island.area_m2 >= 1e8  THEN 5
+        WHEN island.area_m2 >= 1e7  THEN 6
+        ELSE                             7
     END                                                                 AS rank,
     ST_PointOnSurface(
         ST_MakeValid(geometry)
     )::geometry(Point, 4326)                                            AS geometry
 FROM osm.osm_island_polygon
+CROSS JOIN LATERAL (SELECT ST_Area(geometry::geography) AS area_m2 OFFSET 0) island
 WHERE NULLIF(name, '') IS NOT NULL
 
 UNION ALL

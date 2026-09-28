@@ -125,8 +125,11 @@ nav:
     - Pipeline: overview/pipeline.md
     - Architecture: overview/architecture.md
     - Repository Tour: overview/repo-tour.md
+    - Working Directory: overview/working-directory.md
+    - Glossary: overview/glossary.md
     - Data Sources & Licensing: overview/data-sources.md
   - Install & Deploy:
+    - Prerequisites: install/prerequisites.md
     - Ubuntu Setup: install/ubuntu.md
     - Configuration: install/configuration.md
     - Performance & Sizing: install/performance.md
@@ -159,5 +162,6 @@ nav:
     - Contributing: project/contributing.md
     - Testing: project/testing.md
     - Code Review Findings: project/code-review-findings.md
+    - Code Review, September 2026: project/code-review-2026-09.md
     - Security: project/security.md
     - Upstream Mirrors: project/mirrors.md

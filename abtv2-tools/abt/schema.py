@@ -9,7 +9,7 @@ data schema directory which contains all user-defined configurations.
 
 import datetime
 from pydantic import BaseModel, model_validator
-from typing import List
+from typing import List, Optional
 from typing_extensions import Self
 from pathlib import Path
 
@@ -151,6 +151,21 @@ class DataSchema(BaseModel):
         if not mapping_files:
             raise FileNotFoundError(f"No mapping files found in {imposm_dir}")
         return mapping_files
+
+    @property
+    def imposm_base_file(self) -> Optional[Path]:
+        """Path to the optional import/imposm_base.yml (or .yaml), or None.
+
+        Holds imposm's top-level mapping settings (e.g. `tags: include:`)
+        that apply across every table. It sits beside import/osm/ rather
+        than in it, because every YAML file in import/osm/ is read as one
+        table's mapping.
+        """
+        for name in ("imposm_base.yml", "imposm_base.yaml"):
+            path = self.base_schema_dir / "import" / name
+            if path.exists():
+                return path
+        return None
 
     @property
     def aux_files(self) -> List[Path]:
