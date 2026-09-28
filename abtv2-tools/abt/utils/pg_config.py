@@ -11,7 +11,18 @@ import os
 from pydantic import BaseModel
 import psycopg2
 from pathlib import Path
+from urllib.parse import quote
 import logging
+
+
+def libpq_quote(value) -> str:
+    """Quotes one value for a libpq key=value connection string.
+
+    libpq escapes a backslash or single quote inside a quoted value with a
+    backslash (not by doubling the quote, as SQL does), so any password or
+    option string survives intact. Plain values come out as 'value'.
+    """
+    return "'" + str(value).replace("\\", "\\\\").replace("'", "\\'") + "'"
 
 
 class PGConfig(BaseModel):
@@ -91,14 +102,16 @@ class PGConfig(BaseModel):
     @property
     def conn_str(self) -> str:
         """Returns the connection string in the format required by psycopg2."""
-        base = f"host={self.host} port={self.port} user='{self.user}' password='{self.password}' dbname='{self.database}'"
+        base = (
+            f"host={self.host} port={self.port} user={libpq_quote(self.user)} "
+            f"password={libpq_quote(self.password)} dbname={libpq_quote(self.database)}"
+        )
         if not self.extra_options:
             return base
         # Same 'options=<libpq -c key=value ...>' shape carto_sql's own dblink
         # connstrs use, so a session opened this way starts with those GUCs
         # already set -- no separate SET statement needed after connecting.
-        escaped = self.extra_options.replace("'", "''")
-        return f"{base} options='{escaped}'"
+        return f"{base} options={libpq_quote(self.extra_options)}"
 
     def with_options(self, extra_options: str) -> "PGConfig":
         """Returns a copy of this config that opens connections with extra
@@ -108,15 +121,21 @@ class PGConfig(BaseModel):
         """
         return self.model_copy(update={"extra_options": extra_options})
 
+    def _uri(self, scheme: str) -> str:
+        # Percent-encode the user, password, and database, so a character
+        # like @, :, / or # in any of them can't be read as URI syntax.
+        user, password, database = (quote(str(v), safe="") for v in (self.user, self.password, self.database))
+        return f"{scheme}://{user}:{password}@{self.host}:{self.port}/{database}"
+
     @property
     def uri(self) -> str:
         """Returns a standard PostgreSQL connection URI."""
-        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+        return self._uri("postgresql")
 
     @property
     def pguri(self) -> str:
         """Returns a PostGIS-style connection URI, often used by external tools."""
-        return f"postgis://{self.user}:{self.password}@{self.host}:{self.port}/{self.database}"
+        return self._uri("postgis")
 
     @property
     def conn(self) -> psycopg2.extensions.connection:
