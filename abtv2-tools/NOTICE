@@ -1,0 +1,38 @@
+Releasable Basemap Tiles (ABT) -- abtv2-tools
+
+abtv2-tools is developed in the abtv2-tools/ directory of
+https://github.com/ReleasableBasemapTiles/abt and mirrored to
+https://github.com/ReleasableBasemapTiles/abtv2-tools.
+
+Tiles and databases generated with it are not covered by the CC0 dedication
+in LICENSE. They are subject to the licenses of their source data, including
+the Open Database License (ODbL) 1.0 for OpenStreetMap, FieldMaps, and
+Overture Maps. See tile-metadata/metadata.py in rbt-schema.
+
+This product includes a planet-mirror download strategy adapted from
+openmaptiles-tools (https://github.com/openmaptiles/openmaptiles-tools),
+in abt/download/planet_mirrors.py. That portion remains under the MIT
+License:
+
+The MIT License (MIT)
+
+Copyright (c) 2024, MapTiler.com & OpenMapTiles/OSM2VectorTiles contributors.
+All rights reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
