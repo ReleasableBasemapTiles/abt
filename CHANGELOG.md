@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Let publish overwrite a mirror main listed in the workflow
 - Overwrite the abtv2-tools mirror commits ported in #2
 - Point the abtv2-tools overwrite at e2ea95c
+- Point the abtv2-tools overwrite at eeb8f4a
 
 ### Fixed
 
