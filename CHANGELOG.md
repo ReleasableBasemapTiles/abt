@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Publish the MkDocs site to GitHub Pages
 - Add CC0 license for the U.S. Government work
+- Mirror abtv2-tools/ and rbt-schema/ to their standalone repos
+- Add LICENSE and NOTICE to each mirrored directory
+- Mark abt as the source of truth in the mirrored READMEs
+- Document the upstream mirrors
+- Check private mirrors from a clone that can read them
 
 ## [2.0.0] - 2026-09-17
 
