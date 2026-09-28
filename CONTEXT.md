@@ -424,9 +424,6 @@ This list is current as of 2026-09-28. Fix these when you edit the page:
 
 - `env.yaml` lists `sphinx`, `sphinx-rtd-theme`, and `sphinx-pydantic`, which nothing uses, and
   it lists `boto3` twice.
-- The comment above the `PG_*` defaults in `setup_ubuntu.sh` says they target the 8 vCPU / 32 GB
-  tier. The values (`shared_buffers=96GB`, 44 worker processes) are sized for the 384 GB planet
-  tier, which is what `docs/install/configuration.md` says.
 
 ## Where to start
 

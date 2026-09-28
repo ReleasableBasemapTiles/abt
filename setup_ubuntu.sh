@@ -3,11 +3,11 @@
 # setup_ubuntu.sh
 #
 # Idempotent bootstrap script for a fresh Ubuntu 26.04 host to run the ABT
-# (Army/Releasable Basemap Tiles) pipeline. This automates README.md
-# section 3 (system dependencies), section 3.2's Postgres role/database/
-# tuning, and section 4's repo checkout. See README.md for the manual
-# walkthrough this codifies, and for the full planet run this leaves you
-# ready to execute (section 6 covers a smaller single-extract variant).
+# (Army/Releasable Basemap Tiles) pipeline. This automates the manual
+# walkthrough in docs/install/ubuntu.md: the system dependencies, the
+# Postgres role/database/tuning, and the repo checkout. The full planet run
+# this leaves you ready to execute is docs/walkthroughs/planet.md, and
+# docs/walkthroughs/norway.md covers a smaller single-extract variant.
 #
 # imposm3 and tippecanoe are compiled from source (from their "master"/
 # "main" branches by default, see IMPOSM_REF/TIPPECANOE_REF below) rather
@@ -21,8 +21,8 @@
 #   ./setup_ubuntu.sh
 #
 # All configuration is via environment variables; every one has a default
-# matching README.md. Re-running this script is safe: each stage checks
-# whether its work is already done before repeating it.
+# matching docs/install/ubuntu.md. Re-running this script is safe: each
+# stage checks whether its work is already done before repeating it.
 
 set -euo pipefail
 
@@ -126,10 +126,11 @@ PG_DATA_DIR="${PG_DATA_DIR:-}"
 # of silently deleting data that happens to already live at that path.
 FORCE_REINIT_POSTGRES="${FORCE_REINIT_POSTGRES:-false}"
 
-# Defaults below target the 8 vCPU / 32 GB "small extract" tier documented
-# in README.md section 2 (Sizing). For a large single host (e.g. 48 vCPU /
-# 384 GB), override all of these -- README.md's Sizing section has a
-# copy-pasteable `export` block sized for that tier.
+# Defaults below target the 48 vCPU / 384 GB planet tier documented in
+# docs/install/performance.md. On a smaller host, such as the 8 vCPU /
+# 32 GB small-extract tier, override every PG_* variable before running
+# this script -- 96GB of shared_buffers alone is more RAM than that host
+# has. performance.md gives the small-extract values to use instead.
 PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-96GB}"
 PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-192GB}"
 PG_MAINTENANCE_WORK_MEM="${PG_MAINTENANCE_WORK_MEM:-8GB}"
@@ -1002,7 +1003,8 @@ cat <<SUMMARY
 
 Full log saved to: ${LOG_FILE}
 
-Next steps (see README.md section 5 for the full planet walkthrough):
+Next steps (full planet walkthrough:
+https://ReleasableBasemapTiles.github.io/abt/walkthroughs/planet/):
 
   # Open a new shell (or reconnect SSH) so this session picks up the raised
   # ulimit -n from /etc/security/limits.d (confirm with: ulimit -n) and the
@@ -1034,6 +1036,7 @@ Next steps (see README.md section 5 for the full planet walkthrough):
   python abt-tools.py bundler  -w ${ABT_RUN_DIR_3395} -s ${ABT_SCHEMA_DIR} -p env
 
   # For a smaller single-extract test build instead (e.g. Norway), see
-  # README.md section 6 -- swap in -k norway -c and a separate database.
+  # https://ReleasableBasemapTiles.github.io/abt/walkthroughs/norway/ --
+  # swap in -k norway -c and a separate database.
 
 SUMMARY
