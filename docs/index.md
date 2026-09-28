@@ -15,7 +15,7 @@ ABT turns OpenStreetMap data plus a handful of authoritative auxiliary open data
 
     Get oriented in the repository, then see how the two halves of the monorepo fit together.
 
-    [Repository Tour](overview/repo-tour.md) · [Architecture](overview/architecture.md)
+    [Repository Tour](overview/repo-tour.md) · [Architecture](overview/architecture.md) · [Glossary](overview/glossary.md)
 
 - **Operator**
 
@@ -23,7 +23,7 @@ ABT turns OpenStreetMap data plus a handful of authoritative auxiliary open data
 
     Provision a fresh Ubuntu host, then run a small extract or a full planet build.
 
-    [Ubuntu Setup](install/ubuntu.md) · [Norway Walkthrough](walkthroughs/norway.md) · [Planet Walkthrough](walkthroughs/planet.md)
+    [Prerequisites](install/prerequisites.md) · [Ubuntu Setup](install/ubuntu.md) · [Norway Walkthrough](walkthroughs/norway.md) · [Planet Walkthrough](walkthroughs/planet.md) · [Working Directory](overview/working-directory.md)
 
 - **Data engineer**
 
@@ -53,7 +53,7 @@ ABT turns OpenStreetMap data plus a handful of authoritative auxiliary open data
 
 ## Requirements at a glance
 
-The pipeline shells out to PostgreSQL/PostGIS, GDAL/OGR, imposm3, tippecanoe, (for planet-scale downloads) aria2, and (for the optional Esri Compact Cache conversion) `abt-vundler`, a Rust binary built from this repo. See [Ubuntu Setup](install/ubuntu.md) for a from-scratch install (manual or via [`setup_ubuntu.sh`](install/ubuntu.md)), and [Performance & Sizing](install/performance.md) for hardware guidance from a single-country extract up to a full-planet build.
+The pipeline shells out to PostgreSQL/PostGIS, GDAL/OGR, imposm3, tippecanoe, (for planet-scale downloads) aria2, and (for the optional Esri Compact Cache conversion) `abt-vundler`, a Rust binary built from this repo. See [Prerequisites](install/prerequisites.md) for the versions, network access and credentials a build needs, [Ubuntu Setup](install/ubuntu.md) for a from-scratch install (manual or via [`setup_ubuntu.sh`](install/ubuntu.md#automated-setup-setup_ubuntush)), and [Performance & Sizing](install/performance.md) for hardware guidance from a single-country extract up to a full-planet build.
 
 ## License and attribution
 

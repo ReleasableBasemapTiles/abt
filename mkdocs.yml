@@ -125,8 +125,11 @@ nav:
     - Pipeline: overview/pipeline.md
     - Architecture: overview/architecture.md
     - Repository Tour: overview/repo-tour.md
+    - Working Directory: overview/working-directory.md
+    - Glossary: overview/glossary.md
     - Data Sources & Licensing: overview/data-sources.md
   - Install & Deploy:
+    - Prerequisites: install/prerequisites.md
     - Ubuntu Setup: install/ubuntu.md
     - Configuration: install/configuration.md
     - Performance & Sizing: install/performance.md

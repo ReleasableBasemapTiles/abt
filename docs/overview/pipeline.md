@@ -28,9 +28,31 @@ flowchart LR
 Each row links to a dedicated stage page with full flag documentation: [Download](../pipeline/download.md), [Import](../pipeline/import.md), [Carto](../pipeline/carto.md), [Export](../pipeline/export.md), [Bundler](../pipeline/bundler.md), [Vundler](../pipeline/vundler.md). See also the [abt-tools CLI reference](../reference/cli.md) for every flag across every command.
 
 !!! tip "Idempotency varies by stage"
-    Only `download` and `export` skip work that's already done (they check for existing output files first). `import`, `carto`, `bundler`, and `vundler` always redo the full operation from scratch, so `carto_sql/` SQL is written to be safely re-runnable, and re-running `bundler`/`vundler` is expected to cost the full stage time again.
+    Only `download` and `export` skip work that's already done (they check for existing output files first). `import`, `carto`, `bundler`, and `vundler` always redo the full operation from scratch, so `carto_sql/` SQL is written to be safely re-runnable, and re-running `bundler`/`vundler` is expected to cost the full stage time again. [Working Directory](working-directory.md#what-reruns-skip) lists exactly what each one skips.
 
 `bundler` also accepts `-z/--max-zoom` to cap the joined output at a given zoom level (e.g. a smaller "RBT Small" package alongside the full-resolution one). Each input is pre-trimmed with SQLite before `tile-join` runs, rather than relying on `tile-join` itself to filter by zoom.
+
+## Flags across commands
+
+The commands share most of their flag letters, but a few letters mean something different in each. Defaults are in brackets; the `-n` defaults scale with the host's CPU count (see [Performance & Sizing](../install/performance.md)).
+
+| Flag | `download` | `import` | `carto` | `export` | `bundler` | `vundler` |
+|---|---|---|---|---|---|---|
+| `-w`, `--working-dir` | required | required | required | required | required | required |
+| `-s`, `--schema-dir` | required | required | required | required | required | — |
+| `-d`, `--data-type` | required: `osm`, `aux` or `all` | required: `osm`, `aux` or `all` | — | — | — | — |
+| `-k`, `--osm-key` | the extract to fetch [`planet`] | the extract to load [`planet`] | — | — | — | — |
+| `-n` | aux downloads at once | aux imports at once | `--carto-concurrency`: script groups at once | layers at once | — | conversion threads |
+| `-p`, `--pg-config` | — | [`env`] | [`env`] | [`env`] | [`env`], though it never queries Postgres | — |
+| `-z`, `--max-zoom` | — | — | — | caps every layer's own maximum zoom [13] | trims the bundle to this zoom [no cap] | the highest level to convert [13] |
+| `-f`, `--force` | — | re-import over a populated `osm` schema | — | — | — | — |
+| `-c`, `--clip-aux` | — | clip aux data to the extract's bounding box | — | — | — | — |
+| `-q`, `--additional-mbtiles` | — | — | — | — | another `.mbtiles` to join in (repeatable) | — |
+| `-o` | — | — | — | — | `--output-name` [`joined.mbtiles`] | `--output-dir` [`bundled/vundled/p12`] |
+| `-i`, `--input-path` | — | — | — | — | — | the `.mbtiles` to convert [`bundled/joined.mbtiles`] |
+| `--projection-override` | — | — | — | tile in another metres-based CRS | — | — |
+
+Pass `download` and `import` the same `-k`: `import` finds the file `download` fetched by it, and `-c` clips to its bounding box. `debug_aux_import` takes `-w`, `-s`, `-p` and `-a/--aux-file`, the one aux source to load. Every command also has `--help`.
 
 ## Parallelism and carto concurrency
 

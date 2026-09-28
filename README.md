@@ -13,11 +13,11 @@ Neither is useful without the other: `abtv2-tools` is a generic pipeline runner,
 
 Full documentation is published at <https://ReleasableBasemapTiles.github.io/abt/>. The source is [`docs/`](docs/index.md) (MkDocs Material); to render it locally, see [Building the docs site](#building-the-docs-site):
 
-- **New here?** Start with the [Repository Tour](docs/overview/repo-tour.md) and [Architecture](docs/overview/architecture.md).
-- **Setting up a host?** [Ubuntu Setup](docs/install/ubuntu.md) and [Performance & Sizing](docs/install/performance.md).
+- **New here?** Start with the [Repository Tour](docs/overview/repo-tour.md) and [Architecture](docs/overview/architecture.md); the [Glossary](docs/overview/glossary.md) explains the names (ABT, RBT, carto, bundler, vundler).
+- **Setting up a host?** [Prerequisites](docs/install/prerequisites.md), then [Ubuntu Setup](docs/install/ubuntu.md) and [Performance & Sizing](docs/install/performance.md).
 - **Running the pipeline?** [Norway walkthrough](docs/walkthroughs/norway.md) (fast, single-country) or [Planet walkthrough](docs/walkthroughs/planet.md) (full-scale), or the all-in-one [`init.sh` orchestrator](docs/walkthroughs/init-sh.md) for production runs.
 - **Working on the schema?** [Schema Reference](docs/schema/index.md) and the generated [Layer Registry](docs/schema/layers.md).
-- **Something broken?** [Troubleshooting](docs/reference/troubleshooting.md).
+- **Something broken?** [Troubleshooting](docs/reference/troubleshooting.md), and [Working Directory](docs/overview/working-directory.md) for where each command's logs and `summary.json` land.
 - **Contributing?** [Contributing](docs/project/contributing.md) and [Testing](docs/project/testing.md).
 
 ## Quick start
