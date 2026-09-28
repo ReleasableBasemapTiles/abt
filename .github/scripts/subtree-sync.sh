@@ -10,11 +10,14 @@
 # reusing the original upstream commits it was merged in from. It is
 # deterministic, so the split of a later main descends from the split already
 # pushed and the mirror only ever fast-forwards. A mirror main that isn't an
-# ancestor of the split has commits abt doesn't -- that is reported, never
-# overwritten.
+# ancestor of the split has commits abt doesn't -- that is reported and not
+# published, unless SUBTREE_SYNC_OVERWRITE lists that exact commit: then
+# publish force-pushes the split over it.
 #
 # Needs full history (fetch-depth: 0) and GNU coreutils. publish reads
 # SUBTREE_SYNC_TOKEN; SUBTREE_SYNC_MIRROR_URL overrides the mirror URL (tests).
+# Both modes read SUBTREE_SYNC_OVERWRITE: <prefix>@<sha> entries separated by
+# whitespace, each naming a mirror main (at least 7 hex digits) to discard.
 set -euo pipefail
 
 usage() { echo "usage: $0 check <prefix> <base-rev> | publish <prefix>" >&2; exit 2; }
@@ -34,6 +37,13 @@ export GIT_TERMINAL_PROMPT=0
 # command.
 note() { echo "$*"; echo "$*" >>"$summary"; }
 fail() { echo "::error title=$slug::$1"; echo "**Error:** $1" >>"$summary"; exit 1; }
+
+# Validate every entry up front, so a typo fails the PR that adds it.
+read -rd '' -a overwrite <<<"${SUBTREE_SYNC_OVERWRITE:-}" || true
+for entry in "${overwrite[@]}"; do
+  [[ $entry =~ ^(abtv2-tools|rbt-schema)@[0-9a-f]{7,40}$ ]] ||
+    fail "SUBTREE_SYNC_OVERWRITE entry '$entry' isn't <dir>@<SHA of the mirror's main>, such as abtv2-tools@495cfbd."
+done
 
 # Signing would change the synthetic commits' SHAs (commit-tree honours
 # commit.gpgSign), so a split made on a signing clone wouldn't match CI's.
@@ -63,9 +73,29 @@ guard_leak() {
     fail "the split of $prefix/ contains $((new - ours)) commit(s) from abt's own history (was $prefix/ deleted and restored?). Not publishing."
 }
 
+# True if SUBTREE_SYNC_OVERWRITE lists the mirror's current main.
+overwrite_listed() {
+  local entry
+  for entry in "${overwrite[@]}"; do
+    [[ ${entry%@*} == "$prefix" && $mirror == "${entry#*@}"* ]] && return 0
+  done
+  return 1
+}
+
+# List the mirror-only commits that overwriting the mirror's main drops.
+# $1 says who does it, e.g. "Force-pushed".
+discarding() {
+  local n
+  n=$(git rev-list --count "$split..$mirror")
+  echo "::warning title=$slug main is listed in SUBTREE_SYNC_OVERWRITE::$1 over $slug main ($mirror), discarding $n commit(s) that abt doesn't have."
+  note "**$1 over $slug main (\`$mirror\`), discarding $n commit(s):**"
+  git log --format="- \`%h\` %s" "$split..$mirror" >>"$summary"
+  git log --format='  discarded: %h %s' "$split..$mirror"
+}
+
 diverged() {
-  echo "::error title=$slug has diverged::$slug main (${mirror:0:7}) has commits abt's $prefix/ doesn't. Bring them in with git subtree pull (or git merge -s ours if already ported), merge that PR with a merge commit, then re-run. See docs/project/mirrors.md."
-  note "**$slug main has commits that abt doesn't:**"
+  echo "::error title=$slug has diverged::$slug main (${mirror:0:7}) has commits abt's $prefix/ doesn't. Bring them in with git subtree pull (or git merge -s ours if already ported) and merge that PR with a merge commit, or discard them by adding $prefix@${mirror:0:7} to SUBTREE_SYNC_OVERWRITE. See docs/project/mirrors.md."
+  note "**$slug main (\`$mirror\`) has commits that abt doesn't:**"
   git log --format="- \`%h\` %s" "$split..$mirror" >>"$summary"
   git log --format='  mirror-only: %h %s' "$split..$mirror"
   exit 1
@@ -74,6 +104,11 @@ diverged() {
 case $mode in
 check)
   [[ $# -eq 3 ]] || usage
+  for entry in "${overwrite[@]}"; do
+    if [[ ${entry%@*} == "$prefix" ]]; then
+      note "SUBTREE_SYNC_OVERWRITE lists \`$entry\`: publish force-pushes over $slug main while it is still \`${entry#*@}\`."
+    fi
+  done
   base_split=$(split_of "$3")
   if [[ $base_split == "$split" ]]; then
     note "Merging this publishes nothing to $slug."
@@ -112,8 +147,13 @@ check)
   # A re-run keeps its original merge ref, which may predate a later publish
   # of main; main's own split descending from the mirror is just as good.
   if ! git merge-base --is-ancestor "$mirror" "$split"; then
-    main=$(git rev-parse -q --verify origin/main) || diverged
-    git merge-base --is-ancestor "$mirror" "$(split_of "$main")" || diverged
+    main=$(git rev-parse -q --verify origin/main) || main=
+    if [[ -z $main ]] || ! git merge-base --is-ancestor "$mirror" "$(split_of "$main")"; then
+      overwrite_listed || diverged
+      guard_leak
+      discarding "The publish after merging force-pushes"
+      exit 0
+    fi
   fi
   guard_leak
   note "$slug main (\`${mirror:0:7}\`) is an ancestor of this split, so the publish after merging will fast-forward."
@@ -135,16 +175,28 @@ publish)
     note "$slug main is already at \`${split:0:7}\`."
     exit 0
   fi
-  if git merge-base --is-ancestor "$split" "$mirror"; then
-    note "$slug main (\`${mirror:0:7}\`) is already ahead of this split; a newer run published it."
-    exit 0
+  lease=()
+  if ! git merge-base --is-ancestor "$mirror" "$split"; then
+    if overwrite_listed; then
+      # The lease fails the push if main has moved since the fetch.
+      lease=("--force-with-lease=refs/heads/main:$mirror")
+    elif git merge-base --is-ancestor "$split" "$mirror"; then
+      note "$slug main (\`${mirror:0:7}\`) is already ahead of this split; a newer run published it."
+      exit 0
+    else
+      diverged
+    fi
   fi
-  git merge-base --is-ancestor "$mirror" "$split" || diverged
   guard_leak
   n=$(git rev-list --count "$split" "^$mirror")
-  git "${auth[@]}" push -q "$url" "$split:refs/heads/main" ||
-    fail "push to $slug was rejected. Check that SUBTREE_SYNC_TOKEN hasn't expired, has Contents: write on $slug, and that its owner can always bypass the mirror's main ruleset."
-  note "Published $n commit(s) to $slug main: \`${mirror:0:7}..${split:0:7}\`."
+  git "${auth[@]}" push -q "${lease[@]}" "$url" "$split:refs/heads/main" ||
+    fail "push to $slug was rejected. Check that SUBTREE_SYNC_TOKEN hasn't expired, has Contents: write on $slug, and that its owner can always bypass the mirror's main ruleset (for an overwrite, that includes Block force pushes)."
+  if ((${#lease[@]})); then
+    discarding "Force-pushed"
+    note "Published $n commit(s) to $slug main: \`${split:0:7}\` replaces \`${mirror:0:7}\`."
+  else
+    note "Published $n commit(s) to $slug main: \`${mirror:0:7}..${split:0:7}\`."
+  fi
   ;;
 
 *) usage ;;

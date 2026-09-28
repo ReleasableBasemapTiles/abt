@@ -3,13 +3,14 @@
 # abt is the source of truth; see docs/project/mirrors.md.
 #
 # Pull requests: `check` reports what merging would publish to each mirror
-# and fails if a mirror has commits abt doesn't. It needs no secrets, so
+# and fails if a mirror has commits abt doesn't, unless
+# SUBTREE_SYNC_OVERWRITE lists that mirror's main. It needs no secrets, so
 # fork PRs work too, and it exits early when a PR doesn't change a subtree,
 # so it is safe to make a required check.
 # main: `publish` fast-forwards each mirror's main to `git subtree split` of
-# main -- never a force-push. The nightly run is the same job: it catches up
-# anything a failed run left behind and flags a mirror that has moved on
-# its own.
+# main. It force-pushes only over a mirror main that SUBTREE_SYNC_OVERWRITE
+# lists. The nightly run is the same job: it catches up anything a failed
+# run left behind and flags a mirror that has moved on its own.
 
 name: Subtree sync
 
@@ -23,6 +24,14 @@ on:
 
 permissions:
   contents: read
+
+env:
+  # Mirror commits to discard instead of bringing them into abt, as
+  # <dir>@<SHA of the mirror's main>, separated by spaces. While a mirror's
+  # main is still that commit, publish force-pushes the split over it, and
+  # check reports that it will. See "When a mirror has diverged" in
+  # docs/project/mirrors.md.
+  SUBTREE_SYNC_OVERWRITE: ""
 
 jobs:
   check:

@@ -10,17 +10,17 @@ abt is the source of truth for both halves of the pipeline. Each half is also pu
 The **Subtree sync** workflow keeps each mirror's `main` in step with abt's `main`. On a pull request it reports what merging would publish, and after the merge it pushes the result. Nobody pushes to a mirror by hand.
 
 !!! warning "Change it in abt, not in the mirror"
-    Open issues and pull requests against abt. A commit pushed straight to a mirror's `main` stops the sync for that mirror until the commit has been brought into abt. See [When a mirror has diverged](#when-a-mirror-has-diverged).
+    Open issues and pull requests against abt. A commit pushed straight to a mirror's `main` stops the sync for that mirror until the commit has been brought into abt or discarded. See [When a mirror has diverged](#when-a-mirror-has-diverged).
 
 ## How it works
 
 Both directories are unsquashed git subtrees. `git subtree add` merged each upstream repository's history into abt (`5a7e3a1` for `abtv2-tools/`, `647cae8` for `rbt-schema/`), and `f09c5c7` later pulled in more `rbt-schema` commits.
 
-`git subtree split --prefix=<dir>` turns that history back into a standalone repository: one commit for each abt commit that changed `<dir>/`, with `<dir>/` as the root. It reuses the original upstream commits instead of rewriting them, and it produces the same commit IDs every time it runs. The split of a later `main` therefore always builds on the split already pushed, and a mirror only ever fast-forwards.
+`git subtree split --prefix=<dir>` turns that history back into a standalone repository: one commit for each abt commit that changed `<dir>/`, with `<dir>/` as the root. It reuses the original upstream commits instead of rewriting them, and it produces the same commit IDs every time it runs. The split of a later `main` therefore always builds on the split already pushed, and a mirror only ever fast-forwards, unless a pull request [discards commits](#discard-the-commits) that were pushed to it directly.
 
 [`.github/scripts/subtree-sync.sh`](https://github.com/ReleasableBasemapTiles/abt/blob/main/.github/scripts/subtree-sync.sh) does the work in two modes. [`.github/workflows/subtree-sync.yml`](https://github.com/ReleasableBasemapTiles/abt/blob/main/.github/workflows/subtree-sync.yml) runs each mode once per mirror.
 
-**Check** runs on every pull request. It splits the pull request's merge commit and the base it was merged onto, then lists in the job summary the files that merging would change in the mirror. Next it fetches the mirror's `main` and **fails** if the mirror has commits abt doesn't. It also warns about:
+**Check** runs on every pull request. It splits the pull request's merge commit and the base it was merged onto, then lists in the job summary the files that merging would change in the mirror. Next it fetches the mirror's `main` and **fails** if the mirror has commits abt doesn't. If `SUBTREE_SYNC_OVERWRITE` lists the mirror's `main` to be [discarded](#discard-the-commits), it reports what publish will discard instead. It also warns about:
 
 - relative links in the directory's Markdown that climb out of it (`../docs/...`), because they 404 in the mirror;
 - a `LICENSE` that is no longer an exact copy of the root one;
@@ -34,7 +34,8 @@ Check uses no secrets, so pull requests from forks get it too. When a pull reque
 | When the mirror's `main` is… | Publish… |
 |---|---|
 | the same as the split | does nothing |
-| behind the split | pushes the split to `main` as a fast-forward, never `--force` |
+| behind the split | pushes the split to `main` as a fast-forward |
+| any other commit listed in `SUBTREE_SYNC_OVERWRITE` | force-pushes the split over it, with a lease on that commit, and lists the commits it discarded |
 | ahead of the split (a newer run already published) | does nothing |
 | neither (it has commits abt doesn't) | fails, lists the mirror-only commits, and pushes nothing |
 
@@ -79,7 +80,7 @@ In abt, open Settings → Environments → **New environment** and name it `subt
 In each mirror, open Settings → Rules → Rulesets → New branch ruleset. Target the default branch and set enforcement to **Active**:
 
 - Turn on **Restrict updates**, **Restrict deletions**, and **Block force pushes**.
-- Under **Bypass list**, add a team that holds only the token owner (or failing that, the token owner's role, such as Repository admin) with **Always allow**. Publish pushes directly, not through a pull request.
+- Under **Bypass list**, add a team that holds only the token owner (or failing that, the token owner's role, such as Repository admin) with **Always allow**. Publish pushes directly, not through a pull request. The bypass also lets publish force-push when it [discards a mirror's commits](#discard-the-commits).
 - Leave **Require linear history** off, because the split history contains merges. Leave **Require signed commits** off, because split commits are created fresh and are unsigned.
 
 Organization rulesets that cover every repository, such as rules on file paths, extensions, or sizes, apply to the mirrors too, and to every commit in the history that publish pushes. Either exclude the mirrors from them or give the token owner a bypass.
@@ -109,7 +110,11 @@ Publish runs on the next push to `main`. It can also be started from Actions →
 
 ## When a mirror has diverged
 
-A check or publish that fails with **has diverged** lists the commits that the mirror has and abt doesn't. Bring them into abt in a pull request, then merge that pull request with **Create a merge commit**. Squash and rebase both drop the mirror's commits, and the next publish would fail again.
+A check or publish that fails with **has diverged** names the mirror's `main` and lists the commits that the mirror has and abt doesn't. Until they are brought into abt or discarded, publish pushes nothing to that mirror.
+
+### Bring the commits into abt
+
+Bring them into abt in a pull request, then merge that pull request with **Create a merge commit**. Squash and rebase both drop the mirror's commits, and the next publish would fail again.
 
 The commands below use this helper. `commit.gpgsign=false` keeps `git subtree split` from asking to sign each commit it creates:
 
@@ -144,6 +149,23 @@ In both cases:
     ```
 
 - The pull request's own check reports the history it adds and warns that it must be merged with a merge commit. After the merge, the next publish fast-forwards the mirror.
+
+### Discard the commits
+
+If abt doesn't need the mirror's commits, because their changes were copied into abt by hand or aren't wanted, publish can overwrite the mirror's `main` instead. Bring in any commit whose changes abt should keep, because discarding loses it.
+
+In a pull request, add the mirror's `main` to `SUBTREE_SYNC_OVERWRITE` at the top of [the workflow](https://github.com/ReleasableBasemapTiles/abt/blob/main/.github/workflows/subtree-sync.yml), as `<dir>@<SHA>`. Take the SHA from the failed run; its first 7 characters are enough. Separate several entries with spaces:
+
+```yaml
+env:
+  SUBTREE_SYNC_OVERWRITE: abtv2-tools@495cfbd
+```
+
+- While the mirror's `main` is still that commit, publish force-pushes the split over it. The push carries a lease on the commit that publish fetched, so if anything is pushed to the mirror in the meantime, publish fails instead of discarding it.
+- The job summary lists the discarded commits and the full SHA of the old `main`. When the check can read the mirror, it reports what publish will discard instead of failing.
+- The token owner must be able to force-push to the mirror's `main`. The bypass from [Setup step 3](#3-lock-down-each-mirrors-main) covers it.
+- Clones of the mirror have to be reset to the new `main`.
+- Once publish has run, the entry no longer matches, so it does nothing. Remove it in a later pull request.
 
 ## Working in the mirrored directories
 
