@@ -160,3 +160,4 @@ nav:
     - Testing: project/testing.md
     - Code Review Findings: project/code-review-findings.md
     - Security: project/security.md
+    - Upstream Mirrors: project/mirrors.md

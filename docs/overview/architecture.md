@@ -4,7 +4,7 @@ This page explains how the two halves of the monorepo fit together, and how a CL
 
 ## Two repos, merged into one monorepo
 
-`abtv2-tools/` and `rbt-schema/` used to be two separate git repositories. They were merged into this single repo with each subdirectory's full commit history preserved (`git log -- abtv2-tools/` and `git log -- rbt-schema/` still work independently), and a second git remote (`rbt-schema`, pointing at `git@github.com:ReleasableBasemapTiles/rbt-schema.git`) is kept around for periodic history sync — not for live submodule/subtree mounting.
+`abtv2-tools/` and `rbt-schema/` used to be two separate git repositories. They were merged into this single repo with each subdirectory's full commit history preserved (`git log -- abtv2-tools/` and `git log -- rbt-schema/` still work independently). Both were added as git subtrees, and abt is now where they're developed: every merge to `main` publishes each directory's history back to its original repository. See [Upstream Mirrors](../project/mirrors.md).
 
 Conceptually the split is engine vs. content:
 
