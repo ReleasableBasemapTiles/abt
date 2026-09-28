@@ -32,11 +32,12 @@ env:
   # check reports that it will. See "When a mirror has diverged" in
   # docs/project/mirrors.md.
   #
-  # abtv2-tools@e2ea95c: the five --max-zoom bundler commits that abt pull
-  # request #2 copied into abtv2-tools/ by hand, and four merged into the
-  # mirror directly: a CHANGELOG and release workflow, and an org-name fix
-  # to the setup_ubuntu.sh that abt moved to its root.
-  SUBTREE_SYNC_OVERWRITE: abtv2-tools@e2ea95c
+  # abtv2-tools@eeb8f4a: the five --max-zoom bundler commits that abt pull
+  # request #2 copied into abtv2-tools/ by hand, and six merged into the
+  # mirror directly: a CHANGELOG and release workflow, an org-name fix to
+  # the setup_ubuntu.sh that abt moved to its root, and a v1.1.1 CHANGELOG
+  # entry for that fix.
+  SUBTREE_SYNC_OVERWRITE: abtv2-tools@eeb8f4a
 
 jobs:
   check:

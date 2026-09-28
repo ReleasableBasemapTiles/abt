@@ -89,7 +89,7 @@ It also helps to point each mirror's description at abt and to turn off Issues, 
 
 ### 4. Bring in commits a mirror already has
 
-Before the first publish, each mirror's `main` must be an ancestor of abt's split, or be listed to be [discarded](#discard-the-commits). `rbt-schema`'s was, and its first publish fast-forwarded. `abtv2-tools`'s wasn't. Its `main`, `e2ea95c`, has nine commits that abt doesn't. Five are upstream commits, the `--max-zoom` bundler flag, that [pull request #2](https://github.com/ReleasableBasemapTiles/abt/pull/2) copied into abt by hand instead of merging. The other four were merged into the mirror directly: a CHANGELOG and release workflow, and an org-name fix to the `setup_ubuntu.sh` that abt moved to its root. The workflow lists `abtv2-tools@e2ea95c` in `SUBTREE_SYNC_OVERWRITE`, so publish discards all nine.
+Before the first publish, each mirror's `main` must be an ancestor of abt's split, or be listed to be [discarded](#discard-the-commits). `rbt-schema`'s was, and its first publish fast-forwarded. `abtv2-tools`'s wasn't. Its `main`, `eeb8f4a`, has eleven commits that abt doesn't. Five are upstream commits, the `--max-zoom` bundler flag, that [pull request #2](https://github.com/ReleasableBasemapTiles/abt/pull/2) copied into abt by hand instead of merging. The other six were merged into the mirror directly: a CHANGELOG and release workflow, an org-name fix to the `setup_ubuntu.sh` that abt moved to its root, and a v1.1.1 CHANGELOG entry for that fix. The workflow lists `abtv2-tools@eeb8f4a` in `SUBTREE_SYNC_OVERWRITE`, so publish discards all eleven.
 
 The pull request check can't read a private mirror, so check each one from a clone that can:
 
