@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Check private mirrors from a clone that can read them
 - Let publish overwrite a mirror main listed in the workflow
 - Overwrite the abtv2-tools mirror commits ported in #2
+- Point the abtv2-tools overwrite at e2ea95c
 
 ## [2.0.0] - 2026-09-17
 
