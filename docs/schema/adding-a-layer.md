@@ -14,7 +14,8 @@ reference or future re-enabling.
 
 `execution_plan.yml` validation (see [Carto SQL](carto-sql.md)) treats a
 `.skip`'d script the same as a deleted one — it must not appear in the plan
-either.
+either. The same goes for `THEMES` in `docs/_hooks/gen_db_schema.py` (see
+[Script headers](#script-headers)).
 
 ## Adding or changing a layer
 
@@ -24,11 +25,14 @@ either.
    [OSM Mappings](osm-mappings.md)).
 2. Add a numbered `carto_sql/NNN_<name>.sql` reading `osm.osm_<table>`,
    producing `export.<layer_id>` as a materialized view with a `gist` index
-   on `geometry`.
-3. Add it to `carto_sql/execution_plan.yml` (own group, unless it shares a
+   on `geometry`. Start it with the header comment described under
+   [Script headers](#script-headers).
+3. Add the script's name (`NNN_<name>`, without `.sql`) to one of the
+   themes in `THEMES` in `docs/_hooks/gen_db_schema.py`.
+4. Add it to `carto_sql/execution_plan.yml` (own group, unless it shares a
    table with another script — see that file's own "How to update" guidance
    in [Carto SQL](carto-sql.md)).
-4. Add `export/<layer_id>.json` with a matching `layer_id` (see the
+5. Add `export/<layer_id>.json` with a matching `layer_id` (see the
    [Layer Registry](layers.md)).
 
 **New aux-data-derived layer:** same, but add `import/aux_data/<name>.json`
@@ -41,14 +45,54 @@ needed, since [Export](../pipeline/export.md) reads straight from the
 already-built `export.<layer_id>` view.
 
 **Disabling a layer:** rename its `carto_sql/*.sql` and/or `export/*.json`
-to add a trailing `.skip`, and remove it from `execution_plan.yml` if
-present.
+to add a trailing `.skip`. Remove a skipped script from both
+`execution_plan.yml` and `THEMES` in `docs/_hooks/gen_db_schema.py`.
 
 !!! tip "Validate with a small extract, not a full planet build"
     See [Norway](../walkthroughs/norway.md) for a complete,
     copy-pasteable `download`/`import`/`carto`/`export` sequence, and
     `abt-tools.py debug_aux_import` (see [Import](../pipeline/import.md))
     to test one `import/aux_data/*.json` file in isolation.
+
+## Script headers
+
+The docs build parses each `carto_sql` script's header comment to generate
+the [Database Schema](database.md) page (`docs/_hooks/gen_db_schema.py`). A
+script that builds a layer opens with a header like this one, trimmed from
+`carto_sql/005a_water_polygon.sql`:
+
+```sql
+-- =============================================================================
+-- LAYER: Water — Polygons
+-- Schema:        export
+-- Intermediates: water.water_surface
+--                water.valid_ocean
+-- Sources:       osm.osm_water_polygon
+--                aux_data.osm_ocean
+-- =============================================================================
+```
+
+- `-- LAYER:` names the layer. The build finds the header by this line.
+- `-- Schema:` names the schema the layer's views land in, normally `export`.
+- `-- Intermediates:` lists the intermediate tables the script builds along
+  the way, such as `water.water_surface`. Leave the line out if there are
+  none.
+- `-- Sources:` lists the `osm.*` and `aux_data.*` tables the script reads.
+
+A field continues onto the following `--` lines, one table per line. The
+header ends at the closing `-- ===` line.
+
+Each layer script also needs an entry in `THEMES` in the same hook, which
+groups the page by theme. A script that builds no layer of its own, like
+the sequential prefix and suffix scripts `000_update_aux_geom`,
+`001_set_schema`, and `099_update_geometry`, has no `-- LAYER:` line.
+List it in `NON_LAYER_SCRIPTS` in the hook instead of `THEMES`.
+
+!!! warning "`mkdocs build --strict` enforces this"
+    The docs build fails if a script has neither a `-- LAYER:` header nor a
+    `NON_LAYER_SCRIPTS` entry, if a layer script is missing from `THEMES` or
+    listed there twice, or if `THEMES` names a script that no longer exists,
+    including one you've disabled with `.skip`.
 
 ## An `export/*.json` file, illustrated
 
