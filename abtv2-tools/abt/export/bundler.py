@@ -84,16 +84,6 @@ def _trim_mbtiles(src: Path, dst: Path, max_zoom: int) -> None:
         con.close()
 
 
-def set_pragma_options(bundle: Bundler) -> None:
-    """Applies SQLite PRAGMA tuning to the finished bundle."""
-    con = sqlite3.connect(bundle.bundled_mbtiles_path)
-    cursor = con.cursor()
-    cursor.execute("PRAGMA cache_size = -2000000;")
-    con.execute(f"PRAGMA temp_store_directory = '{str(bundle.bundled_mbtiles_tmp)}'")
-    con.commit()
-    con.close()
-
-
 def export_bundled(bundle: Bundler) -> None:
     """Runs tile-join and writes BTIS/descriptive metadata into the joined output."""
 
@@ -139,8 +129,6 @@ def export_bundled(bundle: Bundler) -> None:
         for f in trimmed_files:
             f.unlink(missing_ok=True)
 
-    set_pragma_options(bundle)
-
     # tile-join always writes its own build-provenance rows (generator,
     # generator_options -- its full command line, one path per input layer,
     # which can run into the megabytes -- and strategies) into the joined
@@ -177,11 +165,11 @@ def export_bundled(bundle: Bundler) -> None:
         declared_center = ",".join(str(v) for v in bundle.metadata["center"])
         write_mbtiles_metadata(bundle.bundled_mbtiles_path, {"center": declared_center})
 
-    # tile-join only accepts a -n name via its CLI; everything else in
-    # `metadata` (description, attribution, tags, license, etc.) has to be
-    # written directly. bounds/center/format are excluded here since
-    # they're either handled above (bounds/center) or left to tile-join
-    # itself (format).
+    # tile-join has flags for only a few `metadata` rows (-n name,
+    # -N description, -A attribution), not tags, license and the rest, so
+    # they're all written directly. bounds/center/format are excluded here
+    # since they're either handled above (bounds/center) or left to
+    # tile-join itself (format).
     if bundle.metadata:
         descriptive_metadata = {
             k: v for k, v in bundle.metadata.items()

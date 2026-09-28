@@ -3,11 +3,11 @@
 # setup_ubuntu.sh
 #
 # Idempotent bootstrap script for a fresh Ubuntu 26.04 host to run the ABT
-# (Army/Releasable Basemap Tiles) pipeline. This automates README.md
-# section 3 (system dependencies), section 3.2's Postgres role/database/
-# tuning, and section 4's repo checkout. See README.md for the manual
-# walkthrough this codifies, and for the full planet run this leaves you
-# ready to execute (section 6 covers a smaller single-extract variant).
+# (Army/Releasable Basemap Tiles) pipeline. This automates the manual setup
+# in docs/install/ubuntu.md: system dependencies, the Postgres role/
+# database/tuning, and the repo checkout. It leaves the host ready for the
+# full planet run in docs/walkthroughs/planet.md
+# (docs/walkthroughs/norway.md covers a smaller single-extract variant).
 #
 # imposm3 and tippecanoe are compiled from source (from their "master"/
 # "main" branches by default, see IMPOSM_REF/TIPPECANOE_REF below) rather
@@ -20,9 +20,9 @@
 # Usage:
 #   ./setup_ubuntu.sh
 #
-# All configuration is via environment variables; every one has a default
-# matching README.md. Re-running this script is safe: each stage checks
-# whether its work is already done before repeating it.
+# All configuration is via environment variables; every one has a default,
+# listed in docs/install/configuration.md. Re-running this script is safe:
+# each stage checks whether its work is already done before repeating it.
 
 set -euo pipefail
 
@@ -61,15 +61,14 @@ ABT_RUN_DIR_3395="${ABT_RUN_DIR_3395:-${ABT_RUN_DIR}-3395}"
 # a checked-out copy of the monorepo (i.e. abtv2-tools/ and rbt-schema/ are
 # right next to it) -- so `git clone ... /rbt && /rbt/setup_ubuntu.sh` just
 # works with no other configuration, and CLONE_REPO below becomes a no-op
-# rather than trying to clone into an already-populated directory. This also
-# keeps it aligned with init.sh's own hardcoded /rbt/abtv2-tools,
-# /rbt/rbt-schema paths, which assume this same "monorepo root == workspace
-# root" layout -- so no manual symlinking is needed to make init.sh find
-# them afterward. Falls back to the old nested "$ABT_WORKSPACE_DIR/rbt"
-# default otherwise (e.g. running a standalone copy of this script before
-# CLONE_REPO has anything to clone yet), so that flow still clones into a
-# fresh, empty directory instead of colliding with ABT_WORKSPACE_DIR itself
-# (already created, non-empty, by the time section 8's clone runs).
+# rather than trying to clone into an already-populated directory. (init.sh
+# finds abtv2-tools/ and rbt-schema/ next to itself the same way, so it
+# works from either layout.) Falls back to the old nested
+# "$ABT_WORKSPACE_DIR/rbt" default otherwise (e.g. running a standalone copy
+# of this script before CLONE_REPO has anything to clone yet), so that flow
+# still clones into a fresh, empty directory instead of colliding with
+# ABT_WORKSPACE_DIR itself (already created, non-empty, by the time section
+# 8's clone runs).
 SETUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -d "$SETUP_SCRIPT_DIR/abtv2-tools" && -d "$SETUP_SCRIPT_DIR/rbt-schema" ]]; then
     ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$SETUP_SCRIPT_DIR}"
@@ -126,17 +125,90 @@ PG_DATA_DIR="${PG_DATA_DIR:-}"
 # of silently deleting data that happens to already live at that path.
 FORCE_REINIT_POSTGRES="${FORCE_REINIT_POSTGRES:-false}"
 
-# Defaults below target the 8 vCPU / 32 GB "small extract" tier documented
-# in README.md section 2 (Sizing). For a large single host (e.g. 48 vCPU /
-# 384 GB), override all of these -- README.md's Sizing section has a
-# copy-pasteable `export` block sized for that tier.
-PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-96GB}"
-PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-192GB}"
-PG_MAINTENANCE_WORK_MEM="${PG_MAINTENANCE_WORK_MEM:-8GB}"
-PG_MAX_WORKER_PROCESSES="${PG_MAX_WORKER_PROCESSES:-44}"
-PG_MAX_PARALLEL_WORKERS="${PG_MAX_PARALLEL_WORKERS:-40}"
-PG_MAX_PARALLEL_WORKERS_PER_GATHER="${PG_MAX_PARALLEL_WORKERS_PER_GATHER:-8}"
+# Postgres sizing tier: the two hardware tiers docs/install/performance.md
+# documents. "planet" is 48 vCPU / 384 GB, "small" is 8 vCPU / 32 GB, and
+# "auto" (the default) picks planet on a host with 128 GB of RAM or more (a
+# MemTotal of at least 120 GiB, allowing for what the kernel and firmware
+# reserve), else small. The tier only fills in defaults: any PG_* variable
+# set explicitly wins. On a host with less RAM than its tier's, the memory
+# defaults shrink to fit it: shared_buffers to at most 30% of RAM and
+# effective_cache_size to 80%.
+PG_TIER="${PG_TIER:-auto}"
+MEM_TOTAL_KB="$(awk '/^MemTotal:/ {print $2}' /proc/meminfo 2>/dev/null || true)"
+if [[ "$PG_TIER" == "auto" ]]; then
+    if [[ -z "$MEM_TOTAL_KB" ]]; then
+        echo "Warning: could not read MemTotal from /proc/meminfo; using PG_TIER=small." >&2
+        PG_TIER=small
+    elif (( MEM_TOTAL_KB >= 120 * 1024 * 1024 )); then
+        PG_TIER=planet
+    else
+        PG_TIER=small
+    fi
+fi
+# Prints a tier's memory default of <tier_gb> GB, or <max_pct>% of this
+# host's RAM if that's less.
+tier_memory_default() {
+    local tier_gb="$1" max_pct="$2" max_mb
+    if [[ -n "$MEM_TOTAL_KB" ]]; then
+        max_mb=$(( MEM_TOTAL_KB * max_pct / 100 / 1024 ))
+        if (( tier_gb * 1024 > max_mb )); then
+            echo "${max_mb}MB"
+            return
+        fi
+    fi
+    echo "${tier_gb}GB"
+}
+case "$PG_TIER" in
+    planet)
+        PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-$(tier_memory_default 96 30)}"
+        PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-$(tier_memory_default 192 80)}"
+        PG_MAINTENANCE_WORK_MEM="${PG_MAINTENANCE_WORK_MEM:-8GB}"
+        PG_MAX_WORKER_PROCESSES="${PG_MAX_WORKER_PROCESSES:-44}"
+        PG_MAX_PARALLEL_WORKERS="${PG_MAX_PARALLEL_WORKERS:-40}"
+        PG_MAX_PARALLEL_WORKERS_PER_GATHER="${PG_MAX_PARALLEL_WORKERS_PER_GATHER:-8}"
+        PG_MAX_PARALLEL_MAINTENANCE_WORKERS="${PG_MAX_PARALLEL_MAINTENANCE_WORKERS:-8}"
+        PG_MAX_WAL_SIZE="${PG_MAX_WAL_SIZE:-64GB}"
+        ;;
+    small)
+        PG_SHARED_BUFFERS="${PG_SHARED_BUFFERS:-$(tier_memory_default 8 30)}"
+        PG_EFFECTIVE_CACHE_SIZE="${PG_EFFECTIVE_CACHE_SIZE:-$(tier_memory_default 24 80)}"
+        PG_MAINTENANCE_WORK_MEM="${PG_MAINTENANCE_WORK_MEM:-2GB}"
+        PG_MAX_WORKER_PROCESSES="${PG_MAX_WORKER_PROCESSES:-10}"
+        PG_MAX_PARALLEL_WORKERS="${PG_MAX_PARALLEL_WORKERS:-10}"
+        PG_MAX_PARALLEL_WORKERS_PER_GATHER="${PG_MAX_PARALLEL_WORKERS_PER_GATHER:-4}"
+        PG_MAX_PARALLEL_MAINTENANCE_WORKERS="${PG_MAX_PARALLEL_MAINTENANCE_WORKERS:-2}"
+        PG_MAX_WAL_SIZE="${PG_MAX_WAL_SIZE:-8GB}"
+        ;;
+    *)
+        echo "PG_TIER must be auto, planet or small (got '${PG_TIER}')." >&2
+        exit 1
+        ;;
+esac
 PG_MAX_FILES_PER_PROCESS="${PG_MAX_FILES_PER_PROCESS:-4096}"
+
+# Bulk-load settings, the same on both tiers. Every pipeline stage writes
+# far more WAL than Postgres's defaults are sized for (max_wal_size 1GB,
+# checkpoint_timeout 5min), which forces a checkpoint every few minutes
+# through a multi-hour import. The effective_io_concurrency/
+# maintenance_io_concurrency values assume SSD/NVMe storage.
+PG_CHECKPOINT_TIMEOUT="${PG_CHECKPOINT_TIMEOUT:-30min}"
+PG_WAL_BUFFERS="${PG_WAL_BUFFERS:-64MB}"
+PG_IO_CONCURRENCY="${PG_IO_CONCURRENCY:-200}"
+
+# "true" (the default) also sets wal_level=minimal, max_wal_senders=0 and
+# synchronous_commit=off. With wal_level=minimal a table created or
+# truncated in the same transaction that loads it writes no WAL for the
+# load -- carto's CREATE TABLE/MATERIALIZED VIEW ... AS and their index
+# builds among them. It rules out streaming replication, WAL archiving and
+# replication slots (Postgres refuses to start with a slot or archive_mode
+# on), and synchronous_commit=off can lose the last moments of commits in
+# a crash. Set "false" for a host that replicates or archives: a rerun then
+# resets those three settings to Postgres's defaults.
+PG_BULK_LOAD="${PG_BULK_LOAD:-true}"
+if [[ "$PG_BULK_LOAD" != "true" && "$PG_BULK_LOAD" != "false" ]]; then
+    echo "PG_BULK_LOAD must be true or false (got '${PG_BULK_LOAD}')." >&2
+    exit 1
+fi
 
 # Postgres's own factory default (100) is too low once carto runs multiple
 # concurrent script groups (see abt carto --carto-concurrency), each able to
@@ -319,6 +391,47 @@ if [[ -r /etc/os-release ]]; then
     fi
 else
     echo "Warning: /etc/os-release not found; cannot verify OS. Continuing anyway." >&2
+fi
+
+# --- 1a. Postgres sizing check ------------------------------------------------
+#
+# Postgres won't start (and a rerun can't recover it) if shared_buffers
+# doesn't fit, e.g. the planet tier's 96GB on a 32 GB host -- and under
+# vm.overcommit_memory=2 (section 2b) even a smaller overshoot fails. So
+# this stops before anything is installed, rather than after the restart
+# in section 5.
+
+# Prints a Postgres memory setting (e.g. 96GB, 512MB, 16384kB, or a bare
+# count of 8 kB pages) in kB; fails for anything else.
+pg_size_kb() {
+    local value="$1" number unit
+    number="${value%%[!0-9]*}"
+    unit="${value#"$number"}"
+    [[ -n "$number" ]] || return 1
+    case "${unit,,}" in
+        kb) echo "$number" ;;
+        mb) echo $((number * 1024)) ;;
+        gb) echo $((number * 1024 * 1024)) ;;
+        tb) echo $((number * 1024 * 1024 * 1024)) ;;
+        "") echo $((number * 8)) ;;
+        *) return 1 ;;
+    esac
+}
+
+if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
+    stage "Checking Postgres sizing (PG_TIER=${PG_TIER}, shared_buffers=${PG_SHARED_BUFFERS})"
+    if ! SHARED_BUFFERS_KB="$(pg_size_kb "$PG_SHARED_BUFFERS")"; then
+        echo "PG_SHARED_BUFFERS='${PG_SHARED_BUFFERS}' isn't a size Postgres understands (e.g. 8GB, 512MB)." >&2
+        exit 1
+    fi
+    if [[ -z "$MEM_TOTAL_KB" ]]; then
+        echo "Warning: could not read MemTotal; skipping the shared_buffers size check." >&2
+    elif (( SHARED_BUFFERS_KB * 10 > MEM_TOTAL_KB * 4 )); then
+        echo "PG_SHARED_BUFFERS=${PG_SHARED_BUFFERS} is more than 40% of this host's $((MEM_TOTAL_KB / 1024 / 1024)) GiB of RAM," >&2
+        echo "so Postgres would fail to start after tuning. Unset it to get the tier's default, which fits" >&2
+        echo "this host, or set it to about 25% of RAM (see docs/install/performance.md)." >&2
+        exit 1
+    fi
 fi
 
 # --- 1b. ABT root directory ----------------------------------------------------
@@ -647,7 +760,33 @@ CREATE EXTENSION IF NOT EXISTS dblink;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 SQL
 
-    stage "Tuning postgresql.conf via ALTER SYSTEM"
+    stage "Tuning postgresql.conf via ALTER SYSTEM (PG_TIER=${PG_TIER}, PG_BULK_LOAD=${PG_BULK_LOAD})"
+
+    # lz4 when this build has it (Ubuntu's does), else the always-available pglz.
+    if sudo -u postgres psql -tAc "SELECT 'lz4' = ANY(enumvals) FROM pg_settings WHERE name = 'wal_compression'" | grep -qx t; then
+        PG_WAL_COMPRESSION=lz4
+    else
+        PG_WAL_COMPRESSION=pglz
+    fi
+
+    if [[ "$PG_BULK_LOAD" == "true" ]]; then
+        replication_slots="$(sudo -u postgres psql -tAc "SELECT count(*) FROM pg_replication_slots")"
+        archive_mode="$(sudo -u postgres psql -tAc "SHOW archive_mode")"
+        if [[ "$replication_slots" != "0" || "$archive_mode" != "off" ]]; then
+            echo "PG_BULK_LOAD=true sets wal_level=minimal, and Postgres won't start with that while replication" >&2
+            echo "slots exist (${replication_slots} here) or archive_mode is on (${archive_mode} here). Drop the" >&2
+            echo "slots and turn archiving off, or rerun with PG_BULK_LOAD=false." >&2
+            exit 1
+        fi
+        BULK_LOAD_SQL="ALTER SYSTEM SET wal_level = 'minimal';
+ALTER SYSTEM SET max_wal_senders = 0;
+ALTER SYSTEM SET synchronous_commit = 'off';"
+    else
+        BULK_LOAD_SQL="ALTER SYSTEM RESET wal_level;
+ALTER SYSTEM RESET max_wal_senders;
+ALTER SYSTEM RESET synchronous_commit;"
+    fi
+
     sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
 ALTER SYSTEM SET shared_buffers = '${PG_SHARED_BUFFERS}';
 ALTER SYSTEM SET effective_cache_size = '${PG_EFFECTIVE_CACHE_SIZE}';
@@ -655,11 +794,23 @@ ALTER SYSTEM SET maintenance_work_mem = '${PG_MAINTENANCE_WORK_MEM}';
 ALTER SYSTEM SET max_worker_processes = ${PG_MAX_WORKER_PROCESSES};
 ALTER SYSTEM SET max_parallel_workers = ${PG_MAX_PARALLEL_WORKERS};
 ALTER SYSTEM SET max_parallel_workers_per_gather = ${PG_MAX_PARALLEL_WORKERS_PER_GATHER};
+ALTER SYSTEM SET max_parallel_maintenance_workers = ${PG_MAX_PARALLEL_MAINTENANCE_WORKERS};
 ALTER SYSTEM SET max_connections = ${PG_MAX_CONNECTIONS};
 ALTER SYSTEM SET random_page_cost = 1.1;
 -- Complements the NOFILE_LIMIT ulimit raised via systemd LimitNOFILE above:
 -- Postgres itself still caps how many files each backend/worker keeps open.
 ALTER SYSTEM SET max_files_per_process = ${PG_MAX_FILES_PER_PROCESS};
+-- Bulk loading: fewer, larger checkpoints and compressed full-page writes.
+ALTER SYSTEM SET max_wal_size = '${PG_MAX_WAL_SIZE}';
+ALTER SYSTEM SET checkpoint_timeout = '${PG_CHECKPOINT_TIMEOUT}';
+ALTER SYSTEM SET wal_compression = '${PG_WAL_COMPRESSION}';
+ALTER SYSTEM SET wal_buffers = '${PG_WAL_BUFFERS}';
+ALTER SYSTEM SET effective_io_concurrency = ${PG_IO_CONCURRENCY};
+ALTER SYSTEM SET maintenance_io_concurrency = ${PG_IO_CONCURRENCY};
+-- The pipeline's queries are few and long-running; JIT compiling them only
+-- adds planning time (carto's heaviest scripts already turn it off).
+ALTER SYSTEM SET jit = off;
+${BULK_LOAD_SQL}
 SQL
 
     stage "Restarting PostgreSQL to apply tuning"
@@ -1002,7 +1153,9 @@ cat <<SUMMARY
 
 Full log saved to: ${LOG_FILE}
 
-Next steps (see README.md section 5 for the full planet walkthrough):
+Postgres tuned for PG_TIER=${PG_TIER} (shared_buffers ${PG_SHARED_BUFFERS}), PG_BULK_LOAD=${PG_BULK_LOAD}.
+
+Next steps (see docs/walkthroughs/planet.md for the full planet walkthrough):
 
   # Open a new shell (or reconnect SSH) so this session picks up the raised
   # ulimit -n from /etc/security/limits.d (confirm with: ulimit -n) and the
@@ -1034,6 +1187,6 @@ Next steps (see README.md section 5 for the full planet walkthrough):
   python abt-tools.py bundler  -w ${ABT_RUN_DIR_3395} -s ${ABT_SCHEMA_DIR} -p env
 
   # For a smaller single-extract test build instead (e.g. Norway), see
-  # README.md section 6 -- swap in -k norway -c and a separate database.
+  # docs/walkthroughs/norway.md -- swap in -k norway -c and a separate database.
 
 SUMMARY

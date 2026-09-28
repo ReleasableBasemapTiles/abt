@@ -9,15 +9,17 @@ For a much faster, lower-cost way to exercise this exact same pipeline on a sing
 
 ## Configure the database connection
 
+The paths below follow the manual [Ubuntu Setup](../install/ubuntu.md): the repo cloned to `~/abt`, a conda env, and each run's working directory next to the clone. On a host [`setup_ubuntu.sh`](../install/ubuntu.md#automated-setup-setup_ubuntush) set up, activate the env with `micromamba activate abtv2` and `cd` into the `abtv2-tools/` of the checkout you ran it from (`/rbt/abtv2-tools` if you cloned to `/rbt`); every other command is the same.
+
 ```bash
 conda activate abtv2
 cd ~/abt/abtv2-tools
 
 export PGHOST=127.0.0.1
 export PGPORT=5432
-export PGUSER=abt
-export PGPASSWORD=abt
-export PGDATABASE=abt_planet
+export PGUSER=rbt
+export PGPASSWORD=rbt
+export PGDATABASE=rbt
 ```
 
 With these exported, every command below can use `-p env` for `--pg-config`.
@@ -109,7 +111,7 @@ python abt-tools.py vundler \
   -z 13
 ```
 
-Converts `bundled/joined.mbtiles` into an Esri Compact Cache V2 bundle tree at `bundled/vundled/p12/`, converting zoom levels concurrently (one worker per core by default — 48 here). This is not a complete `.vtpk` (no `conf.xml`/`root.json`/styles), just the raw tile bundle structure plus a bare `metadata.json`. See [vundler-rs](../reference/vundler-rs.md) for internals.
+Converts `bundled/joined.mbtiles` into an Esri Compact Cache V2 bundle tree at `bundled/vundled/p12/`, converting its 128×128-tile bundles concurrently (one worker per core by default — 48 here). This is not a complete `.vtpk` (no `conf.xml`/`root.json`/styles), just the raw tile bundle structure plus a bare `metadata.json`. See [vundler-rs](../reference/vundler-rs.md) for internals.
 
 ## Check the results
 

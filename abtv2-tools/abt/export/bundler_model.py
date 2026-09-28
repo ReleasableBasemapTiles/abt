@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel
 
 from .tile_layer_model import TileLayer
-from ..utils.messages import MbtilesNotFound
 
 
 class Bundler(BaseModel):
@@ -28,12 +27,13 @@ class Bundler(BaseModel):
         additional_mbtiles: Paths to externally-produced mbtiles files to fold into the
             bundle alongside the tile_layers (e.g. contours). Zero, one, or many.
         metadata: Descriptive metadata (name, description, attribution, tags, license,
-            etc., typically loaded from the schema repo's abt_metadata.py) to write into
-            the joined mbtiles. `tile-join` only accepts a `-n` name flag on the command
-            line, so everything else is written directly into the metadata table after
-            the join completes. Keys tile-join computes itself from actual tile content
-            (bounds, center, format) are never overwritten -- see
-            mbtiles_metadata.TOOL_COMPUTED_METADATA_KEYS, used by bundler.py.
+            etc., typically loaded from the schema repo's tile-metadata/metadata.py) to
+            write into the joined mbtiles. `tile-join` has flags for only a few of these
+            (-n name, -N description, -A attribution), so all of them are written directly
+            into the metadata table after the join completes; the name also goes to -n. Keys
+            tile-join computes itself from actual tile content (bounds, center, format)
+            are left out of that write -- see mbtiles_metadata.TOOL_COMPUTED_METADATA_KEYS;
+            bundler.py handles bounds and center itself.
         max_zoom: Optional zoom cap for the bundled output (e.g. for an RBT
             Small package). When set, bundler.py pre-trims every input to
             this zoom level before tile-join runs. None means no cap.
@@ -76,8 +76,8 @@ class Bundler(BaseModel):
     def tile_list(self) -> List[Path]:
         """Generates a list of all MBTiles file paths to be joined.
 
-        Excludes files that have no tiles table (empty layers with 0 features),
-        which would cause tile-join to fail.
+        Excludes files with no tiles -- no tiles table, or an empty one
+        (layers with 0 features) -- which would cause tile-join to fail.
 
         Looks for either a `.mbtiles` or `.btis` file per layer -- the Bundler
         doesn't know whether `export` was run with --projection-override, so
@@ -95,18 +95,12 @@ class Bundler(BaseModel):
                     layer_files.append(candidate)
                     break
         candidates = layer_files + additional
-        valid = [p for p in candidates if self._has_tiles(p)]
-        skipped = [p.name for p in candidates if not self._has_tiles(p)]
+        has_tiles = {p: self._has_tiles(p) for p in candidates}
+        valid = [p for p in candidates if has_tiles[p]]
+        skipped = [p.name for p in candidates if not has_tiles[p]]
         if skipped:
-            print(f"NOTE: skipping {len(skipped)} empty mbtiles (no tiles table): {', '.join(skipped)}")
+            print(f"NOTE: skipping {len(skipped)} empty mbtiles (no tiles): {', '.join(skipped)}")
         return valid
-
-    def pre_validate_tiles_exists(self) -> bool:
-        """Checks if all required MBTiles files exist before attempting to join."""
-        missing_files = [str(p) for p in self.tile_list if not p.exists()]
-        if missing_files:
-            raise MbtilesNotFound(f"Missing Files for Join: {', '.join(missing_files)}")
-        return True
 
     @property
     def bundled_mbtiles_path(self) -> Path:

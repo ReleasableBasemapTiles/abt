@@ -24,11 +24,19 @@
 #     from a concurrent script is just a fast, safe no-op. The problem this
 #     avoids is the *first* creation racing across concurrent sessions.
 #   extensions: same idea, for `CREATE EXTENSION IF NOT EXISTS` (005a and 009
-#     both declare dblink).
+#     both declare dblink; 004 and 014 use pg_trgm's % operator).
 #   prefix: run sequentially, in this order, before any group starts.
-#   groups: each inner list runs sequentially on one connection; different
-#     groups run concurrently with each other (up to --carto-concurrency).
+#   groups: each inner list runs in order, one script after another (each
+#     script on its own connection, so no session state carries over);
+#     different groups run concurrently with each other (up to
+#     --carto-concurrency), started in the order listed.
 #   suffix: run sequentially, after every group has completed successfully.
+#   weights: optional, script -> integer weight (default 1). A group's weight
+#     is its heaviest script's. The groups that start together split the CPU
+#     budget in proportion to their weights, and each group's share sets the
+#     abt.dissolve_shards / abt.parallel_workers_per_gather GUCs its
+#     connections get (read by 003, 005a, 009 and 022). Weight the scripts
+#     that fan out over dblink and run longest.
 
 custom_schemas:
   - water           # 005a_water_polygon.sql
@@ -42,12 +50,23 @@ custom_schemas:
 
 extensions:
   - dblink
+  - pg_trgm
 
 prefix:
   - 000_update_aux_geom.sql
   - 001_set_schema.sql
 
 groups:
+  # Longest first, so the long poles start at once instead of waiting for a
+  # free slot behind short scripts: the two dblink dissolves (009, 005a),
+  # then the scans of the largest tables (003 highways; 017 and 023 both
+  # scan osm_building_polygon, so starting them together lets Postgres
+  # share one synchronized seqscan), then 007, 004 and 032. The order is an
+  # estimate from what each script does; re-check it against the per-script
+  # times every carto run records (the carto_scripts stage of its
+  # summary.json).
+  - [009_land_cover.sql]
+
   # 005b reads water.classify_water_type(), a function created by 005a --
   # a real execution-order dependency, not just a shared schema name.
   - [005a_water_polygon.sql, 005b_water_line.sql]
@@ -57,24 +76,24 @@ groups:
   # never reads 003_road.sql's transportation.usa_boundary) -- now that
   # custom_schemas above are created up front, each of these is independent.
   - [003_road.sql]
-  - [004_railway.sql]
-  - [006_geonames_hydrographic.sql]
+  - [017_utility_point.sql]
+  - [023_military.sql]
   - [007_builtup_area.sql]
+  - [004_railway.sql]
+  - [032_poi.sql]
+  - [006_geonames_hydrographic.sql]
   - [008_glacier.sql]
-  - [009_land_cover.sql]
   - [010_park.sql]
   - [011_lock.sql]
   - [012_port.sql]
   - [013_pipeline.sql]
   - [014_energy.sql]
   - [015_grain_storage.sql]
-  - [017_utility_point.sql]
   - [018_powerline.sql]
   - [019_power_station.sql]
   - [020_pumping_station.sql]
   - [021_aeroway.sql]
   - [022_dam.sql]
-  - [023_military.sql]
   - [024_cemetery.sql]
   - [025_sports.sql]
   - [026_places.sql]
@@ -82,11 +101,17 @@ groups:
   - [028_ferry.sql]
   - [029_physical_labels.sql]
   - [030_pier.sql]
-  - [032_poi.sql]
   - [033_culvert.sql]
 
 suffix:
   - 099_update_geometry.sql
+
+# The dblink dissolves get twice the default share. On the 48 vCPU tier at
+# the default --carto-concurrency of 8, that is 8 shards each for 009 and
+# 005a and 4 for the other groups, instead of 5 for every group.
+weights:
+  009_land_cover.sql: 2
+  005a_water_polygon.sql: 2
 
 # How to update this file when carto_sql changes:
 #   1. New script with no custom schema, reading only osm.*/aux_data.* and
@@ -96,7 +121,8 @@ suffix:
 #   3. New script that reads/writes a table (not just a schema name) created
 #      by another script: add it to that script's group, after it, in the
 #      same inner list.
-#   4. Deleted/renamed script: remove/update its entry above.
+#   4. Deleted/renamed script: remove/update its entry above (and in
+#      weights, if it has one).
 #   5. When in doubt, add it as a new single-item group and grep the rest of
 #      carto_sql for its schema/table names to confirm nothing else depends
 #      on it.

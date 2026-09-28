@@ -23,26 +23,49 @@ flowchart LR
 | `carto` | raw SQL via `psycopg2`, optionally several scripts at once | Postgres schemas `osm`, `aux_data` | Postgres schema `export` |
 | `export` | `ogr2ogr`, `tippecanoe` | Postgres schema `export` | `<working_dir>/flatgeobuf/*.fgb`, `<working_dir>/mbtiles/*.mbtiles` |
 | `bundler` | `tile-join` | `<working_dir>/mbtiles/*` | `<working_dir>/bundled/joined.mbtiles` |
-| `vundler` | pure Python (sqlite3), concurrent per zoom level | `bundled/joined.mbtiles` | `<working_dir>/bundled/vundled/p12/` |
+| `vundler` | `abt-vundler` (Rust), concurrent per 128×128-tile bundle | `bundled/joined.mbtiles` | `<working_dir>/bundled/vundled/p12/` |
 
 Each row links to a dedicated stage page with full flag documentation: [Download](../pipeline/download.md), [Import](../pipeline/import.md), [Carto](../pipeline/carto.md), [Export](../pipeline/export.md), [Bundler](../pipeline/bundler.md), [Vundler](../pipeline/vundler.md). See also the [abt-tools CLI reference](../reference/cli.md) for every flag across every command.
 
 !!! tip "Idempotency varies by stage"
-    Only `download` and `export` skip work that's already done (they check for existing output files first). `import`, `carto`, `bundler`, and `vundler` always redo the full operation from scratch, so `carto_sql/` SQL is written to be safely re-runnable, and re-running `bundler`/`vundler` is expected to cost the full stage time again.
+    Only `download` and `export` skip work that's already done (they check for existing output files first). `import`, `carto`, `bundler`, and `vundler` always redo the full operation from scratch, so `carto_sql/` SQL is written to be safely re-runnable, and re-running `bundler`/`vundler` is expected to cost the full stage time again. [Working Directory](working-directory.md#what-reruns-skip) lists exactly what each one skips.
 
 `bundler` also accepts `-z/--max-zoom` to cap the joined output at a given zoom level (e.g. a smaller "RBT Small" package alongside the full-resolution one). Each input is pre-trimmed with SQLite before `tile-join` runs, rather than relying on `tile-join` itself to filter by zoom.
+
+## Flags across commands
+
+The commands share most of their flag letters, but a few letters mean something different in each. Defaults are in brackets; the `-n` defaults scale with the host's CPU count (see [Performance & Sizing](../install/performance.md)).
+
+| Flag | `download` | `import` | `carto` | `export` | `bundler` | `vundler` |
+|---|---|---|---|---|---|---|
+| `-w`, `--working-dir` | required | required | required | required | required | required |
+| `-s`, `--schema-dir` | required | required | required | required | required | — |
+| `-d`, `--data-type` | required: `osm`, `aux` or `all` | required: `osm`, `aux` or `all` | — | — | — | — |
+| `-k`, `--osm-key` | the extract to fetch [`planet`] | the extract to load [`planet`] | — | — | — | — |
+| `-n` | aux downloads at once | aux imports at once | `--carto-concurrency`: script groups at once | layers at once | — | conversion threads |
+| `-p`, `--pg-config` | — | [`env`] | [`env`] | [`env`] | [`env`], though it never queries Postgres | — |
+| `-z`, `--max-zoom` | — | — | — | caps every layer's own maximum zoom [13] | trims the bundle to this zoom [no cap] | the highest level to convert [13] |
+| `-f`, `--force` | — | re-import over a populated `osm` schema | — | — | — | — |
+| `-c`, `--clip-aux` | — | clip aux data to the extract's bounding box | — | — | — | — |
+| `-q`, `--additional-mbtiles` | — | — | — | — | another `.mbtiles` to join in (repeatable) | — |
+| `-o` | — | — | — | — | `--output-name` [`joined.mbtiles`] | `--output-dir` [`bundled/vundled/p12`] |
+| `-i`, `--input-path` | — | — | — | — | — | the `.mbtiles` to convert [`bundled/joined.mbtiles`] |
+| `--projection-override` | — | — | — | tile in another metres-based CRS | — | — |
+
+Pass `download` and `import` the same `-k`: `import` finds the file `download` fetched by it, and `-c` clips to its bounding box. `debug_aux_import` takes `-w`, `-s`, `-p` and `-a/--aux-file`, the one aux source to load. Every command also has `--help`.
 
 ## Parallelism and carto concurrency
 
 `carto` groups `carto_sql/*.sql` scripts according to `rbt-schema/carto_sql/execution_plan.yml`:
 
-1. **Prefix** — a small sequential prefix (`000_update_aux_geom.sql`, `001_set_schema.sql`) creates the `export` schema and every carto-owned custom schema/extension up front.
-2. **Groups** — independent script groups then run concurrently against Postgres, up to `-n/--carto-concurrency` at a time, one Postgres connection per group.
-3. **Suffix** — a sequential suffix (`099_update_geometry.sql`) normalizes everything once every group has finished.
+1. **Setup** — `carto` creates every custom schema and extension the plan lists, once, so concurrent groups never race to create one first.
+2. **Prefix** — a small sequential prefix (`000_update_aux_geom.sql`, `001_set_schema.sql`) normalizes every `aux_data.*` geometry and recreates the `export` schema.
+3. **Groups** — independent script groups then run concurrently against Postgres, up to `-n/--carto-concurrency` at a time, longest first. Every script opens a Postgres connection of its own.
+4. **Suffix** — a sequential suffix (`099_update_geometry.sql`) normalizes everything once every group has finished.
 
 `--carto-concurrency` defaults to a value scaled to the host's CPU count (`cpu_count // 6`, floored at 1) rather than a flat default. A script failing aborts only its own group — every other independent group still runs to completion — and the sequential suffix only runs if every group succeeded.
 
-If `carto_sql/execution_plan.yml` is missing from `--schema-dir` (an older or third-party schema dir), or `--carto-concurrency 1` is passed explicitly, `carto` falls back to running every script sequentially in filename order, exactly as before this feature existed.
+If `carto_sql/execution_plan.yml` is missing from `--schema-dir` (an older or third-party schema dir), or `--carto-concurrency` is 1 (passed explicitly, or the default on a host with fewer than 12 CPUs), `carto` falls back to running every script sequentially in filename order, exactly as before this feature existed.
 
 See [Carto SQL](../schema/carto-sql.md) for the SQL-script-level mechanics of `execution_plan.yml`, and [Performance & Sizing](../install/performance.md) for how concurrency and per-session Postgres tuning interact on large hosts.
 

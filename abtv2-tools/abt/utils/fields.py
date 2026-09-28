@@ -1,5 +1,5 @@
 """
-cli_fields.py
+fields.py
 
 This module centralizes the definition of command-line interface (CLI)
 enums and `typer.Option` fields used across the Army Basemap Tiles (ABT) CLI.
@@ -70,7 +70,9 @@ working_dir_field = typer.Option(
 schema_dir_field = typer.Option(
     ...,
     *schema_dir_aliases,
-    help="Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.",
+    help="The schema directory -- in practice your rbt-schema checkout. It must contain "
+         "import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema "
+         "Reference in the docs).",
 )
 
 pg_config_field = typer.Option(
@@ -82,7 +84,8 @@ pg_config_field = typer.Option(
 max_zoom_field = typer.Option(
     ..., # Default value 13
     *max_zoom_aliases,
-    help="Sets the maximum zoom level for processing exports. The default value is 13",
+    help="Highest zoom level to produce. export caps each layer's own maximum zoom "
+         "(from its export/*.json) at this level; vundler converts every level up to it.",
 )
 
 optional_max_zoom_field = typer.Option(
@@ -101,7 +104,9 @@ additional_mbtiles_field = typer.Option(
 num_workers_field = typer.Option(
     ..., # Default computed per-command by default_num_workers(); see each command
     *num_workers_aliases,
-    help="Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host's CPU count (minimum 4); pass explicitly to override.",
+    help="Number of parallel workers: aux downloads (download), aux imports (import), "
+         "layers (export) or conversion threads (vundler). Defaults to a value scaled "
+         "to this host's CPU count (minimum 4); pass explicitly to override.",
 )
 
 carto_concurrency_field = typer.Option(
@@ -120,19 +125,19 @@ data_type_field = typer.Option(
     ..., # Required, as there's no default given CliDataType
     *data_type_aliases,
     help=(
-        "Specifies the type of data for the download and import commands. "
-        "Allowed values are 'osm', 'aux', or 'all'.\n"
-        "  osm: Uses the Imposm method to import data.\n"
-        "  aux: Uses Ogr2Ogr methods to import data in parallel, respecting the --num-workers setting.\n"
-        "  all: A convenience option to run both osm and aux. It first processes the OSM data, "
-        "then dedicates all workers to the aux import."
+        "Which data to download or import. 'osm': the --osm-key extract, one "
+        "file, imported with imposm. 'aux': the import/aux_data/*.json sources, "
+        "--num-workers at a time, imported with ogr2ogr. 'all': both, the OSM "
+        "extract alongside the aux sources."
     ),
 )
 
 osm_key_field = typer.Option(
     ...,
     *osm_key_aliases,
-    help="Extracts OSM Data based on either planet or GeoFabrik key.",
+    help="Which OSM data to use: 'planet' for the full planet, or a Geofabrik "
+         "extract id such as 'norway' (the ids in "
+         "download.geofabrik.de/index-v1.json).",
 )
 
 force_field = typer.Option(
@@ -155,7 +160,8 @@ clip_aux_field = typer.Option(
 single_aux_file_field = typer.Option(
     ...,
     *single_aux_file_aliases,
-    help="Specifies the path to a single auxiliary data file to import.",
+    help="Base name of one import/aux_data/*.json config to import, without the "
+         "directory or .json -- e.g. 'dos_lsib' for import/aux_data/dos_lsib.json.",
 )
 
 

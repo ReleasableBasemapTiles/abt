@@ -5,7 +5,7 @@
 
 
 -- -----------------------------------------------------------------------------
--- aux_data — rename geometry columns, reproject to EPSG:4326, create gist indexes
+-- aux_data — rename geometry columns, reproject to EPSG:4326, ensure gist indexes
 -- -----------------------------------------------------------------------------
 
 DO $$
@@ -43,8 +43,25 @@ BEGIN
             RAISE NOTICE 'Reprojected geometry column for table % to SRID 4326.', rec.table_name;
         END IF;
 
-        -- 3. Ensure GIST index exists
-        EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I.%I USING gist(geometry);', rec.idx, rec.schema_name, rec.table_name);
-        RAISE NOTICE 'GIST index % verified/created on % .% (geometry).', rec.idx, rec.schema_name, rec.table_name;
+        -- 3. Ensure a GIST index on geometry exists. ogr2ogr's PostgreSQL
+        --    driver already builds one at import (<table>_<column>_geom_idx),
+        --    and CREATE INDEX IF NOT EXISTS only compares names, so check for
+        --    any valid, non-partial GIST index that leads with geometry
+        --    instead of building a second one.
+        IF NOT EXISTS (
+            SELECT 1
+            FROM pg_index i
+            JOIN pg_class ic    ON ic.oid = i.indexrelid
+            JOIN pg_am am       ON am.oid = ic.relam
+            JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = i.indkey[0]
+            WHERE i.indrelid = format('%I.%I', rec.schema_name, rec.table_name)::regclass
+              AND am.amname = 'gist'
+              AND a.attname = 'geometry'
+              AND i.indisvalid
+              AND i.indpred IS NULL
+        ) THEN
+            EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON %I.%I USING gist(geometry);', rec.idx, rec.schema_name, rec.table_name);
+            RAISE NOTICE 'GIST index % created on %.% (geometry).', rec.idx, rec.schema_name, rec.table_name;
+        END IF;
     END LOOP;
 END $$;

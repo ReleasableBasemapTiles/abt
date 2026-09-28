@@ -115,6 +115,10 @@ class AuxDataLayer(BaseModel):
         zipped: A boolean indicating if the downloaded file is a zip archive.
         overture_params: Specific parameters for downloading Overture Maps data.
         aux_load: A list of AuxLayer models defining the layers to import.
+        verify_tls: Whether to verify the source host's TLS certificate
+            (default True). Set `"verify_tls": false` only for a host whose
+            certificate chain is broken server-side; the download logs a
+            warning every time.
     """
     folder_name: str
     url: Optional[HttpUrl] = None
@@ -123,6 +127,7 @@ class AuxDataLayer(BaseModel):
     zipped: bool
     overture_params: Optional[dict] = None
     aux_load: Optional[List[AuxLayer]] = None
+    verify_tls: bool = True
 
     @model_validator(mode='after')
     def validate_source(self) -> "AuxDataLayer":
@@ -143,6 +148,7 @@ class AuxDataLayer(BaseModel):
             type=FormatType(d.get('type')),
             zipped=d.get('zipped', False),
             overture_params=d.get('overture_params', None),
+            verify_tls=d.get('verify_tls', True),
             aux_load=[
                 AuxLayer(
                     file_name=aux.get("aux_file_name") or aux.get("aux_folder_name"),
@@ -176,7 +182,7 @@ class AuxDataLayer(BaseModel):
         if self.is_local:
             raise ValueError(f"Layer '{self.folder_name}' uses a local_path — download is not applicable.")
         if self.type != FormatType.OVERTURE:
-            return DownloadFile(url=self.url)
+            return DownloadFile(url=self.url, verify_tls=self.verify_tls)
         else:
             return DownloadOverture(theme=self.overture_params.get('theme'), type=self.overture_params.get('type'))
 
@@ -299,59 +305,74 @@ class AuxDataLayer(BaseModel):
         )
         importers = []
         for aux in self.aux_load:
-            aux_filename = aux.import_filename(
-                data_type=self.type,
-                extraction_folder=self.extraction_folder(output_directory=output_directory),
-                zipped=self.zipped
-            )
-
-            if self.type == FormatType.FILEGEODATABASE:
-                # GDAL's OpenFileGDB driver has a spatial-index bug (confirmed via
-                # ogrinfo/ogr2ogr, not bypassable via GDAL config options) that
-                # hard-fails a -spat-filtered read of some .gdb layers. Convert to
-                # an intermediate FlatGeobuf unfiltered first (which works), and
-                # import from that instead of the raw .gdb -- always, not just
-                # under a clip, since there's no way to know ahead of time which
-                # layers' indexes are affected.
-                source_layer = aux.resolve_source_layer(aux_filename)
-                intermediate = output_directory / f"{aux.layer_name}.fgb"
-                # FlatGeobuf doesn't support DeleteLayer(), so -overwrite can't replace
-                # an existing output file -- delete it ourselves first instead.
-                intermediate.unlink(missing_ok=True)
-                subprocess.run(
-                    ['ogr2ogr', '-f', 'FlatGeobuf', *aux.ogr_options,
-                     str(intermediate), str(aux_filename), source_layer],
-                    check=True
+            try:
+                import_ogr = self._import_ogr(aux, output_directory, pg_string, spat_flags)
+            except (OSError, ValueError, subprocess.CalledProcessError) as e:
+                # E.g. a source that failed to download, or a glob matching no
+                # layer: fail this layer's task when it runs, not every import.
+                import_ogr = ImportOGR(
+                    prep_error=f"Could not prepare the import of aux_data.{aux.layer_name}: {e}"
                 )
-                cmd_aux_chain = iterchain(
-                    [f"aux_data.{aux.layer_name}"],
-                    spat_flags,
-                    aux.ogr_options,
-                    [str(intermediate)]
-                )
-            elif self.type == FormatType.GEOPACKAGE:
-                source_layer = aux.resolve_source_layer(aux_filename)
-                cmd_aux_chain = iterchain(
-                    [f"aux_data.{aux.layer_name}"],  # Target table name
-                    spat_flags,
-                    aux.ogr_options,
-                    [str(aux_filename), source_layer]  # Source file and source layer
-                )
-            else:
-                cmd_aux_chain = iterchain(
-                    [f"aux_data.{aux.layer_name}"],
-                    spat_flags,
-                    aux.ogr_options,
-                    [str(aux_filename)]
-                )
-            
-            cmd = self.importer_cmd_prefix(pg_string=pg_string) + list(cmd_aux_chain)
-            
             importers.append(
                 Importer(
-                    importer=ImportOGR(cmd=cmd),
+                    importer=import_ogr,
                     layer=aux.layer_name,
                     log_dir=log_dir
                 )
             )
         return importers
+
+    def _import_ogr(
+        self,
+        aux: AuxLayer,
+        output_directory: Path,
+        pg_string: str,
+        spat_flags: List[str],
+    ) -> ImportOGR:
+        """Builds one layer's ogr2ogr import (and any pre-conversion step)."""
+        aux_filename = aux.import_filename(
+            data_type=self.type,
+            extraction_folder=self.extraction_folder(output_directory=output_directory),
+            zipped=self.zipped
+        )
+        pre_cmd = None
+        pre_output = None
+
+        if self.type == FormatType.FILEGEODATABASE:
+            # GDAL's OpenFileGDB driver has a spatial-index bug (confirmed via
+            # ogrinfo/ogr2ogr, not bypassable via GDAL config options) that
+            # hard-fails a -spat-filtered read of some .gdb layers. Convert to
+            # an intermediate FlatGeobuf unfiltered first (which works), and
+            # import from that instead of the raw .gdb -- always, not just
+            # under a clip, since there's no way to know ahead of time which
+            # layers' indexes are affected. The conversion runs as the import
+            # task's first step (see Importer.import_to_pg), so it runs in
+            # parallel, is logged, and fails only its own layer.
+            source_layer = aux.resolve_source_layer(aux_filename)
+            pre_output = output_directory / f"{aux.layer_name}.fgb"
+            pre_cmd = ['ogr2ogr', '-f', 'FlatGeobuf', *aux.ogr_options,
+                       str(pre_output), str(aux_filename), source_layer]
+            cmd_aux_chain = iterchain(
+                [f"aux_data.{aux.layer_name}"],
+                spat_flags,
+                aux.ogr_options,
+                [str(pre_output)]
+            )
+        elif self.type == FormatType.GEOPACKAGE:
+            source_layer = aux.resolve_source_layer(aux_filename)
+            cmd_aux_chain = iterchain(
+                [f"aux_data.{aux.layer_name}"],  # Target table name
+                spat_flags,
+                aux.ogr_options,
+                [str(aux_filename), source_layer]  # Source file and source layer
+            )
+        else:
+            cmd_aux_chain = iterchain(
+                [f"aux_data.{aux.layer_name}"],
+                spat_flags,
+                aux.ogr_options,
+                [str(aux_filename)]
+            )
+
+        cmd = self.importer_cmd_prefix(pg_string=pg_string) + list(cmd_aux_chain)
+        return ImportOGR(cmd=cmd, pre_cmd=pre_cmd, pre_output=pre_output)

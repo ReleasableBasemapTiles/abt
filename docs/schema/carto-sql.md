@@ -1,7 +1,8 @@
 # Carto SQL
 
-`carto_sql/` holds 33 numbered SQL scripts (plus `099_update_geometry.sql`)
-that read `osm.*`/`aux_data.*` and build every `export.*` table — always as a
+`carto_sql/` holds 33 numbered SQL scripts, `000_update_aux_geom.sql` to
+`099_update_geometry.sql`, that read `osm.*`/`aux_data.*` and build every
+`export.*` table — always as a
 `CREATE MATERIALIZED VIEW` (zero plain `CREATE VIEW` objects under `export`;
 every layer's data is materialized at [Carto](../pipeline/carto.md) time, not
 read live at export time). Every script's own header comment (`LAYER`/
@@ -56,10 +57,13 @@ COMMIT;
 Declares which of the remaining scripts can run concurrently against
 Postgres (read by `abt-tools.py carto`'s `-n/--carto-concurrency`; falls back
 to strict filename order if absent) — 29 groups today, all independent
-except one real dependency:
+except one real dependency. Groups start in the order listed, so the list
+puts the longest-running scripts first:
 
 ```yaml
 groups:
+  - [009_land_cover.sql]
+
   # 005b reads water.classify_water_type(), a function created by 005a --
   # a real execution-order dependency, not just a shared schema name.
   - [005a_water_polygon.sql, 005b_water_line.sql]
@@ -69,14 +73,27 @@ groups:
   # never reads 003_road.sql's transportation.usa_boundary) -- now that
   # custom_schemas above are created up front, each of these is independent.
   - [003_road.sql]
-  - [004_railway.sql]
+  - [017_utility_point.sql]
 ```
 
 It also lists every custom schema (`water`, `transportation`, `landuse`,
 `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`) and extension
-(`dblink`) these scripts create, so they're created once up front instead of
-racing across concurrent sessions the first time. Its own header documents
-exactly how to update it when `carto_sql` changes:
+(`dblink`, `pg_trgm`) these scripts create or use, so they're created once
+up front instead of racing across concurrent sessions the first time.
+
+An optional `weights:` map gives a script a larger share of the host when
+groups run concurrently (default 1; a group's weight is its heaviest
+script's). The share sets the `abt.dissolve_shards` and
+`abt.parallel_workers_per_gather` GUCs that group's connections get — see
+[Performance & Sizing](../install/performance.md#carto-concurrency-and-its-gucs):
+
+```yaml
+weights:
+  009_land_cover.sql: 2
+  005a_water_polygon.sql: 2
+```
+
+Its own header documents exactly how to update it when `carto_sql` changes:
 
 ```text
 # How to update this file when carto_sql changes:
@@ -87,7 +104,8 @@ exactly how to update it when `carto_sql` changes:
 #   3. New script that reads/writes a table (not just a schema name) created
 #      by another script: add it to that script's group, after it, in the
 #      same inner list.
-#   4. Deleted/renamed script: remove/update its entry above.
+#   4. Deleted/renamed script: remove/update its entry above (and in
+#      weights, if it has one).
 #   5. When in doubt, add it as a new single-item group and grep the rest of
 #      carto_sql for its schema/table names to confirm nothing else depends
 #      on it.
@@ -95,8 +113,9 @@ exactly how to update it when `carto_sql` changes:
 
 `execution_plan.yml` is validated against the actual `*.sql` files present
 before any run starts — a script on disk but missing from the plan, a plan
-entry with no matching file, or a duplicate all fail fast rather than
-silently building an incomplete tileset.
+entry with no matching file, a duplicate, or a weight for a script that
+isn't in any group all fail fast rather than silently building an
+incomplete tileset.
 
 ## More views than are tiled
 
@@ -133,48 +152,48 @@ Generated from `carto_sql/execution_plan.yml` at doc-build time — always in sy
 <!-- CARTO_DAG_START -->
 ```mermaid
 flowchart TD
+    setupSchemas["create schemas/extensions up front:<br/>water, transportation, landuse, landcover, infrastructure, aeroway, dam, poi, dblink, pg_trgm"]
     prefix01["000_update_aux_geom"]
+    setupSchemas --> prefix01
     prefix02["001_set_schema"]
     prefix01 --> prefix02
-    setupSchemas["create schemas/extensions up front:<br/>water, transportation, landuse, landcover, infrastructure, aeroway, dam, poi, dblink"]
-    prefix02 --> setupSchemas
     subgraph groupsBox ["29 independent groups -- concurrent, up to --carto-concurrency at a time"]
-        group01["005a_water_polygon then 005b_water_line"]
-        group02["003_road"]
-        group03["004_railway"]
-        group04["006_geonames_hydrographic"]
-        group05["007_builtup_area"]
-        group06["008_glacier"]
-        group07["009_land_cover"]
-        group08["010_park"]
-        group09["011_lock"]
-        group10["012_port"]
-        group11["013_pipeline"]
-        group12["014_energy"]
-        group13["015_grain_storage"]
-        group14["017_utility_point"]
-        group15["018_powerline"]
-        group16["019_power_station"]
-        group17["020_pumping_station"]
-        group18["021_aeroway"]
-        group19["022_dam"]
-        group20["023_military"]
-        group21["024_cemetery"]
-        group22["025_sports"]
-        group23["026_places"]
-        group24["027_admin"]
-        group25["028_ferry"]
-        group26["029_physical_labels"]
-        group27["030_pier"]
-        group28["032_poi"]
+        group01["009_land_cover (weight 2)"]
+        group02["005a_water_polygon then 005b_water_line (weight 2)"]
+        group03["003_road"]
+        group04["017_utility_point"]
+        group05["023_military"]
+        group06["007_builtup_area"]
+        group07["004_railway"]
+        group08["032_poi"]
+        group09["006_geonames_hydrographic"]
+        group10["008_glacier"]
+        group11["010_park"]
+        group12["011_lock"]
+        group13["012_port"]
+        group14["013_pipeline"]
+        group15["014_energy"]
+        group16["015_grain_storage"]
+        group17["018_powerline"]
+        group18["019_power_station"]
+        group19["020_pumping_station"]
+        group20["021_aeroway"]
+        group21["022_dam"]
+        group22["024_cemetery"]
+        group23["025_sports"]
+        group24["026_places"]
+        group25["027_admin"]
+        group26["028_ferry"]
+        group27["029_physical_labels"]
+        group28["030_pier"]
         group29["033_culvert"]
     end
-    setupSchemas --> groupsBox
+    prefix02 --> groupsBox
     suffix01["099_update_geometry"]
     groupsBox --> suffix01
 ```
 
-29 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before any group starts: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`.
+29 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before the prefix runs: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`, `pg_trgm`.
 <!-- CARTO_DAG_END -->
 
 ## See also

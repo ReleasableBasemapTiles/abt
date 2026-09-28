@@ -1,13 +1,15 @@
 # vundler-rs benchmark and golden-comparison harness
 
-Verifies `abt-vundler` produces output semantically identical to the
-original pure-Python `abt/vundler.py` (before it was rewired to shell out
-to this binary -- see `../../abt/vundler.py`'s module docstring), and
-measures wall-clock/RSS for both.
+Written to verify that `abt-vundler` produces output semantically identical
+to the original pure-Python `abt/vundler.py`, and to measure wall-clock/RSS
+for both. `abt/vundler.py` has since been rewired to shell out to this
+binary (see its module docstring), so `run_python.py` now times the binary
+itself -- see the note at the end.
 
-There are no tests elsewhere in this repo, so this harness -- not a shared
-CI suite -- is what backs the port's correctness claims. Re-run it after
-any change to `bundle.rs`/`db.rs`/`main.rs`.
+The check that runs on every change is `../tests/test_golden.py`, which
+compares the binary against a frozen copy of the pre-port Python in
+`../tests/reference/`. Use this harness to time a change to
+`bundle.rs`/`db.rs`/`main.rs`, or to compare outputs on a real bundle.
 
 ## Setup
 

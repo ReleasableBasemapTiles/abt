@@ -17,8 +17,8 @@ python abt-tools.py download -w <working_dir> -s <schema_dir> -d {osm,aux,all} [
 |---|---|---|---|
 | `-w`, `--working-dir` | yes | — | Root directory for downloaded/extracted data; created automatically if missing. |
 | `-s`, `--schema-dir` | yes | — | Schema/config directory (`--schema-dir` of [`rbt-schema`](../schema/index.md)). |
-| `-d`, `--data-type` | yes | — | `osm`, `aux`, or `all`. `osm` downloads the Geofabrik/planet PBF; `aux` downloads (and extracts, if zipped) every source under `import/aux_data/`, in parallel across `-n` workers; `all` runs OSM first, then dedicates all workers to the aux download. |
-| `-n`, `--num-workers` | no | scaled to host CPU count, minimum 4 | Parallel workers for the aux download/extraction step. Has no effect on the OSM download, which is always a single stream (or, for `-k planet`, a single coordinated `aria2c` invocation — see below). |
+| `-d`, `--data-type` | yes | — | `osm`, `aux`, or `all`. `osm` downloads the Geofabrik/planet PBF; `aux` downloads (and extracts, if zipped) every source under `import/aux_data/`, in parallel across `-n` workers; `all` downloads both at once: the OSM extract on a thread of its own, alongside the aux sources on all `-n` workers. |
+| `-n`, `--num-workers` | no | scaled to host CPU count, minimum 4 | Parallel workers for the aux sources; each worker downloads a source and then extracts it if it's zipped. Has no effect on the OSM download, which is always a single stream (or, for `-k planet`, a single coordinated `aria2c` invocation — see below). |
 | `-k`, `--osm-key` | no | **`planet`** | Geofabrik extract key (e.g. `norway`) or `planet` for a full-planet PBF. |
 
 !!! warning "`-k`/`--osm-key` defaults to `planet`"
@@ -32,6 +32,11 @@ python abt-tools.py download -w <working_dir> -s <schema_dir> -d {osm,aux,all} [
 - **Skips existing files.** `download` (like `export`) only ever fills in what's
   missing under `--working-dir`; re-running it after a partial or interrupted run
   resumes rather than restarting.
+- **Each zipped aux source is extracted as soon as it downloads**, by the same
+  worker. If its download fails, the run summary records its extraction as
+  `not attempted (download failed)`.
+- **`-d all` overlaps the OSM download with the aux downloads.** Run
+  `download -d osm` and then `download -d aux` to keep them apart.
 - **`-k planet` goes through `aria2c`, not a plain HTTP GET.** Geofabrik extracts
   publish exactly one URL each, so any non-`planet` key keeps using the original
   single-stream `requests` downloader. For `planet` specifically,

@@ -43,9 +43,10 @@ python abt-tools.py bundler -w <working_dir> -s <schema_dir> [-p pg_config] [-q 
   resolution).
 - **Stamps metadata from `tile-metadata/metadata.py` into the output, and fails
   without it.** See [Tile Metadata](../schema/tile-metadata.md) for that file's
-  format. `tile-join` itself only accepts a `-n` name flag on the command line —
-  everything else in the joined output's metadata table (description,
-  attribution, tags, license, etc.) comes from this schema file.
+  format. `tile-join` has flags for a few of these rows (`-n` name,
+  `-N` description, `-A` attribution), but not for tags, license and the rest, so
+  the bundler writes all of the joined output's descriptive metadata from this
+  schema file after `tile-join` runs, passing only the name as `-n`.
 
 ## See also
 
