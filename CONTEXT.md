@@ -420,10 +420,8 @@ each is waiting on a decision:
 
 ### Known doc drift
 
-This list is current as of 2026-09-28. Fix these when you edit the page:
-
-- `env.yaml` lists `sphinx`, `sphinx-rtd-theme`, and `sphinx-pydantic`, which nothing uses, and
-  it lists `boto3` twice.
+None known as of 2026-09-28. If you find prose that disagrees with the code and can't fix it in
+the same change, list it here.
 
 ## Where to start
 
