@@ -244,10 +244,13 @@ PY
 # first -- same intent as wait_jobs below -- so a single run reports the
 # whole picture instead of a fix-one-rerun cycle per missing file.
 # `ogrinfo -so` is a header-only read for FlatGeobuf (envelope and feature
-# count both live in the header), so this stays cheap even at planet scale,
-# and it is what catches a truncated .fgb left behind by an interrupted
-# ogr2ogr -- a bare existence check would instead hand that straight to
-# tippecanoe.
+# count both live in the header), so this stays cheap even at planet scale.
+# It catches a missing or unreadable file, but not a truncated one: with
+# GDAL 3.13, a no-index .fgb cut in half still reported its full feature
+# count and exited 0, and tippecanoe tiled what was left and exited 0 too.
+# Truncation is prevented where the files are written instead: export
+# stages each .fgb under flatgeobuf/.partial/ and moves it into place only
+# after ogr2ogr succeeds.
 verify_fgb_for() {
     local srs="$1" fgb_dir layer_id fgb status=0
     fgb_dir="$(workspace_for "$srs")/flatgeobuf"

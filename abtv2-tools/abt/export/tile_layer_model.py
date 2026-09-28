@@ -265,32 +265,49 @@ class TileLayer(BaseModel):
     def ogr_export_filename(self) -> Path:
         return self.flatgeobuf_dir / f"{self.layer_id}.fgb"
     @property
-    def ogr_cmd(self) -> List[str]:
+    def ogr_partial_filename(self) -> Path:
+        """Where ogr2ogr writes before export_to_fgb moves the file into place.
+
+        Kept in a .partial/ subdirectory under the same name, because GDAL's
+        FlatGeobuf driver treats an output name not ending in .fgb as a
+        directory to create.
+        """
+        return self.flatgeobuf_dir / ".partial" / f"{self.layer_id}.fgb"
+    def ogr_cmd_for(self, output: Path) -> List[str]:
         return [
             "ogr2ogr",
             "-f","FlatGeobuf",
             "-sql",self.ogr_sql,
             "-lco",self.ogr_tmp_path,
             *self.ogr_export_options.ogr_flags,
-            str(self.ogr_export_filename),
+            str(output),
             f"PG:{self.pg_config.uri}",
         ]
+    @property
+    def ogr_cmd(self) -> List[str]:
+        return self.ogr_cmd_for(self.ogr_export_filename)
         
     # Exporter - Mbtiles
     @property
     def mbtiles_export_filename(self) -> Path:
         return self.mbtiles_dir / f"{self.layer_id}.mbtiles"
     @property
+    def mbtiles_partial_filename(self) -> Path:
+        """Where tippecanoe writes before export_to_mbtiles moves the file into place."""
+        return self.mbtiles_dir / ".partial" / f"{self.layer_id}.mbtiles"
+    @property
     def mbtiles_tmp_dir(self) -> Path:
         tmp_dir = self.tmp_dir / f"{self.layer_id}"
         return tmp_dir
     @property
     def tippecanoe_cmd(self) -> List[str]:
+        return self.tippecanoe_cmd_for(self.mbtiles_export_filename)
+    def tippecanoe_cmd_for(self, output: Path) -> List[str]:
         cmd = [
             "tippecanoe",
             *self.tippecanoe_options.zoom_flags,
             "--output",
-            str(self.mbtiles_export_filename),
+            str(output),
             "--temporary-directory",
             str(self.tmp_dir.absolute()),
             "--progress-interval",
