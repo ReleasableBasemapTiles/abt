@@ -61,15 +61,14 @@ ABT_RUN_DIR_3395="${ABT_RUN_DIR_3395:-${ABT_RUN_DIR}-3395}"
 # a checked-out copy of the monorepo (i.e. abtv2-tools/ and rbt-schema/ are
 # right next to it) -- so `git clone ... /rbt && /rbt/setup_ubuntu.sh` just
 # works with no other configuration, and CLONE_REPO below becomes a no-op
-# rather than trying to clone into an already-populated directory. This also
-# keeps it aligned with init.sh's own hardcoded /rbt/abtv2-tools,
-# /rbt/rbt-schema paths, which assume this same "monorepo root == workspace
-# root" layout -- so no manual symlinking is needed to make init.sh find
-# them afterward. Falls back to the old nested "$ABT_WORKSPACE_DIR/rbt"
-# default otherwise (e.g. running a standalone copy of this script before
-# CLONE_REPO has anything to clone yet), so that flow still clones into a
-# fresh, empty directory instead of colliding with ABT_WORKSPACE_DIR itself
-# (already created, non-empty, by the time section 8's clone runs).
+# rather than trying to clone into an already-populated directory. (init.sh
+# finds abtv2-tools/ and rbt-schema/ next to itself the same way, so it
+# works from either layout.) Falls back to the old nested
+# "$ABT_WORKSPACE_DIR/rbt" default otherwise (e.g. running a standalone copy
+# of this script before CLONE_REPO has anything to clone yet), so that flow
+# still clones into a fresh, empty directory instead of colliding with
+# ABT_WORKSPACE_DIR itself (already created, non-empty, by the time section
+# 8's clone runs).
 SETUP_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 if [[ -d "$SETUP_SCRIPT_DIR/abtv2-tools" && -d "$SETUP_SCRIPT_DIR/rbt-schema" ]]; then
     ABT_MONOREPO_DIR="${ABT_MONOREPO_DIR:-$SETUP_SCRIPT_DIR}"

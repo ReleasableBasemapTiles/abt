@@ -25,11 +25,66 @@ set -euo pipefail
 # see the preflight below. Aborts up front, before touching Postgres or
 # launching --overture's background pipeline, if any .fgb is missing or
 # unreadable. Defaults to "download", i.e. the full pipeline from the top.
+# --no-upload stops after [5/6]: no S3 upload, and none of the AWS checks
+# it needs.
+# -h/--help prints the flags and the environment variables (see config).
+usage() {
+    cat <<'USAGE'
+Usage: init.sh [options]
+
+Runs download, import and carto once, then export, bundler and an S3 upload
+for each projection, the projections in parallel.
+See docs/walkthroughs/init-sh.md.
+
+Options:
+  --projections "<codes>"       EPSG codes to export, bundle and upload
+                                (default "3857 3395 4087")
+  --from download|export        download (the default) runs every stage;
+                                export reuses each projection's .fgb files
+                                and starts at export
+  --overture ["<codes>"]        Also fetch and tile Overture buildings in the
+                                background and bundle them in; a list sets
+                                --projections too
+  --overture-clean ["<codes>"]  As --overture, deleting each projection's
+                                shards once it's tiled
+  --contours <dir>              Bundle <dir>/contours_<srs>.mbtiles in too
+  --no-upload                   Stop after the bundler: no S3 upload, no AWS
+                                checks
+  -h, --help                    Show this help
+
+Environment variables (default in brackets):
+  ABT_WORKSPACE_DIR     Data root [/rbt]
+  ABT_RUN_DIR           3857's working directory; each other projection's
+                        is <dir>-<srs> [$ABT_WORKSPACE_DIR/run-planet]
+  ABT_OVERTURE_DIR      Overture's working directory
+                        [$ABT_WORKSPACE_DIR/overture]
+  ABT_SCHEMA_DIR        Schema directory [rbt-schema next to init.sh]
+  ABT_TOOLS             The CLI [abtv2-tools/abt-tools.py next to init.sh]
+  ABT_JOBS              Workers per stage, and per projection [12]
+  ABT_S3_BUCKET_PREFIX  Upload prefix; projection <srs> goes to
+                        <prefix>/<srs>/ [s3://data-478728046499-us-east-1-an]
+  PYTHON                Python interpreter [python]
+  PG_HOST PG_PORT PG_USER PG_PASSWORD PG_DB
+                        Postgres connection, named as in setup_ubuntu.sh
+                        [127.0.0.1 5432 rbt rbt rbt]
+USAGE
+}
+
+# Exits unless the option in $1 was given a value ($2), so a trailing
+# `--contours` fails with a message instead of set -u's "unbound variable".
+need_value() {
+    if [[ -z "$2" || "$2" == --* ]]; then
+        echo "ERROR: $1 needs a value (see --help)" >&2
+        exit 1
+    fi
+}
+
 RUN_OVERTURE=false
 CLEAN_OVERTURE_PARTS=false
 PROJECTIONS=(3857 3395 4087)
 CONTOURS_DIR=""
 START_STAGE="download"
+UPLOAD=true
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --overture)
@@ -59,19 +114,30 @@ while [[ $# -gt 0 ]]; do
             fi
             ;;
         --projections)
+            need_value "$1" "${2-}"
             read -r -a PROJECTIONS <<< "$2"
             shift 2
             ;;
         --contours)
+            need_value "$1" "${2-}"
             CONTOURS_DIR="$2"
             shift 2
             ;;
         --from)
+            need_value "$1" "${2-}"
             START_STAGE="$2"
             shift 2
             ;;
+        --no-upload)
+            UPLOAD=false
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
         *)
-            echo "unknown option: $1" >&2
+            echo "unknown option: $1 (see --help)" >&2
             exit 1
             ;;
     esac
@@ -96,19 +162,37 @@ case "$START_STAGE" in
 esac
 
 # --- config ---
-ABT_TOOLS="/rbt/abtv2-tools/abt-tools.py"
-WORKSPACE="/rbt/run-planet"
-SCHEMA="/rbt/rbt-schema"
-JOBS=12
+# Everything but PROVIDER, KIND and ZOOM can be overridden from the
+# environment (see usage above), under setup_ubuntu.sh's names where it has
+# one: a host set up with, say, ABT_WORKSPACE_DIR=/data or PG_DB=planet runs
+# init.sh with the same values. The code paths default to this checkout,
+# wherever it is, and the data paths to $ABT_WORKSPACE_DIR -- at /rbt, as
+# setup_ubuntu.sh lays a host out, both come to what they always were.
+INIT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+ABT_WORKSPACE_DIR="${ABT_WORKSPACE_DIR:-/rbt}"
+ABT_TOOLS="${ABT_TOOLS:-$INIT_DIR/abtv2-tools/abt-tools.py}"
+WORKSPACE="${ABT_RUN_DIR:-$ABT_WORKSPACE_DIR/run-planet}"
+SCHEMA="${ABT_SCHEMA_DIR:-$INIT_DIR/rbt-schema}"
+JOBS="${ABT_JOBS:-12}"
+# Exported because the Overture scripts read it too.
+export PYTHON="${PYTHON:-python}"
 PROVIDER="env"
 KIND="planet"
 ZOOM=13
 # Destination prefix for [6/6] -- each projection uploads to
 # $S3_BUCKET_PREFIX/<srs>/, e.g. .../3857/RBT.mbtiles.
-S3_BUCKET_PREFIX="s3://data-478728046499-us-east-1-an"
+S3_BUCKET_PREFIX="${ABT_S3_BUCKET_PREFIX:-s3://data-478728046499-us-east-1-an}"
 # Only read when --overture is passed.
-OVERTURE_DIR="/rbt/overture"
+OVERTURE_DIR="${ABT_OVERTURE_DIR:-$ABT_WORKSPACE_DIR/overture}"
 OVERTURE_SCRIPTS="$SCHEMA/scripts/overture"
+
+if [[ ! "$JOBS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "ERROR: ABT_JOBS must be a positive whole number, got '$JOBS'" >&2
+    exit 1
+fi
+command -v "$PYTHON" >/dev/null 2>&1 || { echo "ERROR: $PYTHON is not on PATH (activate the abtv2 env, or set PYTHON)" >&2; exit 1; }
+[[ -f "$ABT_TOOLS" ]] || { echo "ERROR: no abt-tools.py at $ABT_TOOLS (set ABT_TOOLS)" >&2; exit 1; }
+[[ -d "$SCHEMA/export" ]] || { echo "ERROR: no export/ directory in $SCHEMA, so it isn't rbt-schema (set ABT_SCHEMA_DIR)" >&2; exit 1; }
 
 # Per-projection paths, derived by convention from the EPSG code instead of
 # one hardcoded variable per projection. 3857 (Web Mercator, the default) is
@@ -146,11 +230,14 @@ upload_name_for() {
     if [[ "$1" == 3857 ]]; then echo "RBT.mbtiles"; else echo "RBT.btis"; fi
 }
 
-export PGHOST=127.0.0.1
-export PGPORT=5432
-export PGUSER=rbt
-export PGPASSWORD=rbt
-export PGDATABASE=rbt
+# The connection every stage uses (-p env). Set from PG_* rather than taken
+# from any PG* already exported, so a shell still pointed at another
+# database (the Norway walkthrough's, say) can't send this build into it.
+export PGHOST="${PG_HOST:-127.0.0.1}"
+export PGPORT="${PG_PORT:-5432}"
+export PGUSER="${PG_USER:-rbt}"
+export PGPASSWORD="${PG_PASSWORD:-rbt}"
+export PGDATABASE="${PG_DB:-rbt}"
 
 # Region for the S3_BUCKET_PREFIX bucket above.
 export AWS_DEFAULT_REGION="us-east-1"
@@ -161,10 +248,14 @@ export AWS_DEFAULT_REGION="us-east-1"
 # AWS_SESSION_TOKEN from the environment automatically (these look like STS
 # temporary credentials, given the session token) -- this script only
 # checks they're present, it doesn't fetch or refresh them, so export
-# current ones before running.
-: "${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID must be exported for the aws s3 cp step}"
-: "${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY must be exported for the aws s3 cp step}"
-: "${AWS_SESSION_TOKEN:?AWS_SESSION_TOKEN must be exported for the aws s3 cp step}"
+# current ones before running. --no-upload skips these checks along with
+# the upload.
+if [[ "$UPLOAD" == true ]]; then
+    command -v aws >/dev/null 2>&1 || { echo "aws CLI is required for the [6/6] upload but was not found on PATH (or pass --no-upload)" >&2; exit 1; }
+    : "${AWS_ACCESS_KEY_ID:?AWS_ACCESS_KEY_ID must be exported for the aws s3 cp step (or pass --no-upload)}"
+    : "${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY must be exported for the aws s3 cp step (or pass --no-upload)}"
+    : "${AWS_SESSION_TOKEN:?AWS_SESSION_TOKEN must be exported for the aws s3 cp step (or pass --no-upload)}"
+fi
 
 # Same fail-fast rationale as the AWS credential checks above, for the
 # Overture pipeline's own dependencies. setup_ubuntu.sh doesn't provision
@@ -207,7 +298,7 @@ if [[ -n "$CONTOURS_DIR" ]]; then
             fi
         elif [[ -z "$current_crs" ]]; then
             echo "[contours] tagging $contours_file as EPSG:$srs"
-            "${PYTHON:-python3}" "$OVERTURE_SCRIPTS/tag_crs.py" "$srs" "$contours_file"
+            "$PYTHON" "$OVERTURE_SCRIPTS/tag_crs.py" "$srs" "$contours_file"
         elif [[ "$current_crs" != "EPSG:$srs" ]]; then
             echo "ERROR: $contours_file claims crs=$current_crs, cannot bundle it as EPSG:$srs" >&2
             exit 1
@@ -231,7 +322,7 @@ fi
 # DataSchema.export_layers does, so a disabled layer's *.json.skip (e.g.
 # building_polygon.json.skip) is correctly excluded.
 export_layer_ids() {
-    python - "$SCHEMA/export" <<'PY'
+    "$PYTHON" - "$SCHEMA/export" <<'PY'
 import json, sys
 from pathlib import Path
 for path in sorted(Path(sys.argv[1]).glob("*.json")):
@@ -306,7 +397,7 @@ for srs in "${PROJECTIONS[@]}"; do
 done
 if [[ "${#NON_3857_PROJECTIONS[@]}" -gt 0 ]]; then
     echo "[preflight] checking PROJ agreement across engines for ${NON_3857_PROJECTIONS[*]}"
-    python "$OVERTURE_SCRIPTS/check_proj_agreement.py" "${NON_3857_PROJECTIONS[@]}"
+    "$PYTHON" "$OVERTURE_SCRIPTS/check_proj_agreement.py" "${NON_3857_PROJECTIONS[@]}"
 fi
 
 # Waits for each given "label:pid" background job and reports its outcome.
@@ -407,13 +498,13 @@ fi
 
 if [[ "$START_STAGE" == download ]]; then
     echo "[1/6] download"
-    python "$ABT_TOOLS" download -w "$WORKSPACE" -s "$SCHEMA" -d all -k "$KIND" -n "$JOBS"
+    "$PYTHON" "$ABT_TOOLS" download -w "$WORKSPACE" -s "$SCHEMA" -d all -k "$KIND" -n "$JOBS"
 
     echo "[2/6] import"
-    python "$ABT_TOOLS" import -w "$WORKSPACE" -s "$SCHEMA" -d all -n "$JOBS" -p "$PROVIDER" -k "$KIND" -c
+    "$PYTHON" "$ABT_TOOLS" import -w "$WORKSPACE" -s "$SCHEMA" -d all -n "$JOBS" -p "$PROVIDER" -k "$KIND"
 
     echo "[3/6] carto"
-    python "$ABT_TOOLS" carto -w "$WORKSPACE" -s "$SCHEMA" -p "$PROVIDER"
+    "$PYTHON" "$ABT_TOOLS" carto -w "$WORKSPACE" -s "$SCHEMA" -p "$PROVIDER"
 else
     echo "[1-3/6] skipped (--from export): reusing verified .fgb files"
 fi
@@ -436,7 +527,7 @@ for srs in "${PROJECTIONS[@]}"; do
     if [[ "$srs" != 3857 ]]; then
         proj_flag=(--projection-override "EPSG:$srs")
     fi
-    python "$ABT_TOOLS" export -w "$(workspace_for "$srs")" -s "$SCHEMA" -n "$JOBS" -p "$PROVIDER" -z "$ZOOM" "${proj_flag[@]}" &
+    "$PYTHON" "$ABT_TOOLS" export -w "$(workspace_for "$srs")" -s "$SCHEMA" -n "$JOBS" -p "$PROVIDER" -z "$ZOOM" "${proj_flag[@]}" &
     pids+=("$srs:$!")
 done
 wait_jobs "${pids[@]}"
@@ -464,12 +555,16 @@ for srs in "${PROJECTIONS[@]}"; do
     if [[ -n "$CONTOURS_DIR" ]]; then
         q+=(-q "$(contours_for "$srs")")
     fi
-    python "$ABT_TOOLS" bundler -w "$(workspace_for "$srs")" -s "$SCHEMA" -p "$PROVIDER" "${q[@]}" &
+    "$PYTHON" "$ABT_TOOLS" bundler -w "$(workspace_for "$srs")" -s "$SCHEMA" -p "$PROVIDER" "${q[@]}" &
     pids+=("$srs:$!")
 done
 wait_jobs "${pids[@]}"
 
-echo "[6/6] upload bundles to S3 (${PROJECTIONS[*]}, in parallel)"
+if [[ "$UPLOAD" == true ]]; then
+    echo "[6/6] upload bundles to S3 (${PROJECTIONS[*]}, in parallel)"
+else
+    echo "[6/6] upload skipped (--no-upload); bundles:"
+fi
 # Resolved for every projection up front, before any upload starts (rather
 # than interleaved with the background aws s3 cp loop below), so one
 # workspace's bundle being missing/misnamed aborts here -- before any partial
@@ -478,12 +573,15 @@ echo "[6/6] upload bundles to S3 (${PROJECTIONS[*]}, in parallel)"
 declare -A bundled_paths
 for srs in "${PROJECTIONS[@]}"; do
     bundled_paths["$srs"]="$(resolve_bundled "$(workspace_for "$srs")")"
+    [[ "$UPLOAD" == true ]] || echo "  $srs: ${bundled_paths[$srs]}"
 done
-pids=()
-for srs in "${PROJECTIONS[@]}"; do
-    aws s3 cp "${bundled_paths[$srs]}" "$S3_BUCKET_PREFIX/$srs/$(upload_name_for "$srs")" &
-    pids+=("$srs:$!")
-done
-wait_jobs "${pids[@]}"
+if [[ "$UPLOAD" == true ]]; then
+    pids=()
+    for srs in "${PROJECTIONS[@]}"; do
+        aws s3 cp "${bundled_paths[$srs]}" "$S3_BUCKET_PREFIX/$srs/$(upload_name_for "$srs")" &
+        pids+=("$srs:$!")
+    done
+    wait_jobs "${pids[@]}"
+fi
 
 echo "done."
