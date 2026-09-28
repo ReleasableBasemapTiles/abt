@@ -127,7 +127,8 @@ data_type_field = typer.Option(
     help=(
         "Which data to download or import. 'osm': the --osm-key extract, one "
         "file, imported with imposm. 'aux': the import/aux_data/*.json sources, "
-        "--num-workers at a time, imported with ogr2ogr. 'all': osm, then aux."
+        "--num-workers at a time, imported with ogr2ogr. 'all': both, the OSM "
+        "extract alongside the aux sources."
     ),
 )
 

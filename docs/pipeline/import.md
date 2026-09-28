@@ -17,7 +17,7 @@ python abt-tools.py import -w <working_dir> -s <schema_dir> -d {osm,aux,all} [-n
 |---|---|---|---|
 | `-w`, `--working-dir` | yes | — | Root directory holding data downloaded by [`download`](download.md). |
 | `-s`, `--schema-dir` | yes | — | Schema/config directory (see [Schema Reference](../schema/index.md)). |
-| `-d`, `--data-type` | yes | — | `osm`, `aux`, or `all`. `osm` imports via `imposm3`; `aux` imports every `import/aux_data/*.json` source via `ogr2ogr` in parallel across `-n` workers; `all` runs OSM first, then dedicates all workers to the aux import. |
+| `-d`, `--data-type` | yes | — | `osm`, `aux`, or `all`. `osm` imports via `imposm3`; `aux` imports every `import/aux_data/*.json` source via `ogr2ogr` in parallel across `-n` workers; `all` imports both at once: OSM on a thread of its own, alongside the aux imports on all `-n` workers. |
 | `-n`, `--num-workers` | no | scaled to host CPU count, minimum 4 | Parallel workers for the aux import step. No effect on the OSM import. |
 | `-p`, `--pg-config` | no | `env` | PostgreSQL connection: `env` reads `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE`, or pass `<host>,<port>,<user>,<password>,<dbname>` directly. |
 | `-k`, `--osm-key` | no | `planet` | Geofabrik extract key or `planet` — must match what [`download`](download.md) was run with. |
@@ -36,9 +36,11 @@ python abt-tools.py import -w <working_dir> -s <schema_dir> -d {osm,aux,all} [-n
   aux layer (e.g. a single dissolved land/water polygon covering the whole
   planet), so a hard clip is needed too. This is meant for fast test builds
   against a small extract, and has no effect when `-k` is `planet` or omitted.
-- **`-d all` runs OSM to completion first**, then imports aux data with the full
-  `-n` worker count — the two data types are never imported concurrently with
-  each other.
+- **`-d all` imports OSM and aux data at the same time.** imposm only touches the
+  `osm` schema (and the `import` and `backup` schemas it stages tables in), and
+  the aux imports only `aux_data`, so the aux imports run while imposm does
+  instead of after it. The `aux_data` schema is reset before either starts. To
+  keep them apart, run `import -d osm` and then `import -d aux`.
 
 !!! warning "`dblink`/superuser requirement carries forward from `import`'s `-p`"
     The same PostgreSQL role used here is later reused by [`carto`](carto.md),

@@ -1,13 +1,17 @@
 import typer
-from typing import Annotated, List
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+from typing import Annotated, List, Optional
 from pathlib import Path
+
+from pydantic import BaseModel
 
 from ..schema import DataSchema, ProcessingDirectorySchema
 from ..aux_data_model import AuxDataLayer
-from ..osm_data_model import prep_osm
+from ..osm_data_model import OSMProcessingModel, prep_osm
 from ..parallel import ParallelExecutor
-from ..utils.run_reporter import RunReporter
-from ..download.downloader import Downloader
+from ..utils.run_reporter import RunReporter, run_stages
+from ..download.downloader import Downloader, Extractor
 from ..utils.fields import (
     working_dir_field,
     schema_dir_field,
@@ -18,15 +22,43 @@ from ..utils.fields import (
     default_num_workers,
 )
 
-def prep_aux(
-    data_schema: DataSchema, 
-    processing_directory: ProcessingDirectorySchema,
-) -> tuple[List[Downloader], List[AuxDataLayer]]:
-    """Prepares auxiliary data layers for downloading.
+class AuxDownloadTask(BaseModel):
+    """One auxiliary source's download, then its extraction if it's zipped,
+    as a single task, so each source is extracted as soon as its own
+    download finishes. A local source has no download step and an unzipped
+    one no extraction step.
 
-    This function reads the auxiliary data files specified in the data schema,
-    initializes an AuxDataLayer object for each, and creates a corresponding
-    Downloader instance configured with the correct output and log directories.
+    Attributes:
+        name: The task's name in logs and the run summary: the downloaded
+            file's name, or a local source's zip name.
+        downloader: Fetches the source, or None for a local source.
+        extractor: Unpacks the zip, or None if the source isn't zipped.
+    """
+    name: str
+    downloader: Optional[Downloader] = None
+    extractor: Optional[Extractor] = None
+
+    def run(self, reporter: RunReporter) -> None:
+        """Runs the steps, recording them as the download and
+        aux_extraction stages -- see run_stages. An extraction whose
+        download failed is recorded as not attempted."""
+        steps = []
+        if self.downloader is not None:
+            steps.append(("download", self.downloader.download))
+        if self.extractor is not None:
+            steps.append(("aux_extraction", self.extractor.extract))
+        run_stages(task=self.name, stages=steps, reporter=reporter)
+
+
+def prep_aux(
+    data_schema: DataSchema,
+    processing_directory: ProcessingDirectorySchema,
+) -> List[AuxDownloadTask]:
+    """Prepares the auxiliary data sources for downloading.
+
+    Reads every import/aux_data/*.json config and builds one AuxDownloadTask
+    per source that has anything to fetch or unpack: every remote source,
+    plus local ones that are zipped.
 
     Args:
         data_schema: The data schema configuration containing paths to auxiliary data files.
@@ -34,33 +66,45 @@ def prep_aux(
                               data will be downloaded.
 
     Returns:
-        A tuple containing:
-        - A list of configured Downloader instances for the auxiliary data.
-        - A list of the AuxDataLayer instances.
+        The tasks, in config order.
     """
-    aux_layers = list(
-        map(
-            AuxDataLayer.from_file, data_schema.aux_files
-        )
-    )
-    
-    aux_downloaders = [
-        a.init_download(
+    tasks = []
+    for layer in map(AuxDataLayer.from_file, data_schema.aux_files):
+        if layer.is_local and not layer.zipped:
+            continue
+        downloader = None if layer.is_local else layer.init_download(
             output_directory=processing_directory.aux_download_dir,
             log_dir=processing_directory.download_log_dir
         )
-        for a in aux_layers
-        if not a.is_local
-    ]
+        extractor = layer.init_extraction(processing_directory.aux_download_dir)
+        name = downloader.name if downloader is not None else extractor.name
+        tasks.append(AuxDownloadTask(name=name, downloader=downloader, extractor=extractor))
+    return tasks
 
-    return aux_downloaders, aux_layers
+
+def download_osm(osm_processing: OSMProcessingModel, reporter: RunReporter) -> None:
+    """Downloads the OSM extract, recording the outcome in the download
+    stage. A failure is recorded and printed, not raised, so the aux
+    downloads running alongside it carry on."""
+    print("--- Downloading OSM data ---")
+    try:
+        run_stages(
+            task=osm_processing.osm_data.filename,
+            stages=[("download", lambda: osm_processing.init_download().download())],
+            reporter=reporter,
+        )
+        print("--- OSM download complete ---")
+    except Exception as e:
+        print(f"--- OSM download failed: {e} ---")
 
 def init_downloader(working_dir: Path, schema_dir: Path, data_type: CliDataType, num_workers: int, osm_key: str):
     """Initializes and runs the data download process.
 
     Orchestrates the download of OpenStreetMap (OSM) data, auxiliary data, or both,
-    based on the specified data_type. It handles sequential downloads for OSM and
-    parallel downloads and extractions for auxiliary files.
+    based on the specified data_type. The OSM extract downloads on a thread
+    of its own, so with ALL it downloads alongside the auxiliary sources,
+    which run num_workers at a time, each extracted as soon as it's
+    downloaded.
 
     Args:
         working_dir: The root directory for all data processing and storage.
@@ -71,10 +115,14 @@ def init_downloader(working_dir: Path, schema_dir: Path, data_type: CliDataType,
     Raises:
         ValueError: If an unsupported data_type is provided.
     """
+    if data_type not in [CliDataType.OSM, CliDataType.AUX, CliDataType.ALL]:
+        raise ValueError(f"Invalid data_type specified: {data_type}")
+
     data_schema = DataSchema(base_schema_dir=schema_dir)
     processing_directory = ProcessingDirectorySchema.init_working_directories(working_dir=working_dir)
     reporter = RunReporter(run_id=processing_directory.run_id, command="abt download")
 
+    osm_processing = None
     if data_type in [CliDataType.OSM, CliDataType.ALL]:
         print("--- Preparing OSM data ---")
         osm_processing = prep_osm(
@@ -82,56 +130,28 @@ def init_downloader(working_dir: Path, schema_dir: Path, data_type: CliDataType,
             processing_directory=processing_directory,
             osm_index=osm_key
         )
-        print("--- Downloading OSM data ---")
-        try:
-            osm_downloader = osm_processing.init_download()
-            osm_downloader.download()
-            reporter.record(stage="download", task=osm_processing.osm_data.filename, status="SUCCESS")
-            print("--- OSM download complete ---")
-        except Exception as e:
-            reporter.record(stage="download", task=osm_processing.osm_data.filename, status="FAILED", error=str(e))
-            print(f"--- OSM download failed: {e} ---")
-
+    aux_tasks = []
     if data_type in [CliDataType.AUX, CliDataType.ALL]:
         print("--- Preparing auxiliary data ---")
-        aux_download_list, aux_layers = prep_aux(
+        aux_tasks = prep_aux(
             data_schema=data_schema,
             processing_directory=processing_directory
         )
 
-        aux_download_task = ParallelExecutor(
-            log_dir=processing_directory.download_log_dir,
-            max_workers=num_workers,
-            instance='download'
-        )
-
-        print("--- Downloading auxiliary data ---")
-        aux_download_task.run(
-            objects=aux_download_list,
-            action=Downloader.download,
-            reporter=reporter,
-            stage="download"
-        )
-
-        # Filter for zipped layers and prepare for extraction
-        extraction_list = map(
-            lambda a: a.init_extraction(processing_directory.aux_download_dir),
-            [layer for layer in aux_layers if layer.zipped]
-        )
-
-        # Run extractions, continuing past individual failures
-        for extractor in extraction_list:
-            task_name = str(extractor.filename)
-            try:
-                extractor.extract()
-                reporter.record(stage="aux_extraction", task=task_name, status="SUCCESS")
-            except Exception as e:
-                reporter.record(stage="aux_extraction", task=task_name, status="FAILED", error=str(e))
-
-        print("--- Auxiliary data download complete ---")
-
-    if data_type not in [CliDataType.OSM, CliDataType.AUX, CliDataType.ALL]:
-        raise ValueError(f"Invalid data_type specified: {data_type}")
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="osm_download") as osm_thread:
+        osm_download = None
+        if osm_processing is not None:
+            osm_download = osm_thread.submit(download_osm, osm_processing, reporter)
+        if data_type in [CliDataType.AUX, CliDataType.ALL]:
+            print("--- Downloading and extracting auxiliary data ---")
+            ParallelExecutor(
+                log_dir=processing_directory.download_log_dir,
+                max_workers=num_workers,
+                instance='download'
+            ).run(objects=aux_tasks, action=partial(AuxDownloadTask.run, reporter=reporter))
+            print("--- Auxiliary data download complete ---")
+    if osm_download is not None:
+        osm_download.result()
 
     reporter.write_summary(processing_directory.summary_file)
     print(f"Run summary: {processing_directory.summary_file}")
@@ -150,8 +170,8 @@ def cli_download(
     """Download the OSM extract and/or the auxiliary data sources.
 
     Files land in <working-dir>/osm and <working-dir>/aux_downloads, and
-    finished files from an earlier run are skipped. Zipped aux sources are
-    extracted after they download.
+    finished files from an earlier run are skipped. Each zipped aux source
+    is extracted as soon as it downloads.
     \f
     Args:
         working_dir: The root directory for all processing tasks.

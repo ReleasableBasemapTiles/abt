@@ -49,8 +49,8 @@ $ abt-tools [OPTIONS] COMMAND [ARGS]...
 Download the OSM extract and/or the auxiliary data sources.
 
 Files land in &lt;working-dir&gt;/osm and &lt;working-dir&gt;/aux_downloads, and
-finished files from an earlier run are skipped. Zipped aux sources are
-extracted after they download.
+finished files from an earlier run are skipped. Each zipped aux source
+is extracted as soon as it downloads.
 
 **Usage**:
 
@@ -62,7 +62,7 @@ $ abt-tools download [OPTIONS]
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
 * `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
-* `-d, --data-type <osm|aux|all>`: Which data to download or import. &#x27;osm&#x27;: the --osm-key extract, one file, imported with imposm. &#x27;aux&#x27;: the import/aux_data/*.json sources, --num-workers at a time, imported with ogr2ogr. &#x27;all&#x27;: osm, then aux.  [required]
+* `-d, --data-type <osm|aux|all>`: Which data to download or import. &#x27;osm&#x27;: the --osm-key extract, one file, imported with imposm. &#x27;aux&#x27;: the import/aux_data/*.json sources, --num-workers at a time, imported with ogr2ogr. &#x27;all&#x27;: both, the OSM extract alongside the aux sources.  [required]
 * `-n, --num-workers <int>`: Number of parallel workers: aux downloads (download), aux imports (import), layers (export) or conversion threads (vundler). Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 12]
 * `-k, --osm-key <str>`: Which OSM data to use: &#x27;planet&#x27; for the full planet, or a Geofabrik extract id such as &#x27;norway&#x27; (the ids in download.geofabrik.de/index-v1.json).  [default: planet]
 * `--help`: Show this message and exit.
@@ -84,7 +84,7 @@ $ abt-tools import [OPTIONS]
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
 * `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
-* `-d, --data-type <osm|aux|all>`: Which data to download or import. &#x27;osm&#x27;: the --osm-key extract, one file, imported with imposm. &#x27;aux&#x27;: the import/aux_data/*.json sources, --num-workers at a time, imported with ogr2ogr. &#x27;all&#x27;: osm, then aux.  [required]
+* `-d, --data-type <osm|aux|all>`: Which data to download or import. &#x27;osm&#x27;: the --osm-key extract, one file, imported with imposm. &#x27;aux&#x27;: the import/aux_data/*.json sources, --num-workers at a time, imported with ogr2ogr. &#x27;all&#x27;: both, the OSM extract alongside the aux sources.  [required]
 * `-n, --num-workers <int>`: Number of parallel workers: aux downloads (download), aux imports (import), layers (export) or conversion threads (vundler). Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 24]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
 * `-k, --osm-key <str>`: Which OSM data to use: &#x27;planet&#x27; for the full planet, or a Geofabrik extract id such as &#x27;norway&#x27; (the ids in download.geofabrik.de/index-v1.json).  [default: planet]
