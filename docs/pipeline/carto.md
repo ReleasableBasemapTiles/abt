@@ -29,7 +29,8 @@ python abt-tools.py carto -w <working_dir> -s <schema_dir> [-p pg_config] [-n ca
     1. **Sequential prefix** — schema setup and aux-geometry normalization, always
        first.
     2. **Concurrent groups** — independent groups of scripts run up to
-       `-n`/`--carto-concurrency` at a time.
+       `-n`/`--carto-concurrency` at a time, started in `execution_plan.yml`
+       order (longest first), each sized by its `weights:` share of the host.
     3. **Sequential suffix** — final normalization over every `export.*` table,
        and only runs if every group in phase 2 succeeded.
 - **A script failing inside a concurrent group only aborts that group** — other

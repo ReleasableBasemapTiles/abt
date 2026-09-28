@@ -1,6 +1,7 @@
-"""Tests for abt.carto_processing_model: CartoExecutionPlan.load and
+"""Tests for abt.carto_processing_model: CartoExecutionPlan.load,
 CartoProcessingModel's plan/disk drift detection (_validate_plan_covers_all_files,
-_resolve). No live Postgres -- process_sql/_process_with_plan (which
+_resolve), and the weighted per-group GUC sizing (group_guc_values,
+_group_pg_configs). No live Postgres -- process_sql/_process_with_plan (which
 actually run SQL) are out of scope."""
 
 from pathlib import Path
@@ -8,7 +9,13 @@ from pathlib import Path
 import pytest
 import yaml
 
-from abt.carto_processing_model import CartoExecutionPlan, CartoProcessingModel
+from abt.carto_processing_model import (
+    MAX_DISSOLVE_SHARDS,
+    MAX_PARALLEL_WORKERS_PER_GATHER,
+    CartoExecutionPlan,
+    CartoProcessingModel,
+    group_guc_values,
+)
 from abt.utils.pg_config import PGConfig
 
 
@@ -108,3 +115,92 @@ def test_resolve_raises_for_unknown_filename(tmp_path):
     model = make_model(tmp_path, [tmp_path / "a.sql"])
     with pytest.raises(FileNotFoundError, match="not found among"):
         model._resolve(["ghost.sql"])
+
+
+# --- weights and per-group GUCs --------------------------------------------
+
+def _old_heuristic(cpu_count, running):
+    """The single shared (shards, workers) pair carto computed before weights."""
+    budget = max(cpu_count - 4, cpu_count // 2)
+    per_group = max(1, budget // max(running, 1))
+    return (max(2, per_group), max(2, per_group // 4))
+
+
+@pytest.mark.parametrize("cpu_count,concurrency", [(48, 8), (16, 2), (32, 5), (64, 10), (8, 3)])
+def test_unweighted_groups_get_the_old_shared_values(cpu_count, concurrency):
+    values = group_guc_values(weights=[1] * 29, concurrency=concurrency, cpu_count=cpu_count)
+    assert values == [_old_heuristic(cpu_count, min(29, concurrency))] * 29
+
+
+def test_weighted_groups_split_the_budget_of_the_groups_that_start_together():
+    # 48 vCPU: budget 44. The first 8 groups start at once with total weight
+    # 2 + 2 + 6 = 10, so a weight-2 group gets 8 and a weight-1 group 4.
+    weights = [2, 2] + [1] * 27
+    values = group_guc_values(weights=weights, concurrency=8, cpu_count=48)
+    assert values[0] == values[1] == (8, 2)
+    assert set(values[2:]) == {(4, 2)}
+
+
+def test_a_later_group_gets_the_share_its_weight_had_among_the_first_groups():
+    # Only the first two groups start at once (total weight 2); the third,
+    # weighted 2, starts later and gets what a weight-2 group would have.
+    values = group_guc_values(weights=[1, 1, 2], concurrency=2, cpu_count=24)
+    budget = 20
+    assert values[0] == (budget // 2, max(2, budget // 2 // 4))
+    assert values[2] == (16, 5)  # budget * 2 // 2 = 20 shards, capped at 16
+
+
+def test_values_are_capped_at_the_scripts_sequential_defaults():
+    values = group_guc_values(weights=[1], concurrency=4, cpu_count=128)
+    assert values == [(MAX_DISSOLVE_SHARDS, MAX_PARALLEL_WORKERS_PER_GATHER)]
+
+
+def test_values_never_drop_below_two():
+    assert group_guc_values(weights=[1] * 8, concurrency=8, cpu_count=4) == [(2, 2)] * 8
+
+
+def test_load_parses_weights_and_group_weight_takes_the_heaviest_script(tmp_path):
+    path = tmp_path / "execution_plan.yml"
+    path.write_text(yaml.safe_dump({
+        "groups": [["005a.sql", "005b.sql"], ["003.sql"]],
+        "weights": {"005a.sql": 2},
+    }))
+    plan = CartoExecutionPlan.load(path)
+    assert plan.weights == {"005a.sql": 2}
+    assert plan.group_weight(["005a.sql", "005b.sql"]) == 2
+    assert plan.group_weight(["003.sql"]) == 1
+
+
+def test_load_treats_an_empty_weights_key_as_no_weights(tmp_path):
+    path = tmp_path / "execution_plan.yml"
+    path.write_text("groups: [[a.sql]]\nweights:\n")
+    assert CartoExecutionPlan.load(path).weights == {}
+
+
+@pytest.mark.parametrize("bad", [0, -1, "heavy"])
+def test_load_rejects_weights_that_are_not_positive_integers(tmp_path, bad):
+    path = tmp_path / "execution_plan.yml"
+    path.write_text(yaml.safe_dump({"groups": [["a.sql"]], "weights": {"a.sql": bad}}))
+    with pytest.raises(ValueError):
+        CartoExecutionPlan.load(path)
+
+
+def test_validate_plan_rejects_weights_for_scripts_outside_the_groups(tmp_path):
+    files = [tmp_path / "a.sql", tmp_path / "b.sql"]
+    model = make_model(tmp_path, files)
+    plan = CartoExecutionPlan(prefix=["a.sql"], groups=[["b.sql"]], weights={"a.sql": 2, "ghost.sql": 3})
+    with pytest.raises(ValueError, match=r"weights for scripts that aren't in any group: \['a.sql', 'ghost.sql'\]"):
+        model._validate_plan_covers_all_files(plan)
+
+
+def test_group_pg_configs_pass_each_groups_gucs_as_connection_options(tmp_path, monkeypatch):
+    monkeypatch.setattr("abt.carto_processing_model.os.cpu_count", lambda: 48)
+    model = make_model(tmp_path, [])
+    model.concurrency = 8
+    plan = CartoExecutionPlan(groups=[["009.sql"]] + [[f"{i}.sql"] for i in range(9)], weights={"009.sql": 2})
+    configs = model._group_pg_configs(plan)
+    assert len(configs) == 10
+    # 8 groups start together with total weight 9: 44 * 2 // 9 = 9, 44 // 9 = 4.
+    assert configs[0].extra_options == "-c abt.dissolve_shards=9 -c abt.parallel_workers_per_gather=2"
+    assert configs[1].extra_options == "-c abt.dissolve_shards=4 -c abt.parallel_workers_per_gather=2"
+    assert model.pg_config.extra_options == ""

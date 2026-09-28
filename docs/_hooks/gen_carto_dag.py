@@ -42,6 +42,7 @@ def _build_diagram(plan: dict) -> str:
     suffix = plan.get("suffix") or []
     custom_schemas = plan.get("custom_schemas") or []
     extensions = plan.get("extensions") or []
+    weights = plan.get("weights") or {}
 
     lines = ["```mermaid", "flowchart TD"]
     prev_id: str | None = None
@@ -66,6 +67,9 @@ def _build_diagram(plan: dict) -> str:
         for i, group in enumerate(groups, start=1):
             node = f"group{i:02d}"
             label = " then ".join(_script_label(s) for s in group)
+            weight = max((weights.get(s, 1) for s in group), default=1)
+            if weight > 1:
+                label += f" (weight {weight})"
             lines.append(f'        {node}["{label}"]')
         lines.append("    end")
         if prev_id:
