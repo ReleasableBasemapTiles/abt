@@ -123,7 +123,8 @@ run. Keep them consistent yourself:
   - The comments in `execution_plan.yml` explain these rules in detail.
 - **Layer scripts need a header and a theme.** Each script that builds a layer needs a header
   with `-- LAYER:`, `-- Schema:`, `-- Intermediates:`, and `-- Sources:` lines. It also needs an
-  entry in `THEMES` in `docs/_hooks/gen_db_schema.py`. If either is missing,
+  entry in `THEMES` in `docs/_hooks/gen_db_schema.py`. A script that builds no layer goes in
+  `NON_LAYER_SCRIPTS` in the same file instead. If any of this is missing,
   `mkdocs build --strict` fails.
 - **Scripts must be re-runnable.** `carto` rebuilds everything from scratch on every run. Each
   block follows this pattern: `BEGIN; DROP … IF EXISTS … CASCADE; CREATE MATERIALIZED VIEW
