@@ -12,6 +12,7 @@ from abt.utils.run_reporter import (
     STATUS_PARTIAL_FAILURE,
     STATUS_SUCCESS,
     format_duration,
+    run_stages,
 )
 
 
@@ -153,3 +154,40 @@ def test_print_slowest_prints_nothing_without_durations(capsys):
 ])
 def test_format_duration(seconds, expected):
     assert format_duration(seconds) == expected
+
+
+def _stage_tasks(reporter, tmp_path):
+    summary = reporter.write_summary(tmp_path / "summary.json")
+    return {stage["stage"]: stage["tasks"] for stage in summary["stages"]}
+
+
+def test_run_stages_records_every_step_with_its_duration(tmp_path):
+    reporter = RunReporter(run_id="r1", command="cmd")
+    ran = []
+    run_stages("roads", [("fgb", lambda: ran.append("fgb")), ("mbtiles", lambda: ran.append("mbtiles"))], reporter)
+    assert ran == ["fgb", "mbtiles"]
+    tasks = _stage_tasks(reporter, tmp_path)
+    assert list(tasks) == ["fgb", "mbtiles"]
+    for (task,) in tasks.values():
+        assert task["task"] == "roads"
+        assert task["status"] == STATUS_SUCCESS
+        assert task["duration_s"] >= 0
+
+
+def test_run_stages_marks_the_steps_after_a_failure_not_attempted(tmp_path):
+    reporter = RunReporter(run_id="r1", command="cmd")
+    ran = []
+
+    def fail():
+        raise RuntimeError("bad zip")
+
+    steps = [("download", lambda: ran.append("download")), ("extract", fail), ("index", lambda: ran.append("index"))]
+    with pytest.raises(RuntimeError, match="bad zip"):
+        run_stages("lsib", steps, reporter)
+    assert ran == ["download"]
+    tasks = _stage_tasks(reporter, tmp_path)
+    assert tasks["download"][0]["status"] == STATUS_SUCCESS
+    assert tasks["extract"][0]["status"] == STATUS_FAILED
+    assert tasks["extract"][0]["error"] == "bad zip"
+    assert "duration_s" in tasks["extract"][0]
+    assert tasks["index"] == [{"task": "lsib", "status": STATUS_FAILED, "error": "not attempted (extract failed)"}]

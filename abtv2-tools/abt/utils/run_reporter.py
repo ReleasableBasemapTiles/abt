@@ -11,8 +11,9 @@ run, everything collected is flushed to one consolidated JSON summary file.
 import json
 import threading
 import datetime
+import time
 from pathlib import Path
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 STATUS_SUCCESS = "SUCCESS"
 STATUS_FAILED = "FAILED"
@@ -127,3 +128,28 @@ class RunReporter:
         with path.open("w") as f:
             json.dump(summary, f, indent=2)
         return summary
+
+
+def run_stages(task: str, stages: List[Tuple[str, Callable[[], Any]]], reporter: RunReporter) -> None:
+    """Runs one task's dependent steps in order, recording each into
+    `reporter` under its own stage name, with its duration.
+
+    When a step raises, it is recorded FAILED, every later step is recorded
+    FAILED as "not attempted (<stage> failed)" without being run, and the
+    exception propagates -- so a task run by a ParallelExecutor still counts
+    as failed there, and each stage's summary still lists every task.
+    """
+    for index, (stage, step) in enumerate(stages):
+        started = time.monotonic()
+        try:
+            step()
+        except Exception as e:
+            reporter.record(
+                stage=stage, task=task, status=STATUS_FAILED, error=str(e), duration_s=time.monotonic() - started
+            )
+            for later_stage, _ in stages[index + 1:]:
+                reporter.record(
+                    stage=later_stage, task=task, status=STATUS_FAILED, error=f"not attempted ({stage} failed)"
+                )
+            raise
+        reporter.record(stage=stage, task=task, status=STATUS_SUCCESS, duration_s=time.monotonic() - started)

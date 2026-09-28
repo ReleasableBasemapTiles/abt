@@ -1,11 +1,12 @@
 import typer
-from typing import Annotated, List, Optional
+from functools import partial
+from typing import Annotated, Optional
 from pathlib import Path
 
 from .cli_helpers import get_pg_config
 from ..schema import DataSchema, ProcessingDirectorySchema
 from ..export.tile_layer_model import TileLayer
-from ..export.exporter import export_to_fgb, export_to_mbtiles
+from ..export.exporter import export_layer, order_largest_first
 from ..parallel import ParallelExecutor
 from ..utils.run_reporter import RunReporter
 from ..utils.fields import (
@@ -29,9 +30,10 @@ def init_exporter(
     """Initializes and runs the tile export process.
 
     This function orchestrates the end-to-end process of exporting vector tiles.
-    It reads layer definitions from the schema, exports data from PostgreSQL to
-    FlatGeobuf (FGB) files in parallel, and then converts those FGB files into
-    MBTiles format, also in parallel.
+    It reads layer definitions from the schema and runs up to `num_workers`
+    layers at a time, largest first. Each layer is exported from PostgreSQL
+    to a FlatGeobuf (FGB) file and then converted straight on to MBTiles, so
+    no layer's conversion waits for every other layer's export.
 
     Args:
         working_dir: The root directory for all data processing and storage.
@@ -51,7 +53,7 @@ def init_exporter(
     reporter = RunReporter(run_id=processing_directory.run_id, command="abt export")
     pg_config = get_pg_config(
         cli_input=pg_config_type,
-        log_dir=processing_directory.carto_log_dir
+        log_dir=processing_directory.fgb_log_dir
     )
 
     # Initialize TileLayer objects from schema definitions
@@ -70,36 +72,20 @@ def init_exporter(
             data_schema.export_layers
         )
     )
-    
-    # Run parallel export from PostGIS to FlatGeobuf
-    tile_fgb_export_tasks = ParallelExecutor(
-        log_dir=processing_directory.log_dir,
-        max_workers=num_workers,
-        instance='export_fgb'
-    )
-    print("--- Exporting to FlatGeobuf ---")
-    fgb_results = tile_fgb_export_tasks.run(
-        action=export_to_fgb,
-        objects=tile_layers,
-        reporter=reporter,
-        stage='export_to_fgb'
-    )
 
-    # Run parallel conversion from FlatGeobuf to MBTiles
-    print("--- Converting to MBTiles ---")
-    tile_mbtile_export_tasks = ParallelExecutor(
+    # export_layer records each layer's two steps into the reporter itself,
+    # so the executor gets none: it would record every layer a second time.
+    tile_layers = order_largest_first(tile_layers, pg_config)
+    print(f"--- Exporting {len(tile_layers)} layer(s) to FlatGeobuf, then MBTiles, largest first ---")
+    ParallelExecutor(
         log_dir=processing_directory.log_dir,
         max_workers=num_workers,
-        instance='export_mbtiles'
-    )
-    mbtile_results = tile_mbtile_export_tasks.run(
-        objects=tile_layers,
-        action=export_to_mbtiles,
-        reporter=reporter,
-        stage='export_to_mbtiles'
-    )
+        instance='export'
+    ).run(objects=tile_layers, action=partial(export_layer, reporter=reporter))
 
     print("--- Export complete ---")
+    reporter.print_slowest("export_to_fgb", title="Slowest FlatGeobuf exports")
+    reporter.print_slowest("export_to_mbtiles", title="Slowest MBTiles conversions")
     reporter.write_summary(processing_directory.summary_file)
     print(f"Run summary: {processing_directory.summary_file}")
     return reporter

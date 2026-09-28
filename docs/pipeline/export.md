@@ -3,9 +3,11 @@
 `export` turns the `export.*` materialized views [`carto`](carto.md) built into
 per-layer tile files. For every layer defined under `--schema-dir`'s `export/*.json`
 it runs two steps in sequence: PostgreSQL → FlatGeobuf via `ogr2ogr`, then
-FlatGeobuf → MBTiles via `tippecanoe`. Like [`download`](download.md), it's one of
-the two commands that skip work already done — each step is skipped individually if
-its output file already exists.
+FlatGeobuf → MBTiles via `tippecanoe`. Up to `-n` layers run at once, largest
+first, and each layer goes straight on to its MBTiles step when its FlatGeobuf is
+done. Like [`download`](download.md), it's one of the two commands that skip work
+already done — each step is skipped individually when its output is already
+finished.
 
 ```bash
 python abt-tools.py export -w <working_dir> -s <schema_dir> [-n workers] [-p pg_config] [-z max_zoom] [--projection-override EPSG:code]
@@ -17,7 +19,7 @@ python abt-tools.py export -w <working_dir> -s <schema_dir> [-n workers] [-p pg_
 |---|---|---|---|
 | `-w`, `--working-dir` | yes | — | Root directory; writes `flatgeobuf/*.fgb` and `mbtiles/*.mbtiles` here. |
 | `-s`, `--schema-dir` | yes | — | Schema/config directory; reads `export/*.json` per-layer configs. |
-| `-n`, `--num-workers` | no | scaled to host CPU count, minimum 4 | Parallel workers for both the FlatGeobuf export and the MBTiles conversion. |
+| `-n`, `--num-workers` | no | scaled to host CPU count, minimum 4 | Layers exported at once. Each worker takes one layer through its FlatGeobuf export and then its MBTiles conversion. |
 | `-p`, `--pg-config` | no | `env` | PostgreSQL connection — `env` or `<host>,<port>,<user>,<password>,<dbname>`. |
 | `-z`, `--max-zoom` | no | `13` | Caps the maximum zoom level generated. Hard-capped at 15 per the per-layer `tippecanoe_options.maximum_zoom` cap described in [Layer Registry](../schema/layers.md). |
 | `--projection-override` | no | none (Web Mercator) | Advanced/non-standard CRS override — see below and `export --help` for the full explanation. |
@@ -25,9 +27,22 @@ python abt-tools.py export -w <working_dir> -s <schema_dir> [-n workers] [-p pg_
 ## Notable behavior & edge cases
 
 - **Skips either step independently.** If a layer's `.fgb` already exists, the
-  ogr2ogr step is skipped for it; if its `.mbtiles` already exists, the
-  tippecanoe step is skipped. This is what makes the [Reuse](#rebuilding-a-single-layer)
-  workflow below possible.
+  ogr2ogr step is skipped for it; if its `.mbtiles` is a finished tileset (one
+  holding at least one tile), the tippecanoe step is skipped. Both tools write
+  into a `.partial/` directory and their output is moved into place only when
+  the tool succeeds, so a file at the final path is always finished work. This
+  is what makes the [Reuse](#rebuilding-a-single-layer) workflow below possible.
+- **Largest layers start first.** Layers are ordered by the size of their
+  `export.*` table (heap plus TOAST, so large geometries count), or by their
+  existing `.fgb` when the table size isn't known; ties go by layer name. The
+  longest exports start at once instead of queueing behind small ones at the end
+  of the run.
+- **A failed FlatGeobuf export skips only that layer's MBTiles step.** The run
+  summary records the skipped step as `not attempted (export_to_fgb failed)`, and
+  every other layer carries on.
+- **Every step is timed.** Each layer's `export_to_fgb` and `export_to_mbtiles`
+  entries in `summary.json` carry a `duration_s`, and `export` prints the 10
+  slowest of each when it finishes.
 - **`-z`/`--max-zoom` is a ceiling, not a fixed zoom** — the effective max zoom
   per layer is `min(-z value, that layer's own tippecanoe_options.maximum_zoom)`,
   so a layer configured for a lower max zoom in its `export/*.json` is unaffected

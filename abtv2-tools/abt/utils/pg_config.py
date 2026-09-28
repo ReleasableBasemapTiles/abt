@@ -11,6 +11,7 @@ import os
 from pydantic import BaseModel
 import psycopg2
 from pathlib import Path
+from typing import Dict
 from urllib.parse import quote
 import logging
 
@@ -221,6 +222,25 @@ class PGConfig(BaseModel):
         except Exception as e:
             logger.error(f"SQL failed: {description} - {e}")
             raise
+
+    def table_sizes(self, schema: str) -> Dict[str, int]:
+        """
+        Returns {name: bytes} for every table and materialized view in
+        `schema`, by pg_table_size: the heap plus TOAST (where large
+        geometries live), without indexes.
+        """
+        conn = self.conn
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT c.relname, pg_table_size(c.oid) FROM pg_class c "
+                    "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                    "WHERE n.nspname = %s AND c.relkind IN ('r', 'm')",
+                    (schema,),
+                )
+                return dict(cur.fetchall())
+        finally:
+            conn.close()
 
     def runSQLScript(self, sql_script: Path):
         """
