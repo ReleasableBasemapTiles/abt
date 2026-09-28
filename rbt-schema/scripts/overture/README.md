@@ -32,7 +32,7 @@ SRS_LIST="3857 3395 4087" ./fetch.sh /path/to/data_dir [jobs]
 ./tile.sh /path/to/data_dir 3395
 ./tile.sh /path/to/data_dir 4087
 ```
-[`init.sh --overture`](../../../init.sh) runs this exact combination in the
+[`init.sh --overture`](https://github.com/ReleasableBasemapTiles/abt/blob/main/init.sh) runs this exact combination in the
 background, for whichever projections `--projections` lists (default: all
 three), and feeds each output to its matching bundler run automatically.
 `--overture` also accepts the list directly as its own argument, as
@@ -55,9 +55,9 @@ different interpreter. To re-tag without rebuilding:
 python3 tag_crs.py 4087 /path/to/data_dir/building_polygon_4087.mbtiles
 ```
 
-[`init.sh --contours`](../../../init.sh) reuses this same script to tag
+[`init.sh --contours`](https://github.com/ReleasableBasemapTiles/abt/blob/main/init.sh) reuses this same script to tag
 externally-produced, reprojected `contours_<srs>.mbtiles` files before
-bundling -- see the top-level [README.md](../../README.md) for that flag.
+bundling -- see [init.sh Orchestrator](https://ReleasableBasemapTiles.github.io/abt/walkthroughs/init-sh/#command-line-flags) for that flag.
 
 Parts dir is `parts_<srs>` and output is `building_polygon_<srs>.mbtiles` -- every
 projection uses the same extension, so it's the `crs` metadata row `tag_crs.py`
@@ -95,9 +95,9 @@ failed, if unreachable) -- and fails if any two disagree by more than 1mm
 python check_proj_agreement.py 4087 [3395 ...]
 ```
 
-[`init.sh`](../../../init.sh) runs this for every non-3857 entry in
+[`init.sh`](https://github.com/ReleasableBasemapTiles/abt/blob/main/init.sh) runs this for every non-3857 entry in
 `--projections`, before either the background Overture pipeline or `[4/6]
-export` starts -- see the top-level [README.md](../../README.md).
+export` starts -- see [init.sh Orchestrator](https://ReleasableBasemapTiles.github.io/abt/walkthroughs/init-sh/#command-line-flags).
 
 ## Concurrency
 
@@ -123,7 +123,7 @@ data dir. Find it and either wait for it to finish or kill it:
 pgrep -af 'fetch.sh|shard.sh|tile.sh|duckdb|tippecanoe'
 ```
 
-[`init.sh --overture`](../../../init.sh) starts this pipeline in the
+[`init.sh --overture`](https://github.com/ReleasableBasemapTiles/abt/blob/main/init.sh) starts this pipeline in the
 background and kills it (and its whole process tree, not just the
 immediate subshell) if `init.sh` itself exits early for any other reason --
 including a failure hours later at `[4/6] export` -- so that no longer
@@ -157,7 +157,7 @@ than the default. `overture-buildings/` (the downloaded parquet) is never touche
 it is shared by every projection, and re-downloading it costs far more than
 re-sharding.
 
-[`init.sh --overture-clean`](../../../init.sh) turns this on for every listed
+[`init.sh --overture-clean`](https://github.com/ReleasableBasemapTiles/abt/blob/main/init.sh) turns this on for every listed
 projection. It shrinks the footprint left behind during bundling, but not the
 peak -- `fetch.sh` shards every listed projection before tiling begins, so all
 of them still coexist during that phase.

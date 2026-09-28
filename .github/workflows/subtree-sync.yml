@@ -1,0 +1,76 @@
+# Mirror abtv2-tools/ and rbt-schema/ out to their standalone repos
+# (ReleasableBasemapTiles/abtv2-tools, ReleasableBasemapTiles/rbt-schema).
+# abt is the source of truth; see docs/project/mirrors.md.
+#
+# Pull requests: `check` reports what merging would publish to each mirror
+# and fails if a mirror has commits abt doesn't. It needs no secrets, so
+# fork PRs work too, and it exits early when a PR doesn't change a subtree,
+# so it is safe to make a required check.
+# main: `publish` fast-forwards each mirror's main to `git subtree split` of
+# main -- never a force-push. The nightly run is the same job: it catches up
+# anything a failed run left behind and flags a mirror that has moved on
+# its own.
+
+name: Subtree sync
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "37 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name == 'pull_request'
+    name: Check ${{ matrix.prefix }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        prefix: [abtv2-tools, rbt-schema]
+    concurrency:
+      group: subtree-check-${{ github.event.pull_request.number }}-${{ matrix.prefix }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # git subtree split walks the full history
+          persist-credentials: false
+      # HEAD is the PR's merge ref; HEAD^1 is the base it was merged onto.
+      - name: Check ${{ matrix.prefix }}/
+        run: bash .github/scripts/subtree-sync.sh check "${{ matrix.prefix }}" HEAD^1
+
+  publish:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    name: Publish ${{ matrix.prefix }}
+    runs-on: ubuntu-latest
+    # SUBTREE_SYNC_TOKEN is a secret of this environment, whose deployment
+    # branches are limited to main, so a workflow edited on a PR branch
+    # can't read it.
+    environment: subtree-sync
+    strategy:
+      fail-fast: false
+      matrix:
+        prefix: [abtv2-tools, rbt-schema]
+    concurrency:
+      group: subtree-publish-${{ matrix.prefix }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The tip, not the triggering commit: a queued or re-run job then
+          # publishes whatever main is now, and never an older split.
+          ref: main
+          fetch-depth: 0
+          # Otherwise checkout's GITHUB_TOKEN auth header is sent in place
+          # of the PAT and the push to the other repo is refused.
+          persist-credentials: false
+      - name: Publish ${{ matrix.prefix }}/
+        run: bash .github/scripts/subtree-sync.sh publish "${{ matrix.prefix }}"
+        env:
+          SUBTREE_SYNC_TOKEN: ${{ secrets.SUBTREE_SYNC_TOKEN }}

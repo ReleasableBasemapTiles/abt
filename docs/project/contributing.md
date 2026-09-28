@@ -34,7 +34,7 @@ See [Configuration](../install/configuration.md) for more on `env.yaml` vs. `req
 
 ## CI that exists today
 
-Pull requests are checked for Conventional Commit titles and commit messages (`Lint PR`). Pushes to `main` also rebuild `CHANGELOG.md` and `--strict`-validate this documentation site. There is still no automated lint/test CI for `abtv2-tools` or `vundler-rs` — run those suites locally before opening a PR. Since there's no Python formatter or linter config yet, match the existing code style by eye.
+Pull requests are checked for Conventional Commit titles and commit messages (`Lint PR`), and for what they would publish to the standalone `abtv2-tools` and `rbt-schema` repositories (`Subtree sync`). Pushes to `main` also rebuild `CHANGELOG.md`, `--strict`-validate this documentation site, and publish both directories to those repositories (see [Upstream Mirrors](mirrors.md)). There is still no automated lint/test CI for `abtv2-tools` or `vundler-rs` — run those suites locally before opening a PR. Since there's no Python formatter or linter config yet, match the existing code style by eye.
 
 ## Style conventions observed in the existing code
 
@@ -48,7 +48,10 @@ These are patterns to follow because they're already used consistently, not a wr
 
 `abtv2-tools/` and `rbt-schema/` were originally separate git repositories, merged into this single monorepo with commit history preserved. `git log -- abtv2-tools/` and `git log -- rbt-schema/` both still work against their respective pre-merge history.
 
+Those repositories are now mirrors of this one. Make changes here, never in a mirror; every merge to `main` publishes the two directories back to them. A pull request that brings commits in from a mirror must be merged with **Create a merge commit**, not squashed. See [Upstream Mirrors](mirrors.md).
+
 ## Where to go next
 
 - [Testing](testing.md) — full detail on every test suite in the repo and how to run it.
 - [Adding a Layer](../schema/adding-a-layer.md) — the schema-specific contribution workflow for adding or changing a tile layer.
+- [Upstream Mirrors](mirrors.md) — how `abtv2-tools/` and `rbt-schema/` are published to their standalone repositories.

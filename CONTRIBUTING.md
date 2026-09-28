@@ -45,6 +45,12 @@ git config core.hooksPath .githooks
 
 That only affects this clone. It does not change your global Git config.
 
+## Standalone mirrors
+
+`abtv2-tools/` and `rbt-schema/` are published to [ReleasableBasemapTiles/abtv2-tools](https://github.com/ReleasableBasemapTiles/abtv2-tools) and [ReleasableBasemapTiles/rbt-schema](https://github.com/ReleasableBasemapTiles/rbt-schema) on every merge to `main`. Make changes here: don't push to those repositories or open pull requests against them. The **Subtree sync** check on each pull request shows what merging would publish.
+
+A pull request that brings commits in from a mirror (`git subtree pull`, or `git merge -s ours`) must be merged with **Create a merge commit**. Squashing drops the mirror's commits and stops the sync. See [docs/project/mirrors.md](docs/project/mirrors.md).
+
 ## Tests and docs
 
 See [docs/project/contributing.md](docs/project/contributing.md) for how to run the `abtv2-tools` and `vundler-rs` test suites, and [docs/project/testing.md](docs/project/testing.md) for what they cover.

@@ -1,0 +1,10 @@
+Releasable Basemap Tiles (ABT) -- rbt-schema
+
+rbt-schema is developed in the rbt-schema/ directory of
+https://github.com/ReleasableBasemapTiles/abt and mirrored to
+https://github.com/ReleasableBasemapTiles/rbt-schema.
+
+Tiles and databases built from this schema are not covered by the CC0
+dedication in LICENSE. They are subject to the licenses of their source data,
+including the Open Database License (ODbL) 1.0 for OpenStreetMap, FieldMaps,
+and Overture Maps. See tile-metadata/metadata.py.
