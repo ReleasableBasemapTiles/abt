@@ -21,12 +21,14 @@ The **Lint PR** workflow rejects pull requests whose title or commits do not mat
 
 ## Running tests before submitting a change
 
-`abtv2-tools/` has a pytest suite (21 test files under `tests/`; config in `pyproject.toml`: `pythonpath = ["."]`, `testpaths = ["tests"]`). From inside `abtv2-tools/`:
+`abtv2-tools/` has a pytest suite (27 test files under `tests/`; config in `pyproject.toml`: `pythonpath = ["."]`, `testpaths = ["tests"]`). From inside `abtv2-tools/`:
 
 ```bash
 pip install -r requirements-dev.txt   # or: conda env create -f env.yaml && conda activate abtv2
 pytest
 ```
+
+The repository root's `tests/` holds the checks between `abtv2-tools/` and `rbt-schema/`; run them from the root with `pytest tests`.
 
 See [Configuration](../install/configuration.md) for more on `env.yaml` vs. `requirements-dev.txt`, and [Testing](testing.md) for the full breakdown of what's covered.
 
@@ -34,7 +36,7 @@ See [Configuration](../install/configuration.md) for more on `env.yaml` vs. `req
 
 ## CI that exists today
 
-Pull requests are checked for Conventional Commit titles and commit messages (`Lint PR`), and for what they would publish to the standalone `abtv2-tools` and `rbt-schema` repositories (`Subtree sync`). Pushes to `main` also rebuild `CHANGELOG.md`, `--strict`-validate this documentation site, and publish both directories to those repositories (see [Upstream Mirrors](mirrors.md)). There is still no automated lint/test CI for `abtv2-tools` or `vundler-rs` — run those suites locally before opening a PR. Since there's no Python formatter or linter config yet, match the existing code style by eye.
+Pull requests are checked for Conventional Commit titles and commit messages (`Lint PR`), and for what they would publish to the standalone `abtv2-tools` and `rbt-schema` repositories (`Subtree sync`). Pushes to `main` also rebuild `CHANGELOG.md`, `--strict`-validate this documentation site, and publish both directories to those repositories (see [Upstream Mirrors](mirrors.md)). The **Tests** workflow runs both pytest suites, `cargo test` and the golden cross-check for `vundler-rs`, and `shellcheck` on `init.sh`, `setup_ubuntu.sh` and the subtree-sync script, on pushes to `main` and on pull requests that touch code, schema or tests. Since there's no Python formatter or linter config yet, match the existing code style by eye.
 
 ## Style conventions observed in the existing code
 

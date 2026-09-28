@@ -9,6 +9,7 @@ A directory-by-directory map of the monorepo. For the conceptual relationship be
 | `README.md` | The workspace walkthrough: pipeline overview, Ubuntu setup, and full planet + small-extract worked examples. |
 | `init.sh` | The production orchestrator that drives the whole pipeline (plus Overture buildings and multi-projection builds) end to end. See [init.sh Orchestrator](../walkthroughs/init-sh.md). |
 | `setup_ubuntu.sh` | A ~49 KB idempotent Ubuntu 26.04 bootstrap script, in 11 numbered stages (1: OS check, 1b: ABT root dir, 2: base apt packages, 2b: kernel/ulimit tuning, 3: PostgreSQL + PostGIS via `initdb`/a custom systemd unit, 4 & 5: role/database/extensions/tuning, 6: imposm from source, 7: tippecanoe from source, 7b: AWS CLI v2, 7c: duckdb CLI, 8: clone the monorepo, 9: Rust toolchain + `abt-vundler`, 10: micromamba + `env.yaml` Python env, 11: verification). Every stage self-checks before repeating work, so re-running it is safe. See [Ubuntu Setup](../install/ubuntu.md). |
+| `tests/` | Cross-component checks that need both `abtv2-tools/` and `rbt-schema/`, such as every export layer having a `carto_sql` view. See [Testing](../project/testing.md). |
 | `.cursor/plans/` | Internal planning docs — not part of the public site. |
 
 Two separate git repos, one history. `abtv2-tools` and `rbt-schema` used to be independent git repositories and were merged into this single repo with commit history preserved — `git log -- abtv2-tools/` and `git log -- rbt-schema/` both still work. Both are git subtrees, and this repo is now where they're developed: every merge to `main` publishes each directory back to its original repository ([abtv2-tools](https://github.com/ReleasableBasemapTiles/abtv2-tools), [rbt-schema](https://github.com/ReleasableBasemapTiles/rbt-schema)). See [Upstream Mirrors](../project/mirrors.md).
@@ -19,7 +20,7 @@ Two separate git repos, one history. `abtv2-tools` and `rbt-schema` used to be i
 |---|---|
 | `abt-tools.py` | CLI entrypoint: a Typer app (`app = typer.Typer(add_completion=False)`) with a root `@app.callback()` that raises the process's open-file limit, then mounts seven sub-apps (one per subcommand). |
 | `abt/` | The Python package — see the breakdown below. |
-| `tests/` | 21 pytest files, mirroring the package roughly 1:1. |
+| `tests/` | 27 pytest files, mirroring the package roughly 1:1. |
 | `vundler-rs/` | A Rust rewrite of the Python `vundler` stage (~1,000 lines across `Cargo.toml` and `src/{main,bundle,db}.rs`), with its own `tests/` (Rust integration tests in `cli.rs` plus Python golden-oracle tests) and a `bench/` directory comparing the Rust port against a frozen pre-port Python reference. See [vundler-rs](../reference/vundler-rs.md). |
 | `env.yaml` | micromamba/conda environment spec: Python 3.14, `gdal`, `numpy`, `pyproj`, `psycopg2`, `boto3`, `protobuf`, `pydantic`, `requests`, `click`, `typer`, `rich`, `pyyaml`, `tqdm`, `pyclipper`, `libgdal-arrow-parquet`, `beautifulsoup4`, `pytest` — plus vestigial `sphinx`/`sphinx-rtd-theme`/`sphinx-pydantic` entries that aren't used by any actual docs build in this repo. |
 | `requirements-dev.txt` | A pip fallback for tests/CI when a conda env isn't available, kept in sync with `env.yaml`'s non-GDAL dependencies. See [Testing](../project/testing.md). |
