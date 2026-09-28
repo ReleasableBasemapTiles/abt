@@ -17,6 +17,11 @@ at docs build time, so it is always in sync with the code.
     checkout, alongside its sibling `rbt-schema/` (see
     [Repository Tour](../overview/repo-tour.md)).
 
+!!! note "Defaults shown for a 48 vCPU host"
+    The `-n` worker defaults scale with the host's CPU count. This page
+    shows the values for the documented 48 vCPU planet tier; run
+    `python abt-tools.py <command> --help` to see the values on your host.
+
 Army Basemap Tiles (ABT) data pipeline tools.
 
 **Usage**:
@@ -67,7 +72,7 @@ $ abt-tools download [OPTIONS]
 osm: Uses the Imposm method to import data.
 aux: Uses Ogr2Ogr methods to import data in parallel, respecting the --num-workers setting.
 all: A convenience option to run both osm and aux. It first processes the OSM data, then dedicates all workers to the aux import.  [required]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 4]
+* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 12]
 * `-k, --osm-key <str>`: Extracts OSM Data based on either planet or GeoFabrik key.  [default: planet]
 * `--help`: Show this message and exit.
 
@@ -102,7 +107,7 @@ $ abt-tools import [OPTIONS]
 osm: Uses the Imposm method to import data.
 aux: Uses Ogr2Ogr methods to import data in parallel, respecting the --num-workers setting.
 all: A convenience option to run both osm and aux. It first processes the OSM data, then dedicates all workers to the aux import.  [required]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 8]
+* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 24]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
 * `-k, --osm-key <str>`: Extracts OSM Data based on either planet or GeoFabrik key.  [default: planet]
 * `-f, --force`: Re-import OSM data even if the schema is already populated. Without this, import aborts rather than silently overwriting an existing OSM import (a full re-import can take 24+ hours).
@@ -133,7 +138,7 @@ $ abt-tools carto [OPTIONS]
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
 * `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
-* `-n, --carto-concurrency <int>`: Number of independent carto_sql script groups to run concurrently against Postgres -- see rbt-schema/carto_sql/execution_plan.yml for how scripts are grouped. Defaults to a value scaled to this host&#x27;s CPU count (1, i.e. fully sequential, on the documented 8 vCPU tier). Falls back to today&#x27;s fully sequential, one-script-at-a-time behavior if execution_plan.yml is absent from --schema-dir, or if this is set to 1.  [default: 2]
+* `-n, --carto-concurrency <int>`: Number of independent carto_sql script groups to run concurrently against Postgres -- see rbt-schema/carto_sql/execution_plan.yml for how scripts are grouped. Defaults to a value scaled to this host&#x27;s CPU count (1, i.e. fully sequential, on the documented 8 vCPU tier). Falls back to today&#x27;s fully sequential, one-script-at-a-time behavior if execution_plan.yml is absent from --schema-dir, or if this is set to 1.  [default: 8]
 * `--help`: Show this message and exit.
 
 ## `abt-tools export`
@@ -162,7 +167,7 @@ $ abt-tools export [OPTIONS]
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
 * `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 5]
+* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 16]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
 * `-z, --max-zoom <int>`: Sets the maximum zoom level for processing exports. The default value is 13  [default: 13]
 * `--projection-override <str>`: ADVANCED / NON-STANDARD: Overrides the CRS tippecanoe assumes for exported geometry (default: WGS84 -&gt; Web Mercator). Data is reprojected to the given EPSG code in PostGIS, then tippecanoe is told (falsely) that it is already receiving EPSG:3857 data, skipping its normal reprojection. This is an undocumented tippecanoe compatibility trick -- see github.com/mapbox/tippecanoe/issues/422. NOTE: this only makes sense for a target projection that uses meters as its unit (like EPSG:3857 itself) -- e.g. EPSG:3395, 5041, 5042. This is NOT enforced/validated; passing a degrees-based or otherwise incompatible EPSG code will silently produce garbled tiles. Output tiles will NOT conform to the MBTiles 1.3 spec; &#x27;crs&#x27; (and, for bundled output, &#x27;btp_schema_version&#x27;/&#x27;changelog_url&#x27;) metadata rows are added per the BTIS convention so downstream tools can still detect this. Must be given as &quot;EPSG:&lt;code&gt;&quot;, e.g. &quot;EPSG:3395&quot;.
@@ -217,7 +222,7 @@ $ abt-tools vundler [OPTIONS]
 * `-i, --input-path <path>`: Path to the source .mbtiles file. Defaults to &lt;working-dir&gt;/bundled/joined.mbtiles.
 * `-o, --output-dir <path>`: Output package directory. Defaults to &lt;working-dir&gt;/bundled/vundled/p12.
 * `-z, --max-zoom <int>`: Sets the maximum zoom level for processing exports. The default value is 13  [default: 13]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 16]
+* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 48]
 * `--help`: Show this message and exit.
 
 ## `abt-tools debug_aux_import`
