@@ -32,7 +32,7 @@ The repository root's `tests/` holds the checks between `abtv2-tools/` and `rbt-
 
 See [Configuration](../install/configuration.md) for more on `env.yaml` vs. `requirements-dev.txt`, and [Testing](testing.md) for the full breakdown of what's covered.
 
-`vundler-rs/` (the Rust component) has its own, separate test workflow — see [vundler-rs](../reference/vundler-rs.md) and [Testing](testing.md).
+`vundler-rs/` (the Rust component) has its own tests, run with `cargo test` and a golden cross-check in pytest — see [vundler-rs](../reference/vundler-rs.md). [Running the suites locally](testing.md#running-the-suites-locally) sets up all of them in one virtual environment, on macOS or Linux.
 
 ## CI that exists today
 

@@ -5,6 +5,35 @@ This whole test-harness effort — the Python `abtv2-tools/tests/` suite plus th
 !!! note "CI"
     The **Tests** workflow (`.github/workflows/tests.yml`) runs every suite below, plus `shellcheck` on `init.sh`, `setup_ubuntu.sh` and the subtree-sync script, on pushes to `main` and on pull requests that touch `abtv2-tools/`, `rbt-schema/`, `tests/` or those scripts. Run them locally before opening a PR too.
 
+## Running the suites locally
+
+None of the suites needs Postgres, GDAL, tippecanoe or network access, so they run on macOS or any Linux, with no need for the [Ubuntu setup](../install/ubuntu.md) the pipeline itself needs. Use Python 3.13, the version CI and `env.yaml` use. From the repository root:
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r abtv2-tools/requirements-dev.txt
+(cd abtv2-tools && pytest)
+pytest tests
+```
+
+For the Rust suite, install Rust with [rustup](https://rustup.rs), then, with the same environment active:
+
+```bash
+cd abtv2-tools/vundler-rs
+cargo test
+cargo build
+python -m pytest tests/test_golden.py
+```
+
+The shell checks need `shellcheck` (`brew install shellcheck` on macOS, `sudo apt install shellcheck` on Ubuntu):
+
+```bash
+shellcheck init.sh setup_ubuntu.sh .github/scripts/subtree-sync.sh
+```
+
+To build these docs as well, `pip install -r requirements-docs.txt` into the same environment and run `mkdocs serve` (or `mkdocs build --strict`, as the Docs workflow does). One test in `test_overture_check_proj_agreement.py` also needs `duckdb` on `PATH`, and skips itself without it.
+
 ## `abtv2-tools/tests/`
 
 27 pytest files, mirroring the `abt/` package roughly 1:1:
