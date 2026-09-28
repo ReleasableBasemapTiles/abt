@@ -90,7 +90,18 @@ It also helps to point each mirror's description at abt and to turn off Issues, 
 
 Before the first publish, each mirror's `main` must be an ancestor of abt's split. For `abtv2-tools` this isn't the case: five upstream commits, the `--max-zoom` bundler flag, were copied into abt by hand in [pull request #2](https://github.com/ReleasableBasemapTiles/abt/pull/2) instead of being merged. For `rbt-schema`, abt has everything up to `3cca358`, the last commit pulled in; whether the mirror has moved on since then is unknown.
 
-The first pull request check shows each mirror's state. Reconcile any mirror it reports as diverged as described in [When a mirror has diverged](#when-a-mirror-has-diverged).
+The pull request check can't read a private mirror, so check each one from a clone that can:
+
+```bash
+split() { git -c commit.gpgsign=false subtree split -q --prefix="$1" "$2"; }
+for dir in abtv2-tools rbt-schema; do
+  git fetch -q "https://github.com/ReleasableBasemapTiles/$dir.git" main
+  echo "$dir main has these commits that abt doesn't:"
+  git log --oneline "$(split "$dir" origin/main)..FETCH_HEAD"
+done
+```
+
+An empty list means the first publish will fast-forward. Reconcile any mirror that lists commits, as described in [When a mirror has diverged](#when-a-mirror-has-diverged). Until then, its publish fails without pushing anything.
 
 ### 5. First publish
 
@@ -149,7 +160,7 @@ bash .github/scripts/subtree-sync.sh check abtv2-tools origin/main
 bash .github/scripts/subtree-sync.sh check rbt-schema origin/main
 ```
 
-Each command reports what the checked-out commit would publish compared with `origin/main`, and never pushes. It needs a full clone (not `--depth`) and `git subtree`, which ships with Git on most platforms. It also needs GNU `realpath`; on macOS, install Homebrew's `coreutils` and put its `gnubin` directory first on `PATH`. A mirror that allows anonymous reads is compared too.
+Each command reports what the checked-out commit would publish compared with `origin/main`, and never pushes. It needs a full clone (not `--depth`) and `git subtree`, which ships with Git on most platforms. It also needs GNU `realpath`; on macOS, install Homebrew's `coreutils` and put its `gnubin` directory first on `PATH`. It compares against a mirror only when the checked-out commit changes that directory. It fetches with your own Git credentials, so a private mirror you can read is compared too.
 
 ## Known limitations
 
