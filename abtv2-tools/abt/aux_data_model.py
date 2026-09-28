@@ -115,6 +115,10 @@ class AuxDataLayer(BaseModel):
         zipped: A boolean indicating if the downloaded file is a zip archive.
         overture_params: Specific parameters for downloading Overture Maps data.
         aux_load: A list of AuxLayer models defining the layers to import.
+        verify_tls: Whether to verify the source host's TLS certificate
+            (default True). Set `"verify_tls": false` only for a host whose
+            certificate chain is broken server-side; the download logs a
+            warning every time.
     """
     folder_name: str
     url: Optional[HttpUrl] = None
@@ -123,6 +127,7 @@ class AuxDataLayer(BaseModel):
     zipped: bool
     overture_params: Optional[dict] = None
     aux_load: Optional[List[AuxLayer]] = None
+    verify_tls: bool = True
 
     @model_validator(mode='after')
     def validate_source(self) -> "AuxDataLayer":
@@ -143,6 +148,7 @@ class AuxDataLayer(BaseModel):
             type=FormatType(d.get('type')),
             zipped=d.get('zipped', False),
             overture_params=d.get('overture_params', None),
+            verify_tls=d.get('verify_tls', True),
             aux_load=[
                 AuxLayer(
                     file_name=aux.get("aux_file_name") or aux.get("aux_folder_name"),
@@ -176,7 +182,7 @@ class AuxDataLayer(BaseModel):
         if self.is_local:
             raise ValueError(f"Layer '{self.folder_name}' uses a local_path — download is not applicable.")
         if self.type != FormatType.OVERTURE:
-            return DownloadFile(url=self.url)
+            return DownloadFile(url=self.url, verify_tls=self.verify_tls)
         else:
             return DownloadOverture(theme=self.overture_params.get('theme'), type=self.overture_params.get('type'))
 

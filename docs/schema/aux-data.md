@@ -15,6 +15,7 @@ into Postgres. Parsed by `AuxDataLayer` (`abtv2-tools/abt/aux_data_model.py`).
 | `zipped` | yes | Whether the source is a zip archive |
 | `overture_params` | no | `{theme, type}`, only for `type: overture` — unused in this schema today; see [Overture Buildings](../pipeline/overture.md) for how Overture data is actually loaded here |
 | `aux_load` | yes | List of layers to import from this source |
+| `verify_tls` | no (default `true`) | Set `false` to skip TLS certificate verification for this one source. Only for a host whose certificate chain is broken server-side; `download` logs a warning every time. Used today only by `disdi_mirta.json`: `www.acq.osd.mil` sends its certificate without the IdenTrust intermediate, which OpenSSL (and so Python and curl on Linux) can't complete on its own. `ABT_INSECURE_DOWNLOADS=1` turns verification off for every source. |
 
 !!! note "`url` and `local_path` are mutually exclusive"
     Exactly one of the two must be set — `AuxDataLayer` raises otherwise.

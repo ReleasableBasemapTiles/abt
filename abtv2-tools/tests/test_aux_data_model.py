@@ -113,3 +113,19 @@ def test_aux_data_layer_from_dict_builds_aux_load_layers():
     assert layer.aux_load[0].layer_name == "layer_a"
     assert layer.aux_load[1].file_name == "b"
     assert layer.aux_load[1].layer_name == "b"
+
+
+def test_verify_tls_defaults_on_and_reaches_the_downloader():
+    layer = AuxDataLayer.from_dict({
+        "folder_name": "test", "url": "https://example.com/data.zip", "type": "shp", "zipped": True,
+    })
+    assert layer.verify_tls is True
+    assert layer.dl_cls.verify_tls is True
+
+
+def test_verify_tls_false_is_scoped_to_its_own_source():
+    layer = AuxDataLayer.from_dict({
+        "folder_name": "test", "url": "https://example.com/data.zip", "type": "shp", "zipped": True,
+        "verify_tls": False,
+    })
+    assert layer.dl_cls.verify_tls is False

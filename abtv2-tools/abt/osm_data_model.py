@@ -10,6 +10,7 @@ download and import processes.
 from pydantic import BaseModel, HttpUrl, model_validator
 from typing import List, Optional, Dict, Tuple
 from typing_extensions import Self
+import functools
 import requests
 from pathlib import Path
 import yaml
@@ -20,6 +21,8 @@ from .importer.importer import Importer, ImportImposm
 from .schema import DataSchema, ProcessingDirectorySchema
 
 PLANET_IDENTIFIER = "planet"
+GEOFABRIK_INDEX_URL = "https://download.geofabrik.de/index-v1.json"
+GEOFABRIK_INDEX_TIMEOUT = 60  # seconds; the index is a few MB
 
 
 def _geometry_bbox(geometry: Dict) -> Tuple[float, float, float, float]:
@@ -35,19 +38,34 @@ def _geometry_bbox(geometry: Dict) -> Tuple[float, float, float, float]:
     return (min(xs), min(ys), max(xs), max(ys))
 
 
+def planet_osm_data() -> "OSMData":
+    """The full-planet entry, which needs no GeoFabrik lookup."""
+    return OSMData(
+        identifier=PLANET_IDENTIFIER,
+        pbf_location="https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf",
+        diff_location="https://planet.openstreetmap.org/replication/changesets/"
+    )
+
+
+@functools.lru_cache(maxsize=1)
 def getGeoFabrikIndex() -> Dict[str, "OSMData"]:
     """Fetches the official GeoFabrik index of available OSM extracts.
 
     This function retrieves a JSON index from GeoFabrik, which lists all
     available country and regional OSM data extracts in PBF format. It also
-    manually adds an entry for the full planet file.
+    manually adds an entry for the full planet file. The result is cached
+    for the life of the process, so one command fetches it at most once.
 
     Returns:
         A dictionary where keys are region identifiers (e.g., 'thailand') and
         values are configured OSMData objects.
+
+    Raises:
+        requests.RequestException: If the index can't be fetched (including
+            an HTTP error status or a timeout).
     """
-    url = "https://download.geofabrik.de/index-v1.json"
-    r = requests.get(url)
+    r = requests.get(GEOFABRIK_INDEX_URL, timeout=GEOFABRIK_INDEX_TIMEOUT)
+    r.raise_for_status()
     raw = r.json()
     features = raw["features"]
 
@@ -63,17 +81,18 @@ def getGeoFabrikIndex() -> Dict[str, "OSMData"]:
                 bbox=_geometry_bbox(f["geometry"]) if f.get("geometry") else None
             )
 
-    return_dict[PLANET_IDENTIFIER] = OSMData(
-        identifier=PLANET_IDENTIFIER,
-        pbf_location="https://planet.openstreetmap.org/pbf/planet-latest.osm.pbf",
-        diff_location="https://planet.openstreetmap.org/replication/changesets/"
-    )
+    return_dict[PLANET_IDENTIFIER] = planet_osm_data()
 
     return return_dict
 
 
 def resolve_osm_data(osm_index: str) -> "OSMData":
-    """Looks up a GeoFabrik/planet key in the index, raising a clear error if unknown."""
+    """Looks up a GeoFabrik/planet key in the index, raising a clear error if unknown.
+
+    'planet' resolves without fetching the GeoFabrik index at all.
+    """
+    if osm_index == PLANET_IDENTIFIER:
+        return planet_osm_data()
     osm_data = getGeoFabrikIndex().get(osm_index)
     if osm_data is None:
         raise ValueError(

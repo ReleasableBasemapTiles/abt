@@ -6,12 +6,16 @@ envelope calculation."""
 import pytest
 from pydantic import ValidationError
 
+from abt import osm_data_model
 from abt.osm_data_model import (
+    PLANET_IDENTIFIER,
     ImposmManagement,
     ImposmMappingFile,
     OSMData,
     _geometry_bbox,
+    getGeoFabrikIndex,
     load_imposm_base,
+    resolve_osm_data,
 )
 
 ROADS = {"columns": [], "mapping": {"highway": ["__any__"]}, "type": "linestring"}
@@ -128,3 +132,75 @@ def test_geometry_bbox_ignores_extra_z_or_m_coordinates():
     # flatten()'s `x, y, *_` unpacking should tolerate a 3rd/4th ordinate.
     geometry = {"type": "Point", "coordinates": [1.0, 2.0, 100.0]}
     assert _geometry_bbox(geometry) == (1.0, 2.0, 1.0, 2.0)
+
+
+# --- GeoFabrik index lookup ---------------------------------------------------
+
+GEOFABRIK_INDEX = {
+    "features": [
+        {
+            "properties": {"id": "liechtenstein",
+                           "urls": {"pbf": "https://example.com/liechtenstein-latest.osm.pbf"}},
+            "geometry": {"type": "Point", "coordinates": [9.5, 47.1]},
+        }
+    ]
+}
+
+
+class FakeIndexResponse:
+    def __init__(self, status_error=None):
+        self._status_error = status_error
+
+    def raise_for_status(self):
+        if self._status_error:
+            raise self._status_error
+
+    def json(self):
+        return GEOFABRIK_INDEX
+
+
+class RecordedCalls(list):
+    """A list of recorded calls that can also carry the fake's response."""
+
+
+@pytest.fixture
+def index_requests(monkeypatch):
+    """Fakes requests.get for the index; returns the recorded calls."""
+    calls = RecordedCalls()
+    getGeoFabrikIndex.cache_clear()
+
+    def fake_get(url, **kwargs):
+        calls.append({"url": url, **kwargs})
+        return calls.response
+
+    calls.response = FakeIndexResponse()
+    monkeypatch.setattr(osm_data_model.requests, "get", fake_get)
+    yield calls
+    getGeoFabrikIndex.cache_clear()
+
+
+def test_planet_resolves_without_fetching_the_index(index_requests):
+    data = resolve_osm_data(PLANET_IDENTIFIER)
+    assert data.filename == "planet-latest.osm.pbf"
+    assert data.bbox is None
+    assert index_requests == []
+
+
+def test_index_is_fetched_once_with_a_timeout(index_requests):
+    assert resolve_osm_data("liechtenstein").bbox == (9.5, 47.1, 9.5, 47.1)
+    resolve_osm_data("liechtenstein")
+    assert len(index_requests) == 1
+    assert index_requests[0]["timeout"] > 0
+
+
+def test_index_http_error_is_raised_not_parsed(index_requests):
+    import requests
+
+    index_requests.response = FakeIndexResponse(status_error=requests.HTTPError("503"))
+    with pytest.raises(requests.HTTPError):
+        resolve_osm_data("liechtenstein")
+
+
+def test_unknown_key_is_a_clear_error(index_requests):
+    with pytest.raises(ValueError, match="Unknown OSM key 'atlantis'"):
+        resolve_osm_data("atlantis")
