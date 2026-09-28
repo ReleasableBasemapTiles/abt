@@ -23,10 +23,16 @@ Full documentation is published at <https://ReleasableBasemapTiles.github.io/abt
 ## Quick start
 
 ```bash
-git clone git@github.com:ReleasableBasemapTiles/abt.git
-cd abt
+git clone git@github.com:ReleasableBasemapTiles/abt.git ~/abt
+cd ~/abt
 ./setup_ubuntu.sh                 # fresh Ubuntu 26.04 host -- see docs/install/ubuntu.md
-cd abtv2-tools
+```
+
+Then open a new SSH session, which picks up the raised open-file limit and micromamba's shell hook, and activate the Python env before running anything:
+
+```bash
+micromamba activate abtv2
+cd ~/abt/abtv2-tools
 python abt-tools.py download -w ~/abt/run-norway -s ../rbt-schema -d all -k norway -n 4
 ```
 

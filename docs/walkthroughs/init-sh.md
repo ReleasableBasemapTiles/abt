@@ -22,8 +22,8 @@
 
 Each projection's `[4/6]`/`[5/6]` work runs as a background job; a `wait_jobs` helper waits for every one of them even after an earlier failure (so a fast failure never leaves a still-running sibling unreported or orphaned) and reports `ok`/`FAILED` per projection before the script aborts on any failure.
 
-!!! note "Postgres credentials differ from the manual walkthroughs"
-    `init.sh` connects as `PG_USER`/`PG_PASSWORD` to `PG_DB` on `PG_HOST`:`PG_PORT`: the names, and the defaults (`rbt`/`rbt`/`rbt` on `127.0.0.1:5432`), that [`setup_ubuntu.sh`](../install/configuration.md) uses, so a host set up with other values runs `init.sh` with the same ones. It sets `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` from them and ignores any already exported, so a shell still pointed at another database can't redirect the build into it. The [Planet](planet.md) and [Norway](norway.md) walkthroughs instead use `abt` / `abt_planet` / `abt_norway` purely as an illustrative example role/database name for the *manual* setup path in [Ubuntu Setup](../install/ubuntu.md) — the two aren't meant to coexist unmodified. If you're moving between the manual walkthroughs and `init.sh` on the same host, make sure the role/database you actually provisioned matches whichever path you're running.
+!!! note "Postgres connection"
+    `init.sh` connects as `PG_USER`/`PG_PASSWORD` to `PG_DB` on `PG_HOST`:`PG_PORT`: the names, and the defaults (`rbt`/`rbt`/`rbt` on `127.0.0.1:5432`), that [`setup_ubuntu.sh`](../install/configuration.md) uses, so a host set up with other values runs `init.sh` with the same ones. It sets `PGHOST`/`PGPORT`/`PGUSER`/`PGPASSWORD`/`PGDATABASE` from them and ignores any already exported, so a shell still pointed at another database can't redirect the build into it. The [Planet walkthrough](planet.md) uses the same role and database; the [Norway walkthrough](norway.md) uses its own `rbt_norway` database, which `init.sh` never touches.
 
 ## Configuration
 

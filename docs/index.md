@@ -53,7 +53,7 @@ ABT turns OpenStreetMap data plus a handful of authoritative auxiliary open data
 
 ## Requirements at a glance
 
-The pipeline shells out to PostgreSQL/PostGIS, GDAL/OGR, imposm3, tippecanoe, and (for planet-scale downloads) aria2. See [Ubuntu Setup](install/ubuntu.md) for a from-scratch install (manual or via [`setup_ubuntu.sh`](install/ubuntu.md)), and [Performance & Sizing](install/performance.md) for hardware guidance from a single-country extract up to a full-planet build.
+The pipeline shells out to PostgreSQL/PostGIS, GDAL/OGR, imposm3, tippecanoe, (for planet-scale downloads) aria2, and (for the optional Esri Compact Cache conversion) `abt-vundler`, a Rust binary built from this repo. See [Ubuntu Setup](install/ubuntu.md) for a from-scratch install (manual or via [`setup_ubuntu.sh`](install/ubuntu.md)), and [Performance & Sizing](install/performance.md) for hardware guidance from a single-country extract up to a full-planet build.
 
 ## License and attribution
 
