@@ -106,7 +106,7 @@ def init_importer(
     reporter = RunReporter(run_id=processing_directory.run_id, command="abt import")
     pg_config = get_pg_config(
         cli_input=pg_config_type,
-        log_dir=processing_directory.carto_log_dir
+        log_dir=processing_directory.import_log_dir
     )
 
     if data_type in [CliDataType.OSM, CliDataType.ALL]:
@@ -150,7 +150,7 @@ def init_importer(
         )
 
         aux_import_task = ParallelExecutor(
-            log_dir=processing_directory.download_log_dir,
+            log_dir=processing_directory.import_log_dir,
             max_workers=num_workers,
             instance='import_to_pg'
         )
