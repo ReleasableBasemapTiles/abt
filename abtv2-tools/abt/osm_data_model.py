@@ -135,22 +135,45 @@ class ImposmMappingFile(BaseModel):
         return self.model_dump()
 
 
+def load_imposm_base(yaml_path: Optional[Path]) -> Dict:
+    """Loads the optional top-level imposm settings file (see
+    DataSchema.imposm_base_file), or returns {} when there is none."""
+    if yaml_path is None:
+        return {}
+    with yaml_path.open(mode='r') as file:
+        return yaml.safe_load(file) or {}
+
+
 class ImposmManagement(BaseModel):
     """Manages a collection of 'imposm' mapping files.
 
     Attributes:
         mapping_files: A list of ImposmMappingFile objects.
+        base: Top-level imposm settings merged into the combined mapping
+            (e.g. `tags: include:`), from import/imposm_base.yml. Must not
+            define `tables`, which come only from mapping_files.
     """
     mapping_files: List[ImposmMappingFile]
+    base: Dict = {}
+
+    @model_validator(mode='after')
+    def validate_base(self) -> Self:
+        """Rejects a base that would silently replace the per-table mappings."""
+        if "tables" in self.base:
+            raise ValueError(
+                "imposm_base.yml must not define 'tables'; put each table's "
+                "mapping in its own file under import/osm/."
+            )
+        return self
 
     @property
     def combined_mapping(self) -> Dict:
         """Combines multiple mapping files into a single dictionary for 'imposm'.
 
         This property aggregates individual table mappings into the final structure
-        required by 'imposm' in its main mapping file.
+        required by 'imposm' in its main mapping file, on top of the base settings.
         """
-        return {"tables": {m.table: m.data for m in self.mapping_files}}
+        return {**self.base, "tables": {m.table: m.data for m in self.mapping_files}}
 
 
 class OSMData(BaseModel):
@@ -288,7 +311,8 @@ def prep_osm(
     """Builds an OSMProcessingModel for the given GeoFabrik/planet index.
 
     Fetches the specified OSM data from the GeoFabrik index, loads the imposm
-    mapping files defined in the data schema, and assembles an
+    mapping files defined in the data schema (plus the optional
+    import/imposm_base.yml top-level settings), and assembles an
     OSMProcessingModel configured for either downloading or importing that data.
 
     Args:
@@ -308,7 +332,8 @@ def prep_osm(
                 lambda y: ImposmMappingFile.from_yaml(yaml_path=y).load_data,
                 data_schema.imposm_mapping_files
             )
-        )
+        ),
+        base=load_imposm_base(data_schema.imposm_base_file),
     )
 
     return OSMProcessingModel(

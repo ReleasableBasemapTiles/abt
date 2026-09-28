@@ -14,6 +14,7 @@ and the [Pipeline Overview](../overview/pipeline.md).
 | Directory | Contents |
 |---|---|
 | `import/osm/` | imposm3 mapping YAML — one file per OSM-derived table |
+| `import/imposm_base.yml` | Optional imposm top-level settings merged into the combined mapping (`tags: include:`) — see [OSM Mappings](osm-mappings.md#which-tags-imposm-keeps-importimposm_baseyml) |
 | `import/aux_data/` | Non-OSM source configs (download URL/local file, format, layers to load) |
 | `static_data/` | Raw data files checked into git, referenced by `import/aux_data/*.json` via `local_path` |
 | `carto_sql/` | SQL transform scripts that turn `osm.*`/`aux_data.*` into `export.*` materialized views |

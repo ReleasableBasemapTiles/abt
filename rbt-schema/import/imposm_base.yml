@@ -1,0 +1,43 @@
+# Top-level imposm3 mapping settings, merged into the combined mapping that
+# abt-tools generates from import/osm/*.yml. Any imposm top-level key except
+# `tables` belongs here (the tables come from the per-table files).
+#
+# imposm drops every tag it doesn't need while reading the PBF, before
+# anything is cached or written. A tag survives only if some table maps its
+# key (with that value, or __any__), uses its key for a column, or lists it
+# below. Filter keys (require/reject) do NOT count, so a carto_sql
+# `tags -> 'key'` lookup or a reject filter on an unloaded key silently sees
+# NULL. The abt monorepo's tests/test_imposm_tags.py fails when a key read
+# by carto_sql or a mapping filter isn't loaded.
+#
+# Changing this list only affects a fresh import (imposm -read).
+tags:
+  include:
+    # 003_road.sql: lifecycle-prefixed highways and destroyed tunnels
+    - demolished:highway
+    - destroyed:tunnel
+    - razed:highway
+    - removed:highway
+    # 004_railway.sql: lifecycle-prefixed railways
+    - abandoned:railway
+    - construction:railway
+    - demolished:railway
+    - disused:railway
+    - planned:railway
+    - proposed:railway
+    - razed:railway
+    - removed:railway
+    # 018_powerline.sql: lifecycle-prefixed power features
+    - abandoned:power
+    - construction:power
+    - demolished:power
+    - disused:power
+    - proposed:power
+    - razed:power
+    - removed:power
+    # 022_dam.sql
+    - dam:type
+    # 023_military.sql
+    - airmark
+    # import/osm/water_polygon.yml: `reject: covered: ["yes"]`
+    - covered
