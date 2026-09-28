@@ -25,18 +25,17 @@ def cli_impoter(
     pg_config: Annotated[str, pg_config_field]="env",
     
 ):
-    """CLI command to import geographic data into the database.
+    """Debug: import one auxiliary source into aux_data.
 
-    This command serves as the entry point for the data import process,
-    allowing users to specify data sources, database connections, and
-    concurrency settings from the command line.
-
+    Runs the ogr2ogr import for the single import/aux_data/*.json config
+    named by -a, without the parallel pool, to troubleshoot one source. A
+    remote source must already be downloaded (download -d aux).
+    \f
     Args:
         working_dir: The root directory where processed data is located.
         schema_dir: The directory where schema definitions are located.
-        data_type: The type of data to import (OSM, AUX, or ALL).
-        num_workers: The number of concurrent workers for the import process.
-        pg_config: Specifies how to get the PG connection string ('env' or file path).
+        aux_file: Base name of the import/aux_data/*.json config to import.
+        pg_config: How to connect to PostgreSQL ('env' or "host,port,user,password,dbname").
     """
     try:
         data_schema = DataSchema(base_schema_dir=schema_dir)

@@ -147,17 +147,18 @@ def cli_download(
     num_workers: Annotated[int, num_workers_field] = default_num_workers(divisor=4),
     osm_key: Annotated[str, osm_key_field]="planet"
 ):
-    """CLI command to download and prepare geographic data.
+    """Download the OSM extract and/or the auxiliary data sources.
 
-    This command serves as the entry point for the data download process,
-    allowing users to specify working directories, data types, and
-    concurrency settings from the command line.
-
+    Files land in <working-dir>/osm and <working-dir>/aux_downloads, and
+    finished files from an earlier run are skipped. Zipped aux sources are
+    extracted after they download.
+    \f
     Args:
         working_dir: The root directory for all processing tasks.
         schema_dir: The directory where schema definitions are located.
         data_type: The type of data to download (OSM, AUX, or ALL).
-        num_workers: The number of concurrent workers for downloading.
+        num_workers: The number of concurrent aux downloads.
+        osm_key: 'planet' or a Geofabrik extract id.
     """
     try:
         reporter = init_downloader(

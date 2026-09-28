@@ -101,12 +101,15 @@ def cli_bundler(
     output_name: Annotated[str, output_name_field] = None,
     max_zoom: Annotated[Optional[int], optional_max_zoom_field] = None,
 ):
-    """CLI command to bundle exported tile layers into a single MBTiles file via tile-join.
+    """Join the per-layer MBTiles into one bundle with tile-join.
 
+    Writes <working-dir>/bundled/joined.mbtiles (or --output-name) with the
+    metadata from <schema-dir>/tile-metadata/metadata.py.
+    \f
     Args:
         working_dir: Root directory for all processing and output files.
         schema_dir: Directory containing the data schema definitions.
-        pg_config: PostgreSQL connection method ('env' or connection string).
+        pg_config: How to connect to PostgreSQL ('env' or "host,port,user,password,dbname").
             Defaults to 'env'.
         additional_mbtiles: Paths to externally-produced mbtiles files (e.g.
             contours) to fold into the bundle. Repeatable.

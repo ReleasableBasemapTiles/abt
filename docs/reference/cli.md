@@ -36,27 +36,21 @@ $ abt-tools [OPTIONS] COMMAND [ARGS]...
 
 **Commands**:
 
-* `download`: CLI command to download and prepare...
-* `import`: CLI command to import geographic data into...
-* `carto`: CLI command to run SQL data transformation...
-* `export`: CLI command to export vector tiles from...
-* `bundler`: CLI command to bundle exported tile layers...
-* `vundler`: CLI command to convert a bundled mbtiles...
-* `debug_aux_import`: CLI command to import geographic data into...
+* `download`: Download the OSM extract and/or the...
+* `import`: Import the downloaded data into PostGIS.
+* `carto`: Run the carto_sql scripts that build the...
+* `export`: Export each export.* layer to FlatGeobuf,...
+* `bundler`: Join the per-layer MBTiles into one bundle...
+* `vundler`: Convert a bundled MBTiles file into Esri...
+* `debug_aux_import`: Debug: import one auxiliary source into...
 
 ## `abt-tools download`
 
-CLI command to download and prepare geographic data.
+Download the OSM extract and/or the auxiliary data sources.
 
-This command serves as the entry point for the data download process,
-allowing users to specify working directories, data types, and
-concurrency settings from the command line.
-
-Args:
-    working_dir: The root directory for all processing tasks.
-    schema_dir: The directory where schema definitions are located.
-    data_type: The type of data to download (OSM, AUX, or ALL).
-    num_workers: The number of concurrent workers for downloading.
+Files land in &lt;working-dir&gt;/osm and &lt;working-dir&gt;/aux_downloads, and
+finished files from an earlier run are skipped. Zipped aux sources are
+extracted after they download.
 
 **Usage**:
 
@@ -67,31 +61,18 @@ $ abt-tools download [OPTIONS]
 **Options**:
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
-* `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
-* `-d, --data-type <osm|aux|all>`: Specifies the type of data for the download and import commands. Allowed values are &#x27;osm&#x27;, &#x27;aux&#x27;, or &#x27;all&#x27;.
-osm: Uses the Imposm method to import data.
-aux: Uses Ogr2Ogr methods to import data in parallel, respecting the --num-workers setting.
-all: A convenience option to run both osm and aux. It first processes the OSM data, then dedicates all workers to the aux import.  [required]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 12]
-* `-k, --osm-key <str>`: Extracts OSM Data based on either planet or GeoFabrik key.  [default: planet]
+* `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
+* `-d, --data-type <osm|aux|all>`: Which data to download or import. &#x27;osm&#x27;: the --osm-key extract, one file, imported with imposm. &#x27;aux&#x27;: the import/aux_data/*.json sources, --num-workers at a time, imported with ogr2ogr. &#x27;all&#x27;: osm, then aux.  [required]
+* `-n, --num-workers <int>`: Number of parallel workers: aux downloads (download), aux imports (import), layers (export) or conversion threads (vundler). Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 12]
+* `-k, --osm-key <str>`: Which OSM data to use: &#x27;planet&#x27; for the full planet, or a Geofabrik extract id such as &#x27;norway&#x27; (the ids in download.geofabrik.de/index-v1.json).  [default: planet]
 * `--help`: Show this message and exit.
 
 ## `abt-tools import`
 
-CLI command to import geographic data into the database.
+Import the downloaded data into PostGIS.
 
-This command serves as the entry point for the data import process,
-allowing users to specify data sources, database connections, and
-concurrency settings from the command line.
-
-Args:
-    working_dir: The root directory where processed data is located.
-    schema_dir: The directory where schema definitions are located.
-    data_type: The type of data to import (OSM, AUX, or ALL).
-    num_workers: The number of concurrent workers for the import process.
-    pg_config: Specifies how to get the PG connection string (&#x27;env&#x27; or file path).
-    force: Re-import OSM data even if the schema is already populated.
-    clip_aux: Clip auxiliary data imports to the osm_key extract&#x27;s bounding box.
+OSM data goes into the osm schema through imposm, and the auxiliary
+sources into aux_data through ogr2ogr. Run download first.
 
 **Usage**:
 
@@ -102,30 +83,23 @@ $ abt-tools import [OPTIONS]
 **Options**:
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
-* `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
-* `-d, --data-type <osm|aux|all>`: Specifies the type of data for the download and import commands. Allowed values are &#x27;osm&#x27;, &#x27;aux&#x27;, or &#x27;all&#x27;.
-osm: Uses the Imposm method to import data.
-aux: Uses Ogr2Ogr methods to import data in parallel, respecting the --num-workers setting.
-all: A convenience option to run both osm and aux. It first processes the OSM data, then dedicates all workers to the aux import.  [required]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 24]
+* `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
+* `-d, --data-type <osm|aux|all>`: Which data to download or import. &#x27;osm&#x27;: the --osm-key extract, one file, imported with imposm. &#x27;aux&#x27;: the import/aux_data/*.json sources, --num-workers at a time, imported with ogr2ogr. &#x27;all&#x27;: osm, then aux.  [required]
+* `-n, --num-workers <int>`: Number of parallel workers: aux downloads (download), aux imports (import), layers (export) or conversion threads (vundler). Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 24]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
-* `-k, --osm-key <str>`: Extracts OSM Data based on either planet or GeoFabrik key.  [default: planet]
+* `-k, --osm-key <str>`: Which OSM data to use: &#x27;planet&#x27; for the full planet, or a Geofabrik extract id such as &#x27;norway&#x27; (the ids in download.geofabrik.de/index-v1.json).  [default: planet]
 * `-f, --force`: Re-import OSM data even if the schema is already populated. Without this, import aborts rather than silently overwriting an existing OSM import (a full re-import can take 24+ hours).
 * `-c, --clip-aux`: Clip auxiliary (global) data imports to the bounding box of the --osm-key GeoFabrik extract, for fast test builds. Ignored when --osm-key is &#x27;planet&#x27; or omitted.
 * `--help`: Show this message and exit.
 
 ## `abt-tools carto`
 
-CLI command to run SQL data transformation scripts.
+Run the carto_sql scripts that build the export.* layers.
 
-This command executes predefined SQL scripts to process and transform data
-within the PostgreSQL database, preparing it for the tile export step.
-
-Args:
-    working_dir: The root directory for all processing tasks.
-    schema_dir: The directory where schema definitions are located.
-    pg_config: Specifies how to get the PG connection string (&#x27;env&#x27; or file path).
-    carto_concurrency: Number of independent carto_sql groups to run concurrently.
+The scripts in &lt;schema-dir&gt;/carto_sql turn the imported osm and aux_data
+tables into the export schema that the export command reads. Script
+groups that carto_sql/execution_plan.yml marks independent run
+concurrently, up to -n at a time.
 
 **Usage**:
 
@@ -136,26 +110,19 @@ $ abt-tools carto [OPTIONS]
 **Options**:
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
-* `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
+* `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
 * `-n, --carto-concurrency <int>`: Number of independent carto_sql script groups to run concurrently against Postgres -- see rbt-schema/carto_sql/execution_plan.yml for how scripts are grouped. Defaults to a value scaled to this host&#x27;s CPU count (1, i.e. fully sequential, on the documented 8 vCPU tier). Falls back to today&#x27;s fully sequential, one-script-at-a-time behavior if execution_plan.yml is absent from --schema-dir, or if this is set to 1.  [default: 8]
 * `--help`: Show this message and exit.
 
 ## `abt-tools export`
 
-CLI command to export vector tiles from the database.
+Export each export.* layer to FlatGeobuf, then to per-layer MBTiles.
 
-This command orchestrates the process of converting data from a PostgreSQL
-database into MBTiles files, ready for use in web maps.
-
-Args:
-    working_dir: The root directory for all processing tasks.
-    schema_dir: The directory where schema definitions are located.
-    num_workers: The number of concurrent workers for the export process.
-    pg_config: Specifies how to get the PG connection string (&#x27;env&#x27; or file path).
-    max_zoom: The maximum zoom level to include in the exported tiles.
-    projection_override: Advanced/non-standard CRS override -- see the
-        --projection-override help text.
+ogr2ogr writes &lt;working-dir&gt;/flatgeobuf/&lt;layer&gt;.fgb and tippecanoe turns
+it into &lt;working-dir&gt;/mbtiles/&lt;layer&gt;.mbtiles, per the layer&#x27;s
+&lt;schema-dir&gt;/export/*.json. Finished outputs from an earlier run are
+skipped.
 
 **Usage**:
 
@@ -166,26 +133,19 @@ $ abt-tools export [OPTIONS]
 **Options**:
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
-* `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 16]
+* `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
+* `-n, --num-workers <int>`: Number of parallel workers: aux downloads (download), aux imports (import), layers (export) or conversion threads (vundler). Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 16]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
-* `-z, --max-zoom <int>`: Sets the maximum zoom level for processing exports. The default value is 13  [default: 13]
+* `-z, --max-zoom <int>`: Highest zoom level to produce. export caps each layer&#x27;s own maximum zoom (from its export/*.json) at this level; vundler converts every level up to it.  [default: 13]
 * `--projection-override <str>`: ADVANCED / NON-STANDARD: Overrides the CRS tippecanoe assumes for exported geometry (default: WGS84 -&gt; Web Mercator). Data is reprojected to the given EPSG code in PostGIS, then tippecanoe is told (falsely) that it is already receiving EPSG:3857 data, skipping its normal reprojection. This is an undocumented tippecanoe compatibility trick -- see github.com/mapbox/tippecanoe/issues/422. NOTE: this only makes sense for a target projection that uses meters as its unit (like EPSG:3857 itself) -- e.g. EPSG:3395, 5041, 5042. This is NOT enforced/validated; passing a degrees-based or otherwise incompatible EPSG code will silently produce garbled tiles. Output tiles will NOT conform to the MBTiles 1.3 spec; &#x27;crs&#x27; (and, for bundled output, &#x27;btp_schema_version&#x27;/&#x27;changelog_url&#x27;) metadata rows are added per the BTIS convention so downstream tools can still detect this. Must be given as &quot;EPSG:&lt;code&gt;&quot;, e.g. &quot;EPSG:3395&quot;.
 * `--help`: Show this message and exit.
 
 ## `abt-tools bundler`
 
-CLI command to bundle exported tile layers into a single MBTiles file via tile-join.
+Join the per-layer MBTiles into one bundle with tile-join.
 
-Args:
-    working_dir: Root directory for all processing and output files.
-    schema_dir: Directory containing the data schema definitions.
-    pg_config: PostgreSQL connection method (&#x27;env&#x27; or connection string).
-        Defaults to &#x27;env&#x27;.
-    additional_mbtiles: Paths to externally-produced mbtiles files (e.g.
-        contours) to fold into the bundle. Repeatable.
-    output_name: Optional filename for the bundled output.
-    max_zoom: Optional zoom cap for the bundle. Omit for no cap.
+Writes &lt;working-dir&gt;/bundled/joined.mbtiles (or --output-name) with the
+metadata from &lt;schema-dir&gt;/tile-metadata/metadata.py.
 
 **Usage**:
 
@@ -196,7 +156,7 @@ $ abt-tools bundler [OPTIONS]
 **Options**:
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
-* `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
+* `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
 * `-q, --additional-mbtiles <path>`: (Optional, repeatable) Path to an externally-produced mbtiles file to fold into the bundle -- e.g. contours. Pass multiple times to include more than one.
 * `-o, --output-name <str>`: Filename for the bundled output. Defaults to joined.mbtiles.
@@ -205,7 +165,7 @@ $ abt-tools bundler [OPTIONS]
 
 ## `abt-tools vundler`
 
-CLI command to convert a bundled mbtiles file into Esri Compact Cache V2 tile bundles.
+Convert a bundled MBTiles file into Esri Compact Cache V2 tile bundles.
 
 Not a complete .vtpk -- produces the raw tile bundle structure and a bare
 metadata.json only, no conf.xml/root.json/styles.
@@ -221,24 +181,17 @@ $ abt-tools vundler [OPTIONS]
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
 * `-i, --input-path <path>`: Path to the source .mbtiles file. Defaults to &lt;working-dir&gt;/bundled/joined.mbtiles.
 * `-o, --output-dir <path>`: Output package directory. Defaults to &lt;working-dir&gt;/bundled/vundled/p12.
-* `-z, --max-zoom <int>`: Sets the maximum zoom level for processing exports. The default value is 13  [default: 13]
-* `-n, --num-workers <int>`: Determines the number of parallel processes for the download, import, and export commands. This setting is disregarded by the carto and bundler commands. Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 48]
+* `-z, --max-zoom <int>`: Highest zoom level to produce. export caps each layer&#x27;s own maximum zoom (from its export/*.json) at this level; vundler converts every level up to it.  [default: 13]
+* `-n, --num-workers <int>`: Number of parallel workers: aux downloads (download), aux imports (import), layers (export) or conversion threads (vundler). Defaults to a value scaled to this host&#x27;s CPU count (minimum 4); pass explicitly to override.  [default: 48]
 * `--help`: Show this message and exit.
 
 ## `abt-tools debug_aux_import`
 
-CLI command to import geographic data into the database.
+Debug: import one auxiliary source into aux_data.
 
-This command serves as the entry point for the data import process,
-allowing users to specify data sources, database connections, and
-concurrency settings from the command line.
-
-Args:
-    working_dir: The root directory where processed data is located.
-    schema_dir: The directory where schema definitions are located.
-    data_type: The type of data to import (OSM, AUX, or ALL).
-    num_workers: The number of concurrent workers for the import process.
-    pg_config: Specifies how to get the PG connection string (&#x27;env&#x27; or file path).
+Runs the ogr2ogr import for the single import/aux_data/*.json config
+named by -a, without the parallel pool, to troubleshoot one source. A
+remote source must already be downloaded (download -d aux).
 
 **Usage**:
 
@@ -249,8 +202,8 @@ $ abt-tools debug_aux_import [OPTIONS]
 **Options**:
 
 * `-w, --working-dir <path>`: Specifies the path to the directory for downloading, extracting, and building datasets. If the directory does not exist, it will be created automatically.  [required]
-* `-s, --schema-dir <path>`: Points to the directory that contains all necessary schemas and processing instructions. This directory must be set up with the required subdirectories and data files before running the app. Please consult the API documentation for setup details.  [required]
-* `-a, --aux-file <str>`: Specifies the path to a single auxiliary data file to import.  [required]
+* `-s, --schema-dir <path>`: The schema directory -- in practice your rbt-schema checkout. It must contain import/osm/, import/aux_data/, carto_sql/ and export/ (see the Schema Reference in the docs).  [required]
+* `-a, --aux-file <str>`: Base name of one import/aux_data/*.json config to import, without the directory or .json -- e.g. &#x27;dos_lsib&#x27; for import/aux_data/dos_lsib.json.  [required]
 * `-p, --pg-config <str>`: Defines the PostgreSQL/PostGIS connection. You can either use &quot;env&quot; to connect using environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE) or provide a connection string in the format: &quot;&lt;host&gt;,&lt;port&gt;,&lt;username&gt;,&lt;password&gt;,&lt;database_name&gt;&quot;  [default: env]
 * `--help`: Show this message and exit.
 

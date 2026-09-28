@@ -37,7 +37,7 @@ def init_exporter(
         working_dir: The root directory for all data processing and storage.
         schema_dir: The directory containing the data schema definitions.
         num_workers: The number of parallel workers to use for export tasks.
-        pg_config_type: The method for obtaining the PostgreSQL config ('env' or path).
+        pg_config_type: How to connect to PostgreSQL ('env' or "host,port,user,password,dbname").
         max_zoom: The maximum zoom level to generate tiles for.
         projection_override: Advanced/non-standard override of the CRS tippecanoe
             assumes for exported geometry (e.g. "EPSG:3395"). See
@@ -115,16 +115,18 @@ def cli_export(
     max_zoom: Annotated[int, max_zoom_field] = 13,
     projection_override: Annotated[str, projection_override_field] = None
 ):
-    """CLI command to export vector tiles from the database.
+    """Export each export.* layer to FlatGeobuf, then to per-layer MBTiles.
 
-    This command orchestrates the process of converting data from a PostgreSQL
-    database into MBTiles files, ready for use in web maps.
-
+    ogr2ogr writes <working-dir>/flatgeobuf/<layer>.fgb and tippecanoe turns
+    it into <working-dir>/mbtiles/<layer>.mbtiles, per the layer's
+    <schema-dir>/export/*.json. Finished outputs from an earlier run are
+    skipped.
+    \f
     Args:
         working_dir: The root directory for all processing tasks.
         schema_dir: The directory where schema definitions are located.
         num_workers: The number of concurrent workers for the export process.
-        pg_config: Specifies how to get the PG connection string ('env' or file path).
+        pg_config: How to connect to PostgreSQL ('env' or "host,port,user,password,dbname").
         max_zoom: The maximum zoom level to include in the exported tiles.
         projection_override: Advanced/non-standard CRS override -- see the
             --projection-override help text.

@@ -92,7 +92,7 @@ def init_importer(
         schema_dir: The directory containing data schema definitions.
         data_type: The type of data to import (OSM, AUX, or ALL).
         num_workers: The number of parallel workers for importing auxiliary data.
-        pg_config_type: The method for obtaining the PostgreSQL config ('env' or path).
+        pg_config_type: How to connect to PostgreSQL ('env' or "host,port,user,password,dbname").
         osm_key: The key for selecting the OSM extract from the GeoFabrik index. Defaults to "planet".
         force: Re-import OSM data even if the schema is already populated.
         clip_aux: Clip auxiliary data imports to the osm_key extract's bounding box.
@@ -188,18 +188,17 @@ def cli_impoter(
     force: Annotated[bool, force_field] = False,
     clip_aux: Annotated[bool, clip_aux_field] = False
 ):
-    """CLI command to import geographic data into the database.
+    """Import the downloaded data into PostGIS.
 
-    This command serves as the entry point for the data import process,
-    allowing users to specify data sources, database connections, and
-    concurrency settings from the command line.
-
+    OSM data goes into the osm schema through imposm, and the auxiliary
+    sources into aux_data through ogr2ogr. Run download first.
+    \f
     Args:
         working_dir: The root directory where processed data is located.
         schema_dir: The directory where schema definitions are located.
         data_type: The type of data to import (OSM, AUX, or ALL).
-        num_workers: The number of concurrent workers for the import process.
-        pg_config: Specifies how to get the PG connection string ('env' or file path).
+        num_workers: The number of concurrent aux imports.
+        pg_config: How to connect to PostgreSQL ('env' or "host,port,user,password,dbname").
         force: Re-import OSM data even if the schema is already populated.
         clip_aux: Clip auxiliary data imports to the osm_key extract's bounding box.
     """
