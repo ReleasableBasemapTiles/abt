@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overwrite the abtv2-tools mirror commits ported in #2
 - Point the abtv2-tools overwrite at e2ea95c
 
+### Fixed
+
+- Correct the GitHub org name in clone URLs and User-Agents
+
 ## [2.0.0] - 2026-09-17
 
 ### Added
