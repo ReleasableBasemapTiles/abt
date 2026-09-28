@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mark abt as the source of truth in the mirrored READMEs
 - Document the upstream mirrors
 - Check private mirrors from a clone that can read them
+- Let publish overwrite a mirror main listed in the workflow
 
 ## [2.0.0] - 2026-09-17
 
