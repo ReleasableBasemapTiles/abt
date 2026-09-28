@@ -21,7 +21,7 @@ The **Lint PR** workflow rejects pull requests whose title or commits do not mat
 
 ## Running tests before submitting a change
 
-`abtv2-tools/` has a pytest suite (21 test files under `tests/`; config in `pyproject.toml`: `pythonpath = ["."]`, `testpaths = ["tests"]`). From inside `abtv2-tools/`:
+`abtv2-tools/` has a pytest suite under `tests/` (config in `pyproject.toml`: `pythonpath = ["."]`, `testpaths = ["tests"]`). From inside `abtv2-tools/`:
 
 ```bash
 pip install -r requirements-dev.txt   # or: conda env create -f env.yaml && conda activate abtv2

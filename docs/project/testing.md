@@ -7,19 +7,23 @@ This whole test-harness effort — the Python `abtv2-tools/tests/` suite plus th
 
 ## `abtv2-tools/tests/`
 
-21 pytest files, mirroring the `abt/` package roughly 1:1:
+The pytest files mirror the `abt/` package roughly 1:1. Two of them test code
+outside the package: `test_cli_entry_point.py` tests the `abt-tools.py` entry
+point, and `test_overture_check_proj_agreement.py` tests
+`rbt-schema/scripts/overture/check_proj_agreement.py`:
 
 ```text
-test_aux_data_model.py         test_export_tile_layer_model.py   test_utils_pg_config.py
-test_carto_processing_model.py test_osm_data_model.py            test_utils_rlimit.py
-test_cli_entry_point.py        test_parallel.py                  test_utils_run_reporter.py
-test_cli_funcs_vundler.py      test_schema.py                    test_utils_subprocess_tools.py
-test_download_downloader.py    test_utils_fields.py              test_utils_zip_tools.py
-test_download_planet_mirrors.py                                  test_vundler_convert.py
-test_export_bundler_model.py
-test_export_bundler_trim.py
-test_export_exporter.py
-test_export_mbtiles_metadata.py
+test_aux_data_model.py             test_osm_data_model.py
+test_carto_processing_model.py     test_overture_check_proj_agreement.py
+test_cli_entry_point.py            test_parallel.py
+test_cli_funcs_vundler.py          test_schema.py
+test_download_downloader.py        test_utils_fields.py
+test_download_planet_mirrors.py    test_utils_pg_config.py
+test_export_bundler_model.py       test_utils_rlimit.py
+test_export_bundler_trim.py        test_utils_run_reporter.py
+test_export_exporter.py            test_utils_subprocess_tools.py
+test_export_mbtiles_metadata.py    test_utils_zip_tools.py
+test_export_tile_layer_model.py    test_vundler_convert.py
 ```
 
 Configuration lives in `abtv2-tools/pyproject.toml`:

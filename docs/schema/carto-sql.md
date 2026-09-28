@@ -1,6 +1,6 @@
 # Carto SQL
 
-`carto_sql/` holds 33 numbered SQL scripts (plus `099_update_geometry.sql`)
+`carto_sql/` holds 33 numbered SQL scripts (including `099_update_geometry.sql`)
 that read `osm.*`/`aux_data.*` and build every `export.*` table — always as a
 `CREATE MATERIALIZED VIEW` (zero plain `CREATE VIEW` objects under `export`;
 every layer's data is materialized at [Carto](../pipeline/carto.md) time, not

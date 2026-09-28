@@ -422,11 +422,6 @@ each is waiting on a decision:
 
 This list is current as of 2026-09-28. Fix these when you edit the page:
 
-- `docs/overview/repo-tour.md`, `docs/install/configuration.md`, and `abtv2-tools/README.md` say
-  the target is Python 3.14. `env.yaml` pins 3.13.
-- `docs/overview/repo-tour.md`, `docs/project/contributing.md`, and `docs/project/testing.md` say
-  there are 21 test files. There are 22; the file lists don't include
-  `test_overture_check_proj_agreement.py`.
 - `docs/schema/adding-a-layer.md` doesn't mention that a new carto script needs a `-- LAYER:`
   header and an entry in `THEMES`.
 - The docstring for `Bundler.metadata` refers to `abt_metadata.py`. The actual file is

@@ -50,7 +50,7 @@ There are two ways to get a working Python environment for `abtv2-tools`:
 
 | File | Purpose |
 |---|---|
-| `env.yaml` | The primary path — a micromamba/conda environment spec (Python 3.14, `gdal`, `numpy`, `pyproj`, `psycopg2`, `boto3`, and more). Used by both the manual [Ubuntu Setup](ubuntu.md#5-gdal-python-environment) conda/Miniforge steps and by `setup_ubuntu.sh`'s micromamba stage. This is the only supported way to get GDAL's Python bindings reliably, since they don't have reliable pip wheels on every platform. |
+| `env.yaml` | The primary path — a micromamba/conda environment spec (Python 3.13, `gdal`, `numpy`, `pyproj`, `psycopg2`, `boto3`, and more). Used by both the manual [Ubuntu Setup](ubuntu.md#5-gdal-python-environment) conda/Miniforge steps and by `setup_ubuntu.sh`'s micromamba stage. This is the only supported way to get GDAL's Python bindings reliably, since they don't have reliable pip wheels on every platform. |
 | `requirements-dev.txt` | A pip fallback listing pytest plus every third-party package `abt/` imports (excluding GDAL/numpy), for use in a plain pip/venv environment when a conda env isn't available or convenient — e.g. CI. Kept in sync with `env.yaml`'s non-GDAL dependencies by convention, not by tooling. |
 
 See [Testing](../project/testing.md) for how `requirements-dev.txt` is actually used to run the test suite.
