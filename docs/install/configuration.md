@@ -78,7 +78,7 @@ All configuration for `setup_ubuntu.sh` is via environment variables — every o
 | `ABT_RUN_DIR` | `$ABT_WORKSPACE_DIR/run-planet` | Working directory for the default (Web Mercator) build. |
 | `ABT_RUN_DIR_3395` | `${ABT_RUN_DIR}-3395` | Separate working directory for an EPSG:3395 (World Mercator) `--projection-override` build — kept distinct from `ABT_RUN_DIR` since intermediate `.fgb` filenames don't encode projection. |
 | `ABT_MONOREPO_DIR` | The script's own directory, if `abtv2-tools/`/`rbt-schema/` already sit next to it; otherwise `$ABT_WORKSPACE_DIR/rbt` | Where the monorepo checkout lives (or already lives). |
-| `ABT_REPO` | `git@abt:ReleaseableBasemapTiles/abt.git` | Clone URL — the `abt` host is expected to be an SSH config `Host` alias for a deploy key (see [Ubuntu Setup](ubuntu.md#clone-the-repo)); override to a plain HTTPS URL or a different alias as needed. **Note:** this default misspells the org as `ReleaseableBasemapTiles` (extra "e") — the real org is `ReleasableBasemapTiles`. Override this variable rather than relying on the built-in default; see the warning on [Ubuntu Setup](ubuntu.md#clone-the-repo). |
+| `ABT_REPO` | `git@abt:ReleasableBasemapTiles/abt.git` | Clone URL — the `abt` host is expected to be an SSH config `Host` alias for a deploy key (see [Ubuntu Setup](ubuntu.md#clone-the-repo)); override to a plain HTTPS URL or a different alias as needed. |
 | `CLONE_REPO` | `true` | Set `false` to skip cloning `ABT_REPO` entirely. |
 | `PIPELINE_USER` / `PIPELINE_GROUP` | The invoking user (or `$SUDO_USER`) / that user's primary group | Owner of `ABT_WORKSPACE_DIR`/`ABT_RUN_DIR` and everything cloned/written into them. |
 

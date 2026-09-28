@@ -93,7 +93,7 @@ fi
 # back to your default SSH identity, which a deploy key can't authenticate
 # as. Override to a plain https://github.com/... URL instead if this becomes
 # public, or if you're not using a deploy key.
-ABT_REPO="${ABT_REPO:-git@abt:ReleaseableBasemapTiles/abt.git}"
+ABT_REPO="${ABT_REPO:-git@abt:ReleasableBasemapTiles/abt.git}"
 CLONE_REPO="${CLONE_REPO:-true}"
 
 # The non-root user (and its primary group) that should own ABT_WORKSPACE_DIR/
