@@ -27,12 +27,13 @@ class Bundler(BaseModel):
         additional_mbtiles: Paths to externally-produced mbtiles files to fold into the
             bundle alongside the tile_layers (e.g. contours). Zero, one, or many.
         metadata: Descriptive metadata (name, description, attribution, tags, license,
-            etc., typically loaded from the schema repo's abt_metadata.py) to write into
-            the joined mbtiles. `tile-join` only accepts a `-n` name flag on the command
-            line, so everything else is written directly into the metadata table after
-            the join completes. Keys tile-join computes itself from actual tile content
-            (bounds, center, format) are never overwritten -- see
-            mbtiles_metadata.TOOL_COMPUTED_METADATA_KEYS, used by bundler.py.
+            etc., typically loaded from the schema repo's tile-metadata/metadata.py) to
+            write into the joined mbtiles. `tile-join` has flags for only a few of these
+            (-n name, -N description, -A attribution), so all of them are written directly
+            into the metadata table after the join completes; the name also goes to -n. Keys
+            tile-join computes itself from actual tile content (bounds, center, format)
+            are left out of that write -- see mbtiles_metadata.TOOL_COMPUTED_METADATA_KEYS;
+            bundler.py handles bounds and center itself.
         max_zoom: Optional zoom cap for the bundled output (e.g. for an RBT
             Small package). When set, bundler.py pre-trims every input to
             this zoom level before tile-join runs. None means no cap.

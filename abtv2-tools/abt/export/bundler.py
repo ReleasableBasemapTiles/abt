@@ -165,11 +165,11 @@ def export_bundled(bundle: Bundler) -> None:
         declared_center = ",".join(str(v) for v in bundle.metadata["center"])
         write_mbtiles_metadata(bundle.bundled_mbtiles_path, {"center": declared_center})
 
-    # tile-join only accepts a -n name via its CLI; everything else in
-    # `metadata` (description, attribution, tags, license, etc.) has to be
-    # written directly. bounds/center/format are excluded here since
-    # they're either handled above (bounds/center) or left to tile-join
-    # itself (format).
+    # tile-join has flags for only a few `metadata` rows (-n name,
+    # -N description, -A attribution), not tags, license and the rest, so
+    # they're all written directly. bounds/center/format are excluded here
+    # since they're either handled above (bounds/center) or left to
+    # tile-join itself (format).
     if bundle.metadata:
         descriptive_metadata = {
             k: v for k, v in bundle.metadata.items()

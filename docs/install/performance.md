@@ -2,9 +2,9 @@
 
 This page covers how much hardware you need, how the pipeline tunes itself to it, and how `carto`'s aggressive session-level Postgres tuning interacts with the rest of the box.
 
-## Why `carto` is expensive regardless of extract size
+## Why `carto` is expensive even for a small extract
 
-The `carto_sql` scripts hardcode aggressive session tuning and a fixed degree of parallelism, most visibly in the water/land-cover dissolve scripts (`005a_water_polygon.sql`, `009_land_cover.sql`):
+The `carto_sql` scripts set aggressive session tuning of their own, most visibly the water/land-cover dissolve scripts (`005a_water_polygon.sql`, `009_land_cover.sql`; `003_road.sql` and `022_dam.sql` set the same `work_mem`/`maintenance_work_mem`):
 
 ```sql
 SET work_mem = '2GB';
@@ -18,7 +18,7 @@ SET jit = off;
 SET synchronous_commit = off;
 ```
 
-These scripts also open up to **16 parallel `dblink` worker connections** to dissolve global water/land-cover polygons. This cost is driven by the *source* data's global extent, not by `-k`/`--osm-key` — it's roughly the same whether `carto` is building the full planet or a single small country, since the dissolve operates over globally-scoped source layers either way.
+These scripts also open up to **16 parallel `dblink` worker connections** (`abt.dissolve_shards`) to dissolve water and land-cover polygons. The land-cover dissolve reads only `osm.osm_landcover_polygon`, so it shrinks with the extract. The water script also dissolves the global `aux_data.osm_ocean` polygons, the same size for every extract unless `import --clip-aux` (`-c`) clipped them to its bounding box.
 
 `carto` scales `max_parallel_workers_per_gather` and the dissolve's shard count down automatically (via the `abt.parallel_workers_per_gather`/`abt.dissolve_shards` custom GUCs referenced above) when several concurrent script groups share the box — see [Carto concurrency and its GUCs](#carto-concurrency-and-its-gucs) below.
 
@@ -74,7 +74,7 @@ export PG_MAX_CONNECTIONS=400              # covers concurrent carto groups' dbl
 
 `PG_MAX_CONNECTIONS` matters more at this scale than for a small extract: running `carto` with `--carto-concurrency` greater than 1 means several script groups hold their own connection simultaneously, and the water/land-cover scripts each additionally fan out up to 16 `dblink` worker connections from within whichever group is running them.
 
-On the smaller 8 vCPU / 32 GB single-extract tier, the 16 concurrent `dblink` workers each requesting up to 1 GB of `work_mem` (set inside the SQL itself, not from `postgresql.conf`) are comfortably inside 32 GB at that tier, since the dissolve operates on a small, already-clipped set of polygons. See [Configuration](configuration.md#setup_ubuntush-environment-variables) for the full `PG_*` environment-variable reference.
+On the smaller 8 vCPU / 32 GB single-extract tier, `carto` runs its scripts one at a time, so each dissolve gets all 16 `dblink` workers. Every `005a` worker sets `work_mem = 1GB`, and every `009` worker `work_mem = 2GB` and `maintenance_work_mem = 16GB`, inside the SQL itself rather than from `postgresql.conf`. Those are ceilings for each sort or hash, not allocations: a dissolve only gets near them on large inputs, which is why the [Norway walkthrough](../walkthroughs/norway.md) clips its aux data with `import -c`. See [Configuration](configuration.md#setup_ubuntush-environment-variables) for the full `PG_*` environment-variable reference.
 
 ## Bulk-load profile
 
@@ -128,7 +128,7 @@ Each divisor leaves more headroom for tasks that already spawn their own multi-t
 
 `carto` runs `carto_sql/*.sql` in three phases when `carto_sql/execution_plan.yml` is present and `--carto-concurrency` is greater than 1:
 
-1. **Prefix** — runs sequentially (schema setup, aux geometry normalization).
+1. **Setup and prefix** — `carto` creates the plan's custom schemas and extensions, then runs the prefix scripts sequentially (aux geometry normalization, the `export` schema).
 2. **Groups** — independent groups of scripts run concurrently with each other, up to `--carto-concurrency` at a time, started in the order `execution_plan.yml` lists them (longest first). A group's scripts run one after another, each on its own Postgres connection.
 3. **Suffix** — runs sequentially, only once every group has succeeded.
 

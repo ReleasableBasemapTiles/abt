@@ -1,7 +1,8 @@
 # Carto SQL
 
-`carto_sql/` holds 33 numbered SQL scripts (plus `099_update_geometry.sql`)
-that read `osm.*`/`aux_data.*` and build every `export.*` table — always as a
+`carto_sql/` holds 33 numbered SQL scripts, `000_update_aux_geom.sql` to
+`099_update_geometry.sql`, that read `osm.*`/`aux_data.*` and build every
+`export.*` table — always as a
 `CREATE MATERIALIZED VIEW` (zero plain `CREATE VIEW` objects under `export`;
 every layer's data is materialized at [Carto](../pipeline/carto.md) time, not
 read live at export time). Every script's own header comment (`LAYER`/
@@ -151,11 +152,11 @@ Generated from `carto_sql/execution_plan.yml` at doc-build time — always in sy
 <!-- CARTO_DAG_START -->
 ```mermaid
 flowchart TD
+    setupSchemas["create schemas/extensions up front:<br/>water, transportation, landuse, landcover, infrastructure, aeroway, dam, poi, dblink, pg_trgm"]
     prefix01["000_update_aux_geom"]
+    setupSchemas --> prefix01
     prefix02["001_set_schema"]
     prefix01 --> prefix02
-    setupSchemas["create schemas/extensions up front:<br/>water, transportation, landuse, landcover, infrastructure, aeroway, dam, poi, dblink, pg_trgm"]
-    prefix02 --> setupSchemas
     subgraph groupsBox ["29 independent groups -- concurrent, up to --carto-concurrency at a time"]
         group01["009_land_cover (weight 2)"]
         group02["005a_water_polygon then 005b_water_line (weight 2)"]
@@ -187,12 +188,12 @@ flowchart TD
         group28["030_pier"]
         group29["033_culvert"]
     end
-    setupSchemas --> groupsBox
+    prefix02 --> groupsBox
     suffix01["099_update_geometry"]
     groupsBox --> suffix01
 ```
 
-29 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before any group starts: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`, `pg_trgm`.
+29 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before the prefix runs: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`, `pg_trgm`.
 <!-- CARTO_DAG_END -->
 
 ## See also

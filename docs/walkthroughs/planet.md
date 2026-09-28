@@ -111,7 +111,7 @@ python abt-tools.py vundler \
   -z 13
 ```
 
-Converts `bundled/joined.mbtiles` into an Esri Compact Cache V2 bundle tree at `bundled/vundled/p12/`, converting zoom levels concurrently (one worker per core by default — 48 here). This is not a complete `.vtpk` (no `conf.xml`/`root.json`/styles), just the raw tile bundle structure plus a bare `metadata.json`. See [vundler-rs](../reference/vundler-rs.md) for internals.
+Converts `bundled/joined.mbtiles` into an Esri Compact Cache V2 bundle tree at `bundled/vundled/p12/`, converting its 128×128-tile bundles concurrently (one worker per core by default — 48 here). This is not a complete `.vtpk` (no `conf.xml`/`root.json`/styles), just the raw tile bundle structure plus a bare `metadata.json`. See [vundler-rs](../reference/vundler-rs.md) for internals.
 
 ## Check the results
 

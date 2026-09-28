@@ -21,7 +21,7 @@ python abt-tools.py export -w <working_dir> -s <schema_dir> [-n workers] [-p pg_
 | `-s`, `--schema-dir` | yes | — | Schema/config directory; reads `export/*.json` per-layer configs. |
 | `-n`, `--num-workers` | no | scaled to host CPU count, minimum 4 | Layers exported at once. Each worker takes one layer through its FlatGeobuf export and then its MBTiles conversion. |
 | `-p`, `--pg-config` | no | `env` | PostgreSQL connection — `env` or `<host>,<port>,<user>,<password>,<dbname>`. |
-| `-z`, `--max-zoom` | no | `13` | Caps the maximum zoom level generated. Hard-capped at 15 per the per-layer `tippecanoe_options.maximum_zoom` cap described in [Layer Registry](../schema/layers.md). |
+| `-z`, `--max-zoom` | no | `13` | Highest zoom to produce: each layer's own `tippecanoe_options.maximum_zoom` (see [Layer Registry](../schema/layers.md)) is capped at this value, and a layer that sets none uses it. At most 15. |
 | `--projection-override` | no | none (Web Mercator) | Advanced/non-standard CRS override — see below and `export --help` for the full explanation. |
 
 ## Notable behavior & edge cases
@@ -63,8 +63,7 @@ Only `export` and [`download`](download.md) skip existing outputs — `import`,
 `carto`, `bundler`, and `vundler` always redo the full operation. To rebuild one
 layer's tiles:
 
-1. Delete its `flatgeobuf/<layer>.fgb` and/or `mbtiles/<layer>.mbtiles` (or
-   `.btis`, if present).
+1. Delete its `flatgeobuf/<layer>.fgb` and/or `mbtiles/<layer>.mbtiles`.
 2. Re-run `export`.
 
 Deleting only the mbtiles file (keeping the `.fgb`) skips straight to the

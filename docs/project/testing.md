@@ -65,7 +65,7 @@ See [vundler-rs](../reference/vundler-rs.md) for full detail. Two halves:
 
 ## `abtv2-tools/vundler-rs/bench/`
 
-A separate benchmark and semantic-diff harness — wall-clock and RSS comparison between the Rust and pre-port Python implementations — not a correctness test suite. See [vundler-rs](../reference/vundler-rs.md) for the tools it contains and how to run it.
+A separate benchmark and semantic-diff harness, not a correctness test suite. It was written to compare the Rust port with the pre-port Python; now that `abt/vundler.py` calls the binary, its `run_python.py` times the same binary through the Python wrapper. See [vundler-rs](../reference/vundler-rs.md) for the tools it contains and how to run it.
 
 ## See also
 

@@ -52,7 +52,7 @@ and the [Pipeline Overview](../overview/pipeline.md).
 flowchart LR
     osmYml["import/osm/*.yml<br/>imposm mappings"] --> osmSchema[("osm.* tables")]
     auxJson["import/aux_data/*.json<br/>(+ static_data/ local files)"] --> auxSchema[("aux_data.* tables")]
-    osmSchema --> cartoSql["carto_sql/*.sql<br/>(ordered by execution_plan.yml)"]
+    osmSchema --> cartoSql["carto_sql/*.sql<br/>(filename order, or execution_plan.yml's groups)"]
     auxSchema --> cartoSql
     cartoSql --> exportSchema[("export.* materialized views")]
     exportSchema --> exportJson["export/*.json<br/>tippecanoe + ogr2ogr options"]
