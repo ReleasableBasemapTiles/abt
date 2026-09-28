@@ -422,8 +422,6 @@ each is waiting on a decision:
 
 This list is current as of 2026-09-28. Fix these when you edit the page:
 
-- The docstring for `Bundler.metadata` refers to `abt_metadata.py`. The actual file is
-  `tile-metadata/metadata.py`.
 - `env.yaml` lists `sphinx`, `sphinx-rtd-theme`, and `sphinx-pydantic`, which nothing uses, and
   it lists `boto3` twice.
 - The comment above the `PG_*` defaults in `setup_ubuntu.sh` says they target the 8 vCPU / 32 GB
