@@ -6,6 +6,7 @@ against a PostgreSQL database. This process transforms imported data into a
 format suitable for the final tile export process.
 """
 
+import time
 import typer
 from typing import Annotated
 from pathlib import Path
@@ -54,14 +55,23 @@ def init_carto_runer(working_dir: Path, schema_dir: Path, pg_config_type: str, c
     )
 
     print("--- Processing SQL files ---")
+    started = time.monotonic()
     try:
         carto.process_sql()
-        reporter.record(stage="carto", task="process_sql", status="SUCCESS")
+        reporter.record(stage="carto", task="process_sql", status="SUCCESS", duration_s=time.monotonic() - started)
         print("--- SQL processing complete ---")
     except Exception as e:
-        reporter.record(stage="carto", task="process_sql", status="FAILED", error=str(e))
+        reporter.record(
+            stage="carto", task="process_sql", status="FAILED", error=str(e), duration_s=time.monotonic() - started
+        )
         raise
     finally:
+        # Per-script timings, for tuning execution_plan.yml's group order and weights.
+        for run in carto.script_runs:
+            reporter.record(
+                stage="carto_scripts", task=run.script, status=run.status, error=run.error, duration_s=run.seconds
+            )
+        reporter.print_slowest("carto_scripts", title="Slowest carto scripts")
         reporter.write_summary(processing_directory.summary_file)
         print(f"Run summary: {processing_directory.summary_file}")
 

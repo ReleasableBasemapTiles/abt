@@ -3,6 +3,7 @@ Uses plain in-memory objects and callables -- no subprocess/network/DB, so
 no mocking framework is needed."""
 
 import logging
+import time
 
 from abt.parallel import ParallelExecutor, run_action_on_instance
 from abt.utils.run_reporter import RunReporter, STATUS_PARTIAL_FAILURE
@@ -85,3 +86,19 @@ def test_parallel_executor_records_into_reporter(tmp_path):
 def test_parallel_executor_returns_empty_list_for_no_objects(tmp_path):
     executor = _make_executor(tmp_path, instance="unittest3")
     assert executor.run([], lambda o: o) == []
+
+
+def test_parallel_executor_records_each_tasks_duration(tmp_path):
+    executor = _make_executor(tmp_path, instance="unittest4", max_workers=2)
+    reporter = RunReporter(run_id="r1", command="test")
+
+    def action(obj):
+        time.sleep(0.05)
+        if obj.name == "bad":
+            raise RuntimeError("boom")
+
+    executor.run([_Obj("good"), _Obj("bad")], action, reporter=reporter, stage="timed")
+
+    durations = dict(reporter.slowest("timed"))
+    assert set(durations) == {"good", "bad"}
+    assert all(seconds >= 0.04 for seconds in durations.values())

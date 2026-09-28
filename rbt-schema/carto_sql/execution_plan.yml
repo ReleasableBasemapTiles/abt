@@ -62,8 +62,9 @@ groups:
   # then the scans of the largest tables (003 highways; 017 and 023 both
   # scan osm_building_polygon, so starting them together lets Postgres
   # share one synchronized seqscan), then 007, 004 and 032. The order is an
-  # estimate from what each script does; re-check it against measured
-  # per-script times.
+  # estimate from what each script does; re-check it against the per-script
+  # times every carto run records (the carto_scripts stage of its
+  # summary.json).
   - [009_land_cover.sql]
 
   # 005b reads water.classify_water_type(), a function created by 005a --

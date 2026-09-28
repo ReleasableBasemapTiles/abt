@@ -38,6 +38,10 @@ python abt-tools.py carto -w <working_dir> -s <schema_dir> [-p pg_config] [-n ca
   contrast, abort the *whole* run if they fail. See
   [Troubleshooting](../reference/troubleshooting.md) for the exact failure/error
   behavior and recovery steps.
+- **Every script is timed.** The run's `summary.json` has a `carto_scripts`
+  stage with each script's `duration_s` (a script that failed included), and
+  `carto` prints the 10 slowest when it finishes. Use them to re-check
+  `execution_plan.yml`'s longest-first order and its `weights:`.
 - **Falls back to strict sequential filename order** if `-s/--schema-dir`'s
   `carto_sql/execution_plan.yml` is absent, or if `-n 1` is passed explicitly.
 - This page covers the CLI command itself; for how scripts are grouped, numbered,

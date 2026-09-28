@@ -13,12 +13,16 @@ run in three phases instead:
                   concurrently with each other
   3. suffix    -- sequential, only if every group succeeded (e.g. 099_update_geometry.sql)
 
+Either way, every script that runs is timed, and CartoProcessingModel.script_runs
+lists how each went -- see ScriptRun.
+
 See rbt-schema/carto_sql/execution_plan.yml for the full format and the
 dependency analysis behind today's grouping.
 """
 
 import os
 import re
+import time
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -28,6 +32,7 @@ from tqdm import tqdm
 
 from .parallel import ParallelExecutor
 from .utils.pg_config import PGConfig
+from .utils.run_reporter import STATUS_FAILED, STATUS_SUCCESS
 
 _IDENTIFIER_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
 
@@ -105,17 +110,40 @@ class CartoExecutionPlan(BaseModel):
         return max((self.weights.get(name, 1) for name in group), default=1)
 
 
+class ScriptRun(BaseModel):
+    """How one carto_sql script went: SUCCESS or FAILED (with the error),
+    and its wall-clock seconds."""
+    script: str
+    status: str
+    seconds: float
+    error: Optional[str] = None
+
+
+def run_timed_script(pg_config: PGConfig, script: Path, runs: List[ScriptRun]) -> None:
+    """Runs one script, appending a ScriptRun to `runs` whether it succeeds
+    or raises (the exception still propagates)."""
+    started = time.monotonic()
+    try:
+        pg_config.runSQLScript(sql_script=script)
+    except Exception as e:
+        runs.append(ScriptRun(script=script.name, status=STATUS_FAILED, seconds=time.monotonic() - started, error=str(e)))
+        raise
+    runs.append(ScriptRun(script=script.name, status=STATUS_SUCCESS, seconds=time.monotonic() - started))
+
+
 class CartoGroup(BaseModel):
     """One ordered list of carto_sql scripts that must run one after another.
     Each script opens its own connection from `pg_config`, so session state
     (SET, temp tables) doesn't carry from one script to the next.
     Independent CartoGroups run concurrently with each other -- see
-    CartoProcessingModel._process_with_plan.
+    CartoProcessingModel._process_with_plan. `runs` collects a ScriptRun
+    for each script run so far, including the one that failed.
     """
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     scripts: List[Path]
     pg_config: PGConfig
+    runs: List[ScriptRun] = []
 
     @property
     def name(self) -> str:
@@ -124,7 +152,7 @@ class CartoGroup(BaseModel):
 
     def run(self) -> None:
         for script in self.scripts:
-            self.pg_config.runSQLScript(sql_script=script)
+            run_timed_script(self.pg_config, script, self.runs)
 
 
 class CartoProcessingModel(BaseModel):
@@ -141,12 +169,18 @@ class CartoProcessingModel(BaseModel):
             doesn't exist, or `concurrency` <= 1, falls back to running
             sql_files sequentially in order (today's behavior).
         concurrency: Maximum number of groups to run at once.
+        script_runs: Filled in by process_sql: a ScriptRun for every script
+            that ran, in plan order (prefix, groups in plan order, suffix),
+            including one that failed. Scripts that never started (the rest
+            of a failed group, or the suffix after a failed group) are
+            absent.
     """
     sql_files: List[Path]
     pg_config: PGConfig
     log_dir: Path
     execution_plan_path: Optional[Path] = None
     concurrency: int = 1
+    script_runs: List[ScriptRun] = []
 
     def process_sql(self):
         """
@@ -154,6 +188,7 @@ class CartoProcessingModel(BaseModel):
         execution_plan.yml's prefix/groups/suffix structure -- see the
         module docstring.
         """
+        self.script_runs.clear()
         plan = CartoExecutionPlan.load(self.execution_plan_path) if self.execution_plan_path else None
         if plan is None or self.concurrency <= 1:
             self._process_sequential()
@@ -162,7 +197,7 @@ class CartoProcessingModel(BaseModel):
 
     def _process_sequential(self):
         for sql in tqdm(self.sql_files, desc="Processing Carto SQL"):
-            self.pg_config.runSQLScript(sql_script=sql)
+            run_timed_script(self.pg_config, sql, self.script_runs)
 
     def _resolve(self, filenames: List[str]) -> List[Path]:
         """Maps execution_plan.yml filenames to their actual Path in
@@ -256,7 +291,7 @@ class CartoProcessingModel(BaseModel):
 
         print(f"--- Running {len(plan.prefix)} prefix script(s) sequentially ---")
         for sql in tqdm(self._resolve(plan.prefix), desc="Carto prefix"):
-            self.pg_config.runSQLScript(sql_script=sql)
+            run_timed_script(self.pg_config, sql, self.script_runs)
 
         group_script_lists = [self._resolve(group) for group in plan.groups]
         groups = [
@@ -270,6 +305,8 @@ class CartoProcessingModel(BaseModel):
         print(f"--- Running {len(groups)} carto group(s), up to {self.concurrency} concurrently ---")
         executor = ParallelExecutor(log_dir=self.log_dir, max_workers=self.concurrency, instance="carto_groups")
         results = executor.run(objects=groups, action=CartoGroup.run)
+        for group in groups:
+            self.script_runs.extend(group.runs)
 
         failures = [(name, data) for name, status, data in results if status != "SUCCESS"]
         if failures:
@@ -280,4 +317,4 @@ class CartoProcessingModel(BaseModel):
 
         print(f"--- All groups succeeded; running {len(plan.suffix)} suffix script(s) sequentially ---")
         for sql in tqdm(self._resolve(plan.suffix), desc="Carto suffix"):
-            self.pg_config.runSQLScript(sql_script=sql)
+            run_timed_script(self.pg_config, sql, self.script_runs)

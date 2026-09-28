@@ -1,8 +1,8 @@
 """Tests for abt.carto_processing_model: CartoExecutionPlan.load,
 CartoProcessingModel's plan/disk drift detection (_validate_plan_covers_all_files,
-_resolve), and the weighted per-group GUC sizing (group_guc_values,
-_group_pg_configs). No live Postgres -- process_sql/_process_with_plan (which
-actually run SQL) are out of scope."""
+_resolve), the weighted per-group GUC sizing (group_guc_values,
+_group_pg_configs), and the per-script timings (ScriptRun). No live Postgres:
+the timing tests replace PGConfig's SQL execution with a recorder."""
 
 from pathlib import Path
 
@@ -13,6 +13,7 @@ from abt.carto_processing_model import (
     MAX_DISSOLVE_SHARDS,
     MAX_PARALLEL_WORKERS_PER_GATHER,
     CartoExecutionPlan,
+    CartoGroup,
     CartoProcessingModel,
     group_guc_values,
 )
@@ -204,3 +205,65 @@ def test_group_pg_configs_pass_each_groups_gucs_as_connection_options(tmp_path, 
     assert configs[0].extra_options == "-c abt.dissolve_shards=9 -c abt.parallel_workers_per_gather=2"
     assert configs[1].extra_options == "-c abt.dissolve_shards=4 -c abt.parallel_workers_per_gather=2"
     assert model.pg_config.extra_options == ""
+
+
+# --- per-script timings ----------------------------------------------------
+
+@pytest.fixture
+def ran_scripts(monkeypatch):
+    """Replaces PGConfig's SQL execution with a recorder. Scripts whose names
+    start with "bad" raise."""
+    ran = []
+
+    def run_script(self, sql_script):
+        ran.append(sql_script.name)
+        if sql_script.name.startswith("bad"):
+            raise RuntimeError(f"{sql_script.name}: syntax error")
+
+    monkeypatch.setattr(PGConfig, "runSQLScript", run_script)
+    monkeypatch.setattr(PGConfig, "execute_sql", lambda self, sql, description: None)
+    return ran
+
+
+def _plan_model(tmp_path, names, **plan):
+    model = make_model(tmp_path, [tmp_path / name for name in names])
+    model.execution_plan_path = tmp_path / "execution_plan.yml"
+    model.execution_plan_path.write_text(yaml.safe_dump(plan))
+    model.concurrency = 2
+    return model
+
+
+def test_group_records_each_script_up_to_and_including_the_one_that_failed(tmp_path, ran_scripts):
+    scripts = [tmp_path / "a.sql", tmp_path / "bad.sql", tmp_path / "c.sql"]
+    group = CartoGroup(scripts=scripts, pg_config=make_pg_config(tmp_path))
+    with pytest.raises(RuntimeError, match="syntax error"):
+        group.run()
+    assert ran_scripts == ["a.sql", "bad.sql"]
+    assert [(r.script, r.status) for r in group.runs] == [("a.sql", "SUCCESS"), ("bad.sql", "FAILED")]
+    assert group.runs[1].error == "bad.sql: syntax error"
+    assert all(r.seconds >= 0 for r in group.runs)
+
+
+def test_sequential_mode_times_every_script(tmp_path, ran_scripts):
+    model = make_model(tmp_path, [tmp_path / "a.sql", tmp_path / "b.sql"])
+    model.process_sql()
+    assert [(r.script, r.status) for r in model.script_runs] == [("a.sql", "SUCCESS"), ("b.sql", "SUCCESS")]
+
+
+def test_plan_mode_lists_prefix_groups_and_suffix_in_plan_order(tmp_path, ran_scripts):
+    names = ["p.sql", "a1.sql", "a2.sql", "b.sql", "s.sql"]
+    model = _plan_model(tmp_path, names, prefix=["p.sql"], groups=[["a1.sql", "a2.sql"], ["b.sql"]], suffix=["s.sql"])
+    model.process_sql()
+    assert [r.script for r in model.script_runs] == names
+    assert {r.status for r in model.script_runs} == {"SUCCESS"}
+
+
+def test_plan_mode_keeps_the_timings_of_a_failed_run(tmp_path, ran_scripts):
+    names = ["p.sql", "bad.sql", "a2.sql", "b.sql", "s.sql"]
+    model = _plan_model(tmp_path, names, prefix=["p.sql"], groups=[["bad.sql", "a2.sql"], ["b.sql"]], suffix=["s.sql"])
+    with pytest.raises(RuntimeError, match="1 of 2 carto group"):
+        model.process_sql()
+    # a2.sql never started (its group had already failed), nor did the suffix.
+    assert [(r.script, r.status) for r in model.script_runs] == [
+        ("p.sql", "SUCCESS"), ("bad.sql", "FAILED"), ("b.sql", "SUCCESS"),
+    ]
