@@ -26,7 +26,7 @@ These scripts also open up to **16 parallel `dblink` worker connections** to dis
 
 | Tier | vCPUs | RAM | Disk | Use case |
 |---|---|---|---|---|
-| **Planet** | 48 | 384 GB | 2+ TB NVMe | Full-planet builds — see the [Planet walkthrough](../walkthroughs/planet.md). This is the tier `setup_ubuntu.sh`'s default `PG_*` tuning and `abt-tools.py`'s auto-scaled `-n/--num-workers`/`--carto-concurrency` defaults are aimed at. 32+ vCPUs / 128+ GB RAM is a workable floor, but expect the `import` step alone to take 24+ hours even on hardware this size — the planet PBF alone is 80+ GB, before Postgres or tile output. |
+| **Planet** | 48 | 384 GB | 2+ TB NVMe | Full-planet builds — see the [Planet walkthrough](../walkthroughs/planet.md). This is the tier `abt-tools.py`'s auto-scaled `-n/--num-workers`/`--carto-concurrency` defaults are aimed at, and the one `setup_ubuntu.sh` tunes Postgres for on a host with 128 GB of RAM or more. 32+ vCPUs / 128+ GB RAM is a workable floor, but expect the `import` step alone to take 24+ hours even on hardware this size — the planet PBF alone is 80+ GB, before Postgres or tile output. |
 | **Small extract** | 8 | 32 GB | 100 GB SSD | Single-country/small-region test builds — see the [Norway walkthrough](../walkthroughs/norway.md). Fast iteration on schema/SQL changes without planet-scale time or disk cost. |
 
 On the 384 GB tier, Postgres itself should still be configured with a much smaller `shared_buffers`/`effective_cache_size` than the `carto_sql` scripts' own per-session `work_mem`/`maintenance_work_mem` overrides, since those are additive per concurrent `dblink` worker rather than shared:
@@ -39,9 +39,11 @@ maintenance_work_mem = 8GB
 max_worker_processes = 44
 max_parallel_workers = 40
 max_parallel_workers_per_gather = 8
+max_parallel_maintenance_workers = 8
 max_connections = 400
 max_files_per_process = 4096
 random_page_cost = 1.1
+max_wal_size = 64GB
 ```
 
 ```conf
@@ -52,26 +54,61 @@ maintenance_work_mem = 2GB
 max_worker_processes = 10
 max_parallel_workers = 10
 max_parallel_workers_per_gather = 4
+max_parallel_maintenance_workers = 2
+max_connections = 400
+max_files_per_process = 4096
 random_page_cost = 1.1
+max_wal_size = 8GB
 ```
 
-`setup_ubuntu.sh` already defaults to the planet-tier tuning; override the `PG_*` env vars before running it only if your host's specs differ meaningfully from 48 vCPU / 384 GB:
+Both tiers also get the [bulk-load profile](#bulk-load-profile) below.
+
+`setup_ubuntu.sh` picks the tier for you: `PG_TIER=auto` (the default) uses the planet values on a host with 128 GB of RAM or more and the small ones otherwise, and shrinks `shared_buffers`/`effective_cache_size` to fit a host with less RAM than its tier assumes. Force a tier with `PG_TIER=planet` or `PG_TIER=small`, and override any single value with its `PG_*` variable:
 
 ```bash
-export PG_SHARED_BUFFERS=96GB              # ~25% of RAM
-export PG_EFFECTIVE_CACHE_SIZE=192GB       # ~50% of RAM
-export PG_MAINTENANCE_WORK_MEM=8GB
-export PG_MAX_WORKER_PROCESSES=44          # leave a few cores for the OS/other daemons
-export PG_MAX_PARALLEL_WORKERS=40
-export PG_MAX_PARALLEL_WORKERS_PER_GATHER=8
+export PG_TIER=planet
+export PG_SHARED_BUFFERS=64GB              # ~25% of RAM on a 256 GB host
 export PG_MAX_CONNECTIONS=400              # covers concurrent carto groups' dblink fan-out + import/export worker pools
-export PG_MAX_FILES_PER_PROCESS=4096       # matches the NOFILE_LIMIT ulimit setup_ubuntu.sh also raises
 ./setup_ubuntu.sh
 ```
 
 `PG_MAX_CONNECTIONS` matters more at this scale than for a small extract: running `carto` with `--carto-concurrency` greater than 1 means several script groups hold their own connection simultaneously, and the water/land-cover scripts each additionally fan out up to 16 `dblink` worker connections from within whichever group is running them.
 
-For the smaller 8 vCPU / 32 GB single-extract tier, scale all of the above down instead — see the small-extract `postgresql.conf` block above. The 16 concurrent `dblink` workers each requesting up to 1 GB of `work_mem` (set inside the SQL itself, not from `postgresql.conf`) are comfortably inside 32 GB at that tier, since the dissolve operates on a small, already-clipped set of polygons. See [Configuration](configuration.md#setup_ubuntush-environment-variables) for the full `PG_*` environment-variable reference.
+On the smaller 8 vCPU / 32 GB single-extract tier, the 16 concurrent `dblink` workers each requesting up to 1 GB of `work_mem` (set inside the SQL itself, not from `postgresql.conf`) are comfortably inside 32 GB at that tier, since the dissolve operates on a small, already-clipped set of polygons. See [Configuration](configuration.md#setup_ubuntush-environment-variables) for the full `PG_*` environment-variable reference.
+
+## Bulk-load profile
+
+Every stage bulk-loads: imposm and ogr2ogr `COPY` data in, and `carto` builds each `export.*` table with `CREATE TABLE`/`CREATE MATERIALIZED VIEW ... AS` plus its indexes. Postgres's defaults are sized for many small transactions, so `setup_ubuntu.sh` sets, on both tiers:
+
+```conf
+max_wal_size = 64GB            # 8GB on the small tier
+checkpoint_timeout = 30min
+wal_compression = lz4          # pglz on a build without lz4
+wal_buffers = 64MB
+effective_io_concurrency = 200
+maintenance_io_concurrency = 200
+jit = off
+```
+
+With `PG_BULK_LOAD=true` (the default) it also sets:
+
+```conf
+wal_level = minimal
+max_wal_senders = 0
+synchronous_commit = off
+```
+
+Under `wal_level = minimal`, a table created in the same transaction that fills it writes no WAL for the data: on PostgreSQL 18, a 173 MB `CREATE TABLE ... AS` plus its index wrote 69 kB of WAL, against 206 MB at the default `wal_level = replica`. Every `export.*` materialized view `carto` builds, and its indexes, is created that way; the rows the water and land-cover `dblink` workers insert into their intermediate tables are still logged.
+
+!!! warning "`PG_BULK_LOAD=true` rules out replication and WAL archiving"
+    `wal_level = minimal` means no streaming replicas, no WAL archiving and no
+    replication slots. Postgres refuses to start with `archive_mode` on or a
+    replication slot present, so `setup_ubuntu.sh` checks for both first and
+    stops if it finds either. `synchronous_commit = off` can lose the last
+    moments of commits in a crash, never corrupt data; a pipeline rerun redoes
+    them anyway. On a host that replicates or archives, run with
+    `PG_BULK_LOAD=false`: the three settings above then go back to Postgres's
+    defaults.
 
 ## Auto-scaling on large single-host tiers
 

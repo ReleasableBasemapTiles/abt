@@ -93,18 +93,27 @@ All configuration for `setup_ubuntu.sh` is via environment variables — every o
 
 ### PostgreSQL tuning
 
-Defaults below target the 48 vCPU / 384 GB planet tier (see [Performance & Sizing](performance.md)); override all of these for a smaller host.
+`PG_TIER` picks which of the two [documented hardware tiers](performance.md#two-documented-hardware-tiers) the defaults below come from. Any variable you set yourself wins over its tier default.
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `PG_SHARED_BUFFERS` | `96GB` | ~25% of RAM on the planet tier. |
-| `PG_EFFECTIVE_CACHE_SIZE` | `192GB` | ~50% of RAM on the planet tier. |
-| `PG_MAINTENANCE_WORK_MEM` | `8GB` | |
-| `PG_MAX_WORKER_PROCESSES` | `44` | Leaves a few cores for the OS/other daemons. |
-| `PG_MAX_PARALLEL_WORKERS` | `40` | |
-| `PG_MAX_PARALLEL_WORKERS_PER_GATHER` | `8` | |
-| `PG_MAX_CONNECTIONS` | `400` | Raised unconditionally from Postgres's factory default (100) since concurrent `carto` groups can each open up to ~16 additional `dblink` worker connections for the water/land-cover dissolves; a too-low ceiling fails hard (`FATAL: sorry, too many clients already`) deep into a run rather than at startup. |
-| `PG_MAX_FILES_PER_PROCESS` | `4096` | Matches the `NOFILE_LIMIT` ulimit tuning below. |
+| Variable | Planet default | Small default | Purpose |
+|---|---|---|---|
+| `PG_TIER` | `auto` | `auto` | `planet` (48 vCPU / 384 GB), `small` (8 vCPU / 32 GB), or `auto`: planet on a host with 128 GB of RAM or more (a `MemTotal` of at least 120 GiB), else small. |
+| `PG_SHARED_BUFFERS` | `96GB` | `8GB` | ~25% of the tier's RAM, and never more than 30% of this host's. The script stops before installing anything if this is over 40% of RAM, since Postgres would then fail to start. |
+| `PG_EFFECTIVE_CACHE_SIZE` | `192GB` | `24GB` | A planner hint, not an allocation; never more than 80% of this host's RAM. |
+| `PG_MAINTENANCE_WORK_MEM` | `8GB` | `2GB` | |
+| `PG_MAX_WORKER_PROCESSES` | `44` | `10` | Leaves a few cores for the OS/other daemons. |
+| `PG_MAX_PARALLEL_WORKERS` | `40` | `10` | |
+| `PG_MAX_PARALLEL_WORKERS_PER_GATHER` | `8` | `4` | |
+| `PG_MAX_PARALLEL_MAINTENANCE_WORKERS` | `8` | `2` | Parallel workers per `CREATE INDEX` (B-tree, BRIN and GIN; GiST builds are single-threaded). |
+| `PG_MAX_WAL_SIZE` | `64GB` | `8GB` | Postgres's default of 1GB forces a checkpoint every few minutes during a bulk load. |
+| `PG_CHECKPOINT_TIMEOUT` | `30min` | `30min` | |
+| `PG_WAL_BUFFERS` | `64MB` | `64MB` | |
+| `PG_IO_CONCURRENCY` | `200` | `200` | Sets both `effective_io_concurrency` and `maintenance_io_concurrency`; sized for SSD/NVMe. |
+| `PG_BULK_LOAD` | `true` | `true` | Also sets `wal_level=minimal`, `max_wal_senders=0` and `synchronous_commit=off` — see [Performance & Sizing](performance.md#bulk-load-profile). Set `false` on a host that replicates or archives WAL; a rerun then resets those three to Postgres's defaults. |
+| `PG_MAX_CONNECTIONS` | `400` | `400` | Raised unconditionally from Postgres's factory default (100) since concurrent `carto` groups can each open up to ~16 additional `dblink` worker connections for the water/land-cover dissolves; a too-low ceiling fails hard (`FATAL: sorry, too many clients already`) deep into a run rather than at startup. |
+| `PG_MAX_FILES_PER_PROCESS` | `4096` | `4096` | Matches the `NOFILE_LIMIT` ulimit tuning below. |
+
+The script also always sets `random_page_cost = 1.1`, `jit = off`, and `wal_compression` to `lz4` (or `pglz` on a build without lz4).
 
 ### Kernel & ulimit tuning
 

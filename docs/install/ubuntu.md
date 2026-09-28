@@ -84,9 +84,11 @@ maintenance_work_mem = 8GB
 max_worker_processes = 44
 max_parallel_workers = 40
 max_parallel_workers_per_gather = 8
+max_parallel_maintenance_workers = 8
 max_connections = 400
 max_files_per_process = 4096
 random_page_cost = 1.1
+max_wal_size = 64GB
 ```
 
 Restart Postgres after editing: `sudo systemctl restart postgresql`.
@@ -100,10 +102,29 @@ maintenance_work_mem = 2GB
 max_worker_processes = 10
 max_parallel_workers = 10
 max_parallel_workers_per_gather = 4
+max_parallel_maintenance_workers = 2
+max_connections = 400
+max_files_per_process = 4096
 random_page_cost = 1.1
+max_wal_size = 8GB
 ```
 
-See [Performance & Sizing](performance.md) for the reasoning behind these two tiers and how they interact with `carto`'s own per-session tuning.
+On either tier, add the bulk-load settings `setup_ubuntu.sh` also applies:
+
+```conf
+checkpoint_timeout = 30min
+wal_compression = lz4
+wal_buffers = 64MB
+effective_io_concurrency = 200
+maintenance_io_concurrency = 200
+jit = off
+# Leave these three out on a host that replicates or archives WAL:
+wal_level = minimal
+max_wal_senders = 0
+synchronous_commit = off
+```
+
+See [Performance & Sizing](performance.md) for the reasoning behind these two tiers, the [bulk-load profile](performance.md#bulk-load-profile), and how they interact with `carto`'s own per-session tuning.
 
 ## 3. imposm 0.14+
 
