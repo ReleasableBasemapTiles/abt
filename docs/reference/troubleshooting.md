@@ -4,8 +4,32 @@ Merged from the root `README.md` and `abtv2-tools/README.md` troubleshooting sec
 
 ## `carto` stage
 
-!!! warning "`ERROR: password is required` / `dblink_connect` fails in `carto`"
-    The pipeline's role (`rbt` by default) isn't a superuser, or `pg_hba.conf` doesn't trust its local connections. Re-run the `CREATE ROLE ... SUPERUSER` step (see [Ubuntu Setup](../install/ubuntu.md)), or add a `trust`/`scram-sha-256` entry for the role on `127.0.0.1/32` in `pg_hba.conf` and reload Postgres. On a host set up by `setup_ubuntu.sh`, `pg_hba.conf` is in `PG_DATA_DIR` (default `/var/lib/postgresql/<version>/main`) and the unit is `postgresql-rbt`: `sudo systemctl reload postgresql-rbt`. On a manual install it's `/etc/postgresql/<version>/main/pg_hba.conf` and `sudo systemctl reload postgresql`.
+!!! warning "`dblink_connect` fails in `carto`"
+    The `carto` scripts open `dblink` connections back to their own database with a connection
+    string that names only `dbname`, `port`, and `options`: no host, user, or password. That works
+    only when both of these hold:
+
+    - **The pipeline's role (`rbt` by default) is a superuser.** `dblink` refuses a password-less
+      connection string from any other role with `ERROR: password or GSSAPI delegated credentials
+      required`, whatever `pg_hba.conf` says, so no `pg_hba.conf` entry can stand in for this.
+      Make the role a superuser with `sudo -u postgres psql -c 'ALTER ROLE rbt SUPERUSER;'` (see
+      [Ubuntu Setup](../install/ubuntu.md)).
+    - **The server accepts a password-less connection on its local socket.** With no user named,
+      each `dblink` session logs in as the operating-system user the server runs as, normally
+      `postgres`. A cluster that `setup_ubuntu.sh` created trusts every local connection, and a
+      stock Ubuntu cluster lets `postgres` in through `peer`. If `pg_hba.conf` asks for a password
+      on local connections instead, the session fails with `ERROR: could not establish
+      connection` and `fe_sendauth: no password supplied`. An entry for `127.0.0.1/32` or for the
+      pipeline's role doesn't help. Restore the stock `local all postgres peer` line, ahead of any
+      stricter `local` line, and reload Postgres.
+
+    On a host set up by `setup_ubuntu.sh`, `pg_hba.conf` is in `PG_DATA_DIR` (default
+    `/var/lib/postgresql/<version>/main`) and the unit is `postgresql-rbt`:
+    `sudo systemctl reload postgresql-rbt`. On a manual install it's
+    `/etc/postgresql/<version>/main/pg_hba.conf` and `sudo systemctl reload postgresql`. Naming a
+    user in the connection strings would break `peer` on a stock cluster; see the `dblink` item
+    under "Report only" in the
+    [September 2026 review](../project/code-review-2026-09.md#latent-problems-and-limitations).
 
 **`carto` fails partway through, referencing `aux_data.mirtalocations_a` (in `023_military.sql`) or another `aux_data.*` table that "doesn't exist".**
 

@@ -44,8 +44,9 @@ python abt-tools.py import -w <working_dir> -s <schema_dir> -d {osm,aux,all} [-n
 
 !!! warning "`dblink`/superuser requirement carries forward from `import`'s `-p`"
     The same PostgreSQL role used here is later reused by [`carto`](carto.md),
-    which needs it to be a superuser (or explicitly trusted in `pg_hba.conf`) for
-    `dblink`'s internal connections. See [Configuration](../install/configuration.md).
+    which needs it to be a superuser for `dblink`'s internal connections (no
+    `pg_hba.conf` entry can stand in for that). See
+    [Configuration](../install/configuration.md).
 
 ## Debugging a single aux file
 

@@ -126,8 +126,10 @@ except `vundler`'s. `docs/overview/working-directory.md` lists every file:
 
   The carto scripts open `dblink` loopback connections with no user or password
   (`dbname=… port=…`). dblink allows a password-less connection only for a superuser, whatever
-  `pg_hba.conf` says, so the pipeline role must be a superuser. The server must also accept
-  password-less local connections.
+  `pg_hba.conf` says, so the pipeline role must be a superuser. Each loopback session logs in over
+  the local socket as `postgres`, the OS user the server runs as, so the server must also accept
+  `postgres` on that socket without a password. A `setup_ubuntu.sh` cluster trusts every local
+  connection, and a stock Ubuntu cluster uses `peer`.
 - **Connection:** `-p env` reads `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`,
   and doesn't connect until the first query. `-p "host,port,user,password,db"` runs `SELECT 1` at
   startup to test the connection.
@@ -473,10 +475,6 @@ output.
 Checked on 2026-09-29. If you find prose that disagrees with the code and can't fix it in the
 same change, list it here.
 
-- The `dblink_connect` warning in `docs/reference/troubleshooting.md`, and a comment in
-  `setup_ubuntu.sh`'s extensions stage, offer a `pg_hba.conf` entry as an alternative to a
-  superuser role. dblink refuses a password-less connection from a non-superuser whatever
-  `pg_hba.conf` says; see [PostgreSQL](#postgresql).
 - A comment in `init.sh`'s Overture preflight says `setup_ubuntu.sh` doesn't provision duckdb. It
   does, unless `INSTALL_DUCKDB=false`.
 
