@@ -67,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Import fieldmaps_adm2_polygons as polygons
 - Print a note when a layer file or -q path is missing
 
+### Security
+
+- Create new Postgres clusters with peer and scram-sha-256 auth instead of trust
+
 ## [2.0.0] - 2026-09-17
 
 ### Added
