@@ -66,6 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Correct help text and hide docstring Args from --help
 - Import fieldmaps_adm2_polygons as polygons
 - Print a note when a layer file or -q path is missing
+- Detect an initialized data directory on non-root re-runs
+- Make FORCE_REINIT_POSTGRES wipe the data directory on non-root runs
+- Pass PG_PORT to the postgres superuser's psql and createdb calls
 
 ### Security
 
