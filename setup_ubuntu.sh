@@ -113,7 +113,7 @@ PG_PORT="${PG_PORT:-5432}"
 # binaries, wrapped in a small systemd unit named PG_SERVICE_NAME.
 PG_SERVICE_NAME="${PG_SERVICE_NAME:-postgresql-rbt}"
 
-# Data directory for the cluster, initialized via a plain `initdb`. Defaults
+# Data directory for the cluster, initialized by `initdb` directly. Defaults
 # to /var/lib/postgresql/<major>/main (the standard Debian/Ubuntu path, just
 # not populated by Debian's own tooling) once the installed major version is
 # known; override PG_DATA_DIR to use a different path, e.g. a mount point
@@ -124,6 +124,32 @@ PG_DATA_DIR="${PG_DATA_DIR:-}"
 # initdb fresh. Left "false" by default so the script fails loudly instead
 # of silently deleting data that happens to already live at that path.
 FORCE_REINIT_POSTGRES="${FORCE_REINIT_POSTGRES:-false}"
+
+# How the pg_hba.conf that initdb writes for a fresh cluster authenticates
+# connections: PG_AUTH_LOCAL over the Unix socket, PG_AUTH_HOST over TCP
+# from 127.0.0.1 and ::1 (listen_addresses stays at localhost, so nothing
+# else can connect). A bare initdb trusts both, which lets any local user
+# or process connect as any role, postgres included, without a password.
+# The defaults are a stock Ubuntu cluster's rules, and the pipeline runs
+# under them: every stage connects over TCP as PG_USER with PG_PASSWORD,
+# and the password-less dblink sessions carto opens log in as postgres
+# over the socket, which peer lets through. "trust" for both restores the
+# bare-initdb rules. initdb is the only place this script sets
+# authentication, so these don't change an existing cluster, and section 4
+# warns when one still has trust rules.
+PG_AUTH_LOCAL="${PG_AUTH_LOCAL:-peer}"
+PG_AUTH_HOST="${PG_AUTH_HOST:-scram-sha-256}"
+# A local method that wants a password would break those dblink sessions
+# ("fe_sendauth: no password supplied"), since they have none to give.
+if [[ "$PG_AUTH_LOCAL" != "peer" && "$PG_AUTH_LOCAL" != "trust" ]]; then
+    echo "PG_AUTH_LOCAL must be peer or trust (got '${PG_AUTH_LOCAL}'): carto's dblink sessions" >&2
+    echo "log in as postgres over the local socket without a password." >&2
+    exit 1
+fi
+if [[ "$PG_AUTH_HOST" != "scram-sha-256" && "$PG_AUTH_HOST" != "trust" ]]; then
+    echo "PG_AUTH_HOST must be scram-sha-256 or trust (got '${PG_AUTH_HOST}')." >&2
+    exit 1
+fi
 
 # Postgres sizing tier: the two hardware tiers docs/install/performance.md
 # documents. "planet" is 48 vCPU / 384 GB, "small" is 8 vCPU / 32 GB, and
@@ -655,9 +681,10 @@ EOF
         sudo chown postgres:postgres "$PG_DATA_DIR"
         sudo chmod 700 "$PG_DATA_DIR"
 
-        echo "Running initdb for a fresh cluster at ${PG_DATA_DIR}"
+        echo "Running initdb for a fresh cluster at ${PG_DATA_DIR} (auth: local ${PG_AUTH_LOCAL}, host ${PG_AUTH_HOST})"
         sudo -u postgres env "PATH=${PG_BIN_DIR}:/usr/bin:/bin" \
-            initdb -D "$PG_DATA_DIR" --encoding=UTF8 --locale=C.UTF-8
+            initdb -D "$PG_DATA_DIR" --encoding=UTF8 --locale=C.UTF-8 \
+            --auth-local="$PG_AUTH_LOCAL" --auth-host="$PG_AUTH_HOST"
     fi
 
     # Ensure the configured port is what postgresql.conf actually has,
@@ -723,6 +750,23 @@ if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
     stage "Ensuring Postgres is running"
     pg_service_ensure_running
 
+    # initdb (section 3) is the only place this script sets authentication,
+    # so a cluster initialized before PG_AUTH_LOCAL/PG_AUTH_HOST existed, or
+    # by something else, keeps the pg_hba.conf it has. Warn about its trust
+    # rules rather than rewrite a live cluster's rules, which may be
+    # deliberate. pg_hba_file_rules parses the file the way the server does,
+    # so a commented-out rule doesn't count.
+    if [[ "$PG_AUTH_LOCAL" != "trust" && "$PG_AUTH_HOST" != "trust" ]]; then
+        trust_rules="$(sudo -u postgres psql -tAc "SELECT count(*) FROM pg_hba_file_rules WHERE auth_method = 'trust'")"
+        if [[ "$trust_rules" != "0" ]]; then
+            hba_file="$(sudo -u postgres psql -tAc "SHOW hba_file")"
+            echo "Warning: ${hba_file} has ${trust_rules} trust rule(s), so the connections they match need no" >&2
+            echo "password. A cluster from an older setup_ubuntu.sh trusts every local connection: any local user" >&2
+            echo "can connect as any role, postgres included. This script never edits an existing pg_hba.conf;" >&2
+            echo "to tighten it by hand, see \"Postgres authentication\" in docs/install/ubuntu.md." >&2
+        fi
+    fi
+
     stage "Creating role '${PG_USER}' and database '${PG_DB}'"
 
     # Unquoted heredoc so ${PG_USER}/${PG_PASSWORD} interpolate; \$\$ escapes
@@ -750,9 +794,10 @@ SQL
     # without a password from any role but a superuser, whatever pg_hba.conf
     # says, which is why PG_USER above is created WITH ... SUPERUSER rather
     # than a restricted role. The connection strings name no user either, so
-    # each session logs in as postgres over the local socket, which a cluster
-    # from the plain initdb above trusts. See the dblink item under "Report
-    # only" in docs/project/code-review-2026-09.md.
+    # each session logs in as postgres over the local socket, which
+    # PG_AUTH_LOCAL's peer rule lets through (trust does too; see its
+    # comment). See the dblink item under "Report only" in
+    # docs/project/code-review-2026-09.md.
     # pg_trgm supplies the "%" similarity operator used throughout carto_sql
     # (e.g. 004_railway.sql's LOWER(service) % 'siding') for fuzzy-matching
     # OSM tag values/typos; it ships in postgresql-contrib but still needs

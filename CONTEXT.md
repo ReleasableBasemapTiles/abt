@@ -128,8 +128,9 @@ except `vundler`'s. `docs/overview/working-directory.md` lists every file:
   (`dbname=… port=…`). dblink allows a password-less connection only for a superuser, whatever
   `pg_hba.conf` says, so the pipeline role must be a superuser. Each loopback session logs in over
   the local socket as `postgres`, the OS user the server runs as, so the server must also accept
-  `postgres` on that socket without a password. A `setup_ubuntu.sh` cluster trusts every local
-  connection, and a stock Ubuntu cluster uses `peer`.
+  `postgres` on that socket without a password. A stock Ubuntu cluster and one that
+  `setup_ubuntu.sh` creates both let it in through `peer`. A cluster from an older
+  `setup_ubuntu.sh`, before `PG_AUTH_LOCAL` and `PG_AUTH_HOST`, trusts every local connection.
 - **Connection:** `-p env` reads `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`,
   and doesn't connect until the first query. `-p "host,port,user,password,db"` runs `SELECT 1` at
   startup to test the connection.
@@ -336,7 +337,8 @@ variables whose defaults match a `setup_ubuntu.sh` host, and `bash init.sh --hel
 - **Postgres.** `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`, and `PG_DB` default to
   `127.0.0.1`, `5432`, and `rbt` for the role and database. The script exports them as `PGHOST`
   and the rest, overwriting any already set, so a shell still pointed at another database can't
-  send the build there.
+  send the build there. A `setup_ubuntu.sh` cluster checks the password on TCP connections
+  (`scram-sha-256`), so `PG_PASSWORD` has to be the role's.
 
 Unless `--no-upload` is passed, the script stops immediately if `aws` or the AWS STS variables
 are missing.
@@ -437,6 +439,12 @@ tuning stage re-applies its settings and restarts Postgres on every run. The sta
 - the AWS CLI and duckdb
 - the Rust toolchain and `abt-vundler`
 - a micromamba environment built from `env.yaml`
+
+A fresh cluster gets a stock Ubuntu cluster's authentication: `peer` on the local socket and
+`scram-sha-256` over TCP (`PG_AUTH_LOCAL` and `PG_AUTH_HOST`; `trust` for both restores the rules
+of a bare `initdb`). The script sets them only when it runs `initdb`. It never edits an existing
+`pg_hba.conf`, and its Postgres configuration stage warns when one still has `trust` rules. See
+"Postgres authentication" in `docs/install/ubuntu.md`.
 
 | Tier | Hardware | Use |
 |---|---|---|

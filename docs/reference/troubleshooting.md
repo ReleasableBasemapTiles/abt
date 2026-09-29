@@ -2,6 +2,16 @@
 
 Merged from the root `README.md` and `abtv2-tools/README.md` troubleshooting sections, organized by symptom.
 
+## Connecting to Postgres
+
+**`FATAL: Peer authentication failed for user "rbt"`.**
+
+The client connected over the local socket, where a cluster that `setup_ubuntu.sh` created, like a stock Ubuntu cluster, admits a role only for the operating-system user of the same name (`peer`). Connect over TCP instead: `psql -h 127.0.0.1 -U rbt`, or with `-p env`, `PGHOST=127.0.0.1` rather than a socket directory such as `/var/run/postgresql`. `init.sh` connects to `PG_HOST`, which is `127.0.0.1` unless you set it. To connect as `postgres`, use `sudo -u postgres psql`. See [Postgres authentication](../install/ubuntu.md#postgres-authentication).
+
+**`FATAL: password authentication failed for user "rbt"`.**
+
+The client's password isn't the role's. A cluster that `setup_ubuntu.sh` created checks it on every TCP connection (`PG_AUTH_HOST=scram-sha-256`), where a cluster from an older `setup_ubuntu.sh` trusted those connections and never checked it. Pass the `PG_PASSWORD` the host was set up with (`rbt` by default): as `PGPASSWORD` for `-p env`, in the `-p` host string, or as `init.sh`'s `PG_PASSWORD`. Or set the role's password to the one you pass, with `sudo -u postgres psql -c "ALTER ROLE rbt PASSWORD '<password>'"`.
+
 ## `carto` stage
 
 !!! warning "`dblink_connect` fails in `carto`"
@@ -16,20 +26,19 @@ Merged from the root `README.md` and `abtv2-tools/README.md` troubleshooting sec
       [Ubuntu Setup](../install/ubuntu.md)).
     - **The server accepts a password-less connection on its local socket.** With no user named,
       each `dblink` session logs in as the operating-system user the server runs as, normally
-      `postgres`. A cluster that `setup_ubuntu.sh` created trusts every local connection, and a
-      stock Ubuntu cluster lets `postgres` in through `peer`. If `pg_hba.conf` asks for a password
-      on local connections instead, the session fails with `ERROR: could not establish
-      connection` and `fe_sendauth: no password supplied`. An entry for `127.0.0.1/32` or for the
-      pipeline's role doesn't help. Restore the stock `local all postgres peer` line, ahead of any
-      stricter `local` line, and reload Postgres.
+      `postgres`. A stock Ubuntu cluster and one that `setup_ubuntu.sh` created both let `postgres`
+      in through `peer`, and a cluster from an older `setup_ubuntu.sh` trusts every local
+      connection. If `pg_hba.conf` asks for a password on local connections instead, the session
+      fails with `ERROR: could not establish connection` and `fe_sendauth: no password supplied`.
+      An entry for `127.0.0.1/32` or for the pipeline's role doesn't help. Put a
+      `local all postgres peer` line ahead of any stricter `local` line, and reload Postgres.
 
     On a host set up by `setup_ubuntu.sh`, `pg_hba.conf` is in `PG_DATA_DIR` (default
     `/var/lib/postgresql/<version>/main`) and the unit is `postgresql-rbt`:
     `sudo systemctl reload postgresql-rbt`. On a manual install it's
     `/etc/postgresql/<version>/main/pg_hba.conf` and `sudo systemctl reload postgresql`. Naming a
-    user in the connection strings would break `peer` on a stock cluster; see the `dblink` item
-    under "Report only" in the
-    [September 2026 review](../project/code-review-2026-09.md#latent-problems-and-limitations).
+    user in the connection strings would break `peer`; see the `dblink` item under "Report only" in
+    the [September 2026 review](../project/code-review-2026-09.md#latent-problems-and-limitations).
 
 **`carto` fails partway through, referencing `aux_data.mirtalocations_a` (in `023_military.sql`) or another `aux_data.*` table that "doesn't exist".**
 

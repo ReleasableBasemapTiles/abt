@@ -38,7 +38,7 @@ psql --version
 
 ### Create a database and role
 
-The `carto` scripts run `CREATE EXTENSION IF NOT EXISTS dblink` and then open password-less internal connections via `dblink_connect` to fan out a parallel polygon dissolve (see `rbt-schema/carto_sql/005a_water_polygon.sql`). `dblink` accepts a password-less connection string like this only from a Postgres **superuser**, whatever `pg_hba.conf` says, so the pipeline's role must be one. Those connections name no user either, so each logs in as `postgres` over the local socket, which the stock `local all postgres peer` line in `pg_hba.conf` allows; keep it. The names below are the ones `setup_ubuntu.sh` uses by default (`PG_USER`, `PG_PASSWORD` and `PG_DB` are all `rbt`), so the walkthroughs and `init.sh` work the same on either path:
+The `carto` scripts run `CREATE EXTENSION IF NOT EXISTS dblink` and then open password-less internal connections via `dblink_connect` to fan out a parallel polygon dissolve (see `rbt-schema/carto_sql/005a_water_polygon.sql`). `dblink` accepts a password-less connection string like this only from a Postgres **superuser**, whatever `pg_hba.conf` says, so the pipeline's role must be one. Those connections name no user either, so each logs in as `postgres` over the local socket, which the stock `local all postgres peer` line in `pg_hba.conf` allows; keep it. A `setup_ubuntu.sh` cluster lets `postgres` in through `peer` too (see [Postgres authentication](#postgres-authentication)). The names below are the ones `setup_ubuntu.sh` uses by default (`PG_USER`, `PG_PASSWORD` and `PG_DB` are all `rbt`), so the walkthroughs and `init.sh` work the same on either path:
 
 ```bash
 sudo -u postgres psql <<'SQL'
@@ -266,7 +266,7 @@ Configuration is entirely via environment variables, all optional. See [Configur
 
 ### How `setup_ubuntu.sh` differs
 
-The role, database and extensions, the `postgresql.conf` values, and the tools are the same on both paths. These are not:
+The role, database and extensions, Postgres authentication, the `postgresql.conf` values, and the tools are the same on both paths. These are not:
 
 | | Manual (this page) | `setup_ubuntu.sh` |
 |---|---|---|
@@ -279,6 +279,49 @@ The role, database and extensions, the `postgresql.conf` values, and the tools a
 | Rust | rustup's default, under `$HOME` | Under `/opt/rust` (`RUSTUP_HOME`, `CARGO_HOME`) |
 | Kernel and ulimit tuning | Not covered | `sysctl` settings, among them `vm.overcommit_memory=2`, and raised `nofile`/`nproc` limits (`KERNEL_TUNE`) |
 | AWS CLI and duckdb | Optional (step 8) | Installed by default (`INSTALL_AWSCLI`, `INSTALL_DUCKDB`) |
+
+### Postgres authentication
+
+`initdb` gives a fresh cluster the same authentication as a stock Ubuntu cluster: `peer` on the local socket (`PG_AUTH_LOCAL`) and `scram-sha-256` over TCP from `127.0.0.1` and `::1` (`PG_AUTH_HOST`). Postgres listens only on `localhost`. Under these rules:
+
+- `init.sh` and the walkthroughs point every pipeline stage at `127.0.0.1` over TCP as `PG_USER`, so the password they pass (`PG_PASSWORD`, `rbt` by default) has to be the role's.
+- `sudo -u postgres psql` works over the socket, and so do `carto`'s `dblink` sessions, which log in as `postgres`.
+- `psql -U rbt` without `-h` fails with `Peer authentication failed`, because the socket admits a role only for the operating-system user of the same name. Use `psql -h 127.0.0.1 -U rbt`.
+
+`PG_AUTH_LOCAL=trust PG_AUTH_HOST=trust` brings back the rules a bare `initdb` writes, which an older `setup_ubuntu.sh` used. They trust every local connection, so any local user or process can connect as any role without a password, `postgres` included, and a superuser session can run commands as the `postgres` operating-system user.
+
+#### A cluster from an older `setup_ubuntu.sh`
+
+`setup_ubuntu.sh` sets authentication only when it runs `initdb` on an empty `PG_DATA_DIR`, and it never edits an existing `pg_hba.conf`. A cluster it created before `PG_AUTH_LOCAL` and `PG_AUTH_HOST` existed therefore still trusts every local connection. To check a cluster, list the rules in its `pg_hba.conf` as Postgres parses them; each row whose `auth_method` is `trust` lets its connections in without a password:
+
+```bash
+sudo -u postgres psql -c "SELECT line_number, type, database, user_name, address, auth_method FROM pg_hba_file_rules"
+```
+
+`FORCE_REINIT_POSTGRES=true` would run `initdb` again with the new rules, but it deletes the cluster's data. To tighten the rules in place instead, first set the role's password to the one `init.sh` and your `PG*` exports pass, since `trust` never checked it:
+
+```bash
+sudo -u postgres psql -c "ALTER ROLE rbt PASSWORD 'rbt'"
+```
+
+Then edit `pg_hba.conf`, which is in `PG_DATA_DIR` (`/var/lib/postgresql/<version>/main` by default). Change `trust` to `peer` on the `local` lines and to `scram-sha-256` on the `host` lines, so the rules read:
+
+```text
+local   all             all                                     peer
+host    all             all             127.0.0.1/32            scram-sha-256
+host    all             all             ::1/128                 scram-sha-256
+local   replication     all                                     peer
+host    replication     all             127.0.0.1/32            scram-sha-256
+host    replication     all             ::1/128                 scram-sha-256
+```
+
+Reload Postgres, check that no rule is left on `trust`, and check that the pipeline's connection still works:
+
+```bash
+sudo systemctl reload postgresql-rbt
+sudo -u postgres psql -c "SELECT line_number, type, database, user_name, address, auth_method FROM pg_hba_file_rules"
+PGPASSWORD=rbt psql -h 127.0.0.1 -U rbt -d rbt -c 'SELECT 1'
+```
 
 ## Where to go next
 
