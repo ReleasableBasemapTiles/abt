@@ -25,6 +25,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Overwrite the abtv2-tools mirror commits ported in #2
 - Point the abtv2-tools overwrite at e2ea95c
 - Point the abtv2-tools overwrite at eeb8f4a
+- Add CLAUDE.md and CONTEXT.md for coding agents
+- Note NON_LAYER_SCRIPTS in the CLAUDE.md schema checklist
+- Fix the stale python version and file counts
+- Document carto script headers in the adding-a-layer walkthrough
+- Correct the Bundler.metadata docstring
+- Fix the stale sizing comment and README pointers in setup_ubuntu.sh
+- Drop the unused sphinx packages and duplicate boto3 from env.yaml
 - Render the CLI reference for a fixed 48 vCPU host
 - Skip duplicate GiST builds, weight group budgets, start long poles first
 - Compute each island's geodesic area once in 026
@@ -54,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drop the no-op PRAGMA pass and the duplicate tile checks
 - Correct help text and hide docstring Args from --help
 - Import fieldmaps_adm2_polygons as polygons
+- Print a note when a layer file or -q path is missing
 
 ## [2.0.0] - 2026-09-17
 
