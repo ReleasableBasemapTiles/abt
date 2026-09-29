@@ -69,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Detect an initialized data directory on non-root re-runs
 - Make FORCE_REINIT_POSTGRES wipe the data directory on non-root runs
 - Pass PG_PORT to the postgres superuser's psql and createdb calls
+- Refuse a non-empty uninitialized data directory before stopping postgres
 
 ### Security
 
