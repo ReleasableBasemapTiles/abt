@@ -4,8 +4,9 @@
 into the `export.*` materialized views that [`export`](export.md) tiles. It does
 this by running every SQL script in `--schema-dir`'s `carto_sql/*.sql`, either
 sequentially in filename order or — when `carto_sql/execution_plan.yml` is
-present — grouped and partially parallelized. Like [`import`](import.md), it always
-redoes the full stage from scratch; every script must be safe to re-run.
+present and `-n` is above 1 — grouped and partially parallelized. Like
+[`import`](import.md), it always redoes the full stage from scratch; every
+script must be safe to re-run.
 
 ```bash
 python abt-tools.py carto -w <working_dir> -s <schema_dir> [-p pg_config] [-n carto_concurrency]
@@ -25,7 +26,8 @@ python abt-tools.py carto -w <working_dir> -s <schema_dir> [-p pg_config] [-n ca
 - **Always re-runs everything.** There's no partial/incremental `carto` — every
   script's own `DROP ... IF EXISTS ... CASCADE` at the top of each block is what
   makes a full re-run safe.
-- **Three-phase execution when `execution_plan.yml` is present:**
+- **Three-phase execution when `execution_plan.yml` is present and `-n` is
+  above 1:**
     1. **Sequential prefix** — aux-geometry normalization and the `export`
        schema. It runs first, right after `carto` creates the plan's custom
        schemas and extensions.
@@ -44,7 +46,9 @@ python abt-tools.py carto -w <working_dir> -s <schema_dir> [-p pg_config] [-n ca
   `carto` prints the 10 slowest when it finishes. Use them to re-check
   `execution_plan.yml`'s longest-first order and its `weights:`.
 - **Falls back to strict sequential filename order** if `-s/--schema-dir`'s
-  `carto_sql/execution_plan.yml` is absent, or if `-n 1` is passed explicitly.
+  `carto_sql/execution_plan.yml` is absent, or if `-n` is 1, whether passed
+  explicitly or by default below 12 vCPUs. In that mode `carto` never checks
+  the plan against the files.
 - This page covers the CLI command itself; for how scripts are grouped, numbered,
   and validated against `execution_plan.yml`, see [Carto SQL](../schema/carto-sql.md).
   For sizing `-n`/`--carto-concurrency` against available cores/RAM, see

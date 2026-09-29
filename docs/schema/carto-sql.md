@@ -55,10 +55,11 @@ COMMIT;
 ## `execution_plan.yml`
 
 Declares which of the remaining scripts can run concurrently against
-Postgres (read by `abt-tools.py carto`'s `-n/--carto-concurrency`; falls back
-to strict filename order if absent) — 29 groups today, all independent
-except one real dependency. Groups start in the order listed, so the list
-puts the longest-running scripts first:
+Postgres — 29 groups today, all independent except one real dependency.
+`abt-tools.py carto` uses it only when `-n/--carto-concurrency` is above 1.
+Without the file, or at `-n 1` (the default below 12 vCPUs), it runs every
+script in strict filename order. Groups start in the order listed, so the
+list puts the longest-running scripts first:
 
 ```yaml
 groups:
@@ -111,11 +112,15 @@ Its own header documents exactly how to update it when `carto_sql` changes:
 #      on it.
 ```
 
-`execution_plan.yml` is validated against the actual `*.sql` files present
-before any run starts — a script on disk but missing from the plan, a plan
-entry with no matching file, a duplicate, or a weight for a script that
-isn't in any group all fail fast rather than silently building an
-incomplete tileset.
+When `carto` runs the groups, it first checks `execution_plan.yml` against
+the `*.sql` files present. A script on disk but missing from the plan, a
+plan entry with no matching file, a duplicate, or a weight for a script
+that isn't in any group fails the run before any script starts, rather than
+silently building an incomplete tileset. At `-n 1`, `carto` runs every
+script in filename order and never compares the plan with the files.
+`pytest tests`, from the repo root, runs the same check on the real schema
+(see [Testing](../project/testing.md)), so a drifted plan fails CI whichever
+mode a build would use.
 
 ## More views than are tiled
 

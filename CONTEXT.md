@@ -473,10 +473,6 @@ output.
 Checked on 2026-09-29. If you find prose that disagrees with the code and can't fix it in the
 same change, list it here.
 
-- `docs/schema/carto-sql.md` says `execution_plan.yml` is validated "before any run starts", and
-  the `tests/test_schema_guards.py` docstring calls plan coverage "the check `carto` itself runs
-  when it starts". `carto` checks the plan only when `-n` is above 1; see
-  [Concurrency](#concurrency).
 - The `dblink_connect` warning in `docs/reference/troubleshooting.md`, and a comment in
   `setup_ubuntu.sh`'s extensions stage, offer a `pg_hba.conf` entry as an alternative to a
   superuser role. dblink refuses a password-less connection from a non-superuser whatever

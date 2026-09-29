@@ -9,8 +9,11 @@ run time until hours into a build, or ever:
   column computed `% 16` leaves every shard past the setting unprocessed,
   and those rows are silently missing from the output.
 - execution_plan.yml must cover every carto_sql script exactly once, with
-  weights only for scripts it lists: the check `carto` itself runs when it
-  starts, run here on the real schema so a drift fails in CI instead.
+  weights only for scripts in its groups. `carto` runs this check itself
+  only before it runs the groups (a plan and -n above 1); at -n 1, the
+  default below 12 vCPUs, it runs every script in filename order and never
+  checks. Running it here on the real schema makes a drift fail in CI
+  whatever -n a build would use.
 - A group script may only create a schema or extension that the plan
   creates up front, so concurrent groups never race to create it first.
 """
