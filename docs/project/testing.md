@@ -36,7 +36,10 @@ To build these docs as well, `pip install -r requirements-docs.txt` into the sam
 
 ## `abtv2-tools/tests/`
 
-27 pytest files, mirroring the `abt/` package roughly 1:1:
+The pytest files mirror the `abt/` package roughly 1:1. Two of them test code
+outside the package: `test_cli_entry_point.py` tests the `abt-tools.py` entry
+point, and `test_overture_check_proj_agreement.py` tests
+`rbt-schema/scripts/overture/check_proj_agreement.py`:
 
 ```text
 test_aux_data_model.py          test_download_planet_mirrors.py        test_parallel.py

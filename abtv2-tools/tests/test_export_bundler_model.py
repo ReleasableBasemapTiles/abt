@@ -1,7 +1,8 @@
 """Tests for abt.export.bundler_model.Bundler: tile_join_cmd,
-build_tile_join_cmd, _has_tiles, and the tile_list discovery/skip-empty
-logic. Uses real (tiny) sqlite files on disk rather than mocking sqlite3
--- these are the actual mechanics _has_tiles checks."""
+build_tile_join_cmd, _has_tiles, and the tile_list discovery/skip logic
+(and the NOTE lines it prints for each kind of skip). Uses real (tiny)
+sqlite files on disk rather than mocking sqlite3 -- these are the actual
+mechanics _has_tiles checks."""
 
 import re
 import sqlite3
@@ -29,6 +30,10 @@ def _write_empty_schema_mbtiles(path: Path) -> None:
     )
     con.commit()
     con.close()
+
+
+def _note_lines(out: str) -> list:
+    return [line for line in out.splitlines() if line.startswith("NOTE:")]
 
 
 def make_bundler(tmp_path: Path, **overrides) -> Bundler:
@@ -192,10 +197,45 @@ def test_tile_list_skips_empty_layers_and_prints_a_note(tmp_path, capsys):
     assert "empty_layer.mbtiles" in capsys.readouterr().out
 
 
-def test_tile_list_ignores_layers_with_no_file_on_disk_at_all(tmp_path):
+def test_tile_list_skips_layers_with_no_file_on_disk_and_prints_a_note(tmp_path, capsys):
     mbtiles_dir = tmp_path / "mbtiles"
     mbtiles_dir.mkdir()
+    _write_populated_mbtiles(mbtiles_dir / "roads.mbtiles")
+    roads = make_tile_layer(tmp_path, "roads", mbtiles_dir)
     missing_layer = make_tile_layer(tmp_path, "never_exported", mbtiles_dir)
 
-    bundler = make_bundler(tmp_path, tile_layers=[missing_layer])
-    assert bundler.tile_list == []
+    bundler = make_bundler(tmp_path, tile_layers=[roads, missing_layer])
+    assert bundler.tile_list == [mbtiles_dir / "roads.mbtiles"]
+    notes = _note_lines(capsys.readouterr().out)
+    assert len(notes) == 1
+    assert "never_exported" in notes[0]
+    assert "roads" not in notes[0]
+
+
+def test_tile_list_skips_missing_additional_mbtiles_and_prints_a_note(tmp_path, capsys):
+    extra = tmp_path / "contours.mbtiles"
+    _write_populated_mbtiles(extra)
+    mistyped = tmp_path / "contuors.mbtiles"
+
+    bundler = make_bundler(tmp_path, additional_mbtiles=[extra, mistyped])
+    assert bundler.tile_list == [extra]
+    notes = _note_lines(capsys.readouterr().out)
+    assert len(notes) == 1
+    assert str(mistyped) in notes[0]
+    assert str(extra) not in notes[0]
+
+
+def test_tile_list_prints_each_note_once_per_bundler(tmp_path, capsys):
+    # export_bundled reads tile_list more than once (resolve_crs_from_files,
+    # then the join itself); caching keeps its notes from repeating.
+    mbtiles_dir = tmp_path / "mbtiles"
+    mbtiles_dir.mkdir()
+    bundler = make_bundler(
+        tmp_path,
+        tile_layers=[make_tile_layer(tmp_path, "never_exported", mbtiles_dir)],
+        additional_mbtiles=[tmp_path / "missing.mbtiles"],
+    )
+
+    _ = bundler.tile_list
+    _ = bundler.tile_join_cmd
+    assert len(_note_lines(capsys.readouterr().out)) == 2

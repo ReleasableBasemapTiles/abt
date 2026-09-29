@@ -27,6 +27,21 @@ python abt-tools.py bundler -w <working_dir> -s <schema_dir> [-p pg_config] [-q 
   re-joins the full set of inputs.
 - **Fails on mismatched projections across inputs.** All layers being joined
   need to agree on their CRS.
+- **Skips missing and empty inputs instead of failing.** Three kinds of input
+  are left out of the join, and each kind prints its own `NOTE: skipping` line
+  naming what it dropped:
+    - a layer with neither `mbtiles/<layer_id>.mbtiles` nor `.btis` on disk,
+      listed by `layer_id`
+    - a `-q` path that doesn't exist, listed by path
+    - an input with no populated `tiles` table, listed by file name
+
+    The rest are joined and the run still succeeds, so check the bundler
+    output for these notes before shipping a bundle. [`export`](export.md)
+    moves a layer's file into place only once tippecanoe succeeds, and
+    tippecanoe fails a layer with no features, so a layer listed as not found
+    failed to export, had no features, or was never exported. The export run's
+    `summary.json` and that layer's log say which.
+
 - **`-q`/`--additional-mbtiles` folds in externally-produced tiles** that
   `abt-tools.py` didn't itself export — this is exactly how the standalone
   [Overture buildings pipeline](overture.md)'s output gets into the final

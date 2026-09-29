@@ -20,7 +20,7 @@ Two separate git repos, one history. `abtv2-tools` and `rbt-schema` used to be i
 |---|---|
 | `abt-tools.py` | CLI entrypoint: a Typer app (`app = typer.Typer(add_completion=False)`) with a root `@app.callback()` that raises the process's open-file limit, then mounts seven sub-apps (one per subcommand). |
 | `abt/` | The Python package — see the breakdown below. |
-| `tests/` | 27 pytest files, mirroring the package roughly 1:1. |
+| `tests/` | The pytest suite, with files mirroring the package roughly 1:1. |
 | `vundler-rs/` | A Rust rewrite of the Python `vundler` stage (~1,000 lines across `Cargo.toml` and `src/{main,bundle,db}.rs`), with its own `tests/` (Rust integration tests in `cli.rs` plus Python golden-oracle tests) and a `bench/` directory of timing and output-comparison scripts. See [vundler-rs](../reference/vundler-rs.md). |
 | `env.yaml` | micromamba/conda environment spec: Python 3.13, `gdal`, `numpy`, `pyproj`, `proj>=9.8`, `psycopg2`, `boto3`, `pydantic`, `requests`, `click`, `typer`, `rich`, `pyyaml`, `tqdm`, `libgdal-arrow-parquet`, `libgdal`, `beautifulsoup4`, `pytest`. |
 | `requirements-dev.txt` | A pip fallback for tests/CI when a conda env isn't available, kept in sync with `env.yaml`'s non-GDAL dependencies. See [Testing](../project/testing.md). |
