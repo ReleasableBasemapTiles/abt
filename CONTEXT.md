@@ -203,13 +203,17 @@ exception or if `overall_status` isn't `SUCCESS`. When something fails, read
 
 Some failures are quiet:
 
-- `bundler` leaves out any layer whose per-layer `.mbtiles` is missing, and any `-q` path that
-  doesn't exist, and prints nothing about either. It also skips inputs that have no tiles table,
-  printing a `NOTE:` for those. A layer that failed in `export` just goes missing from the
-  bundle.
 - A failed aux download (the MIRTA host on `usgovcloudapi.net` is a frequent example) doesn't show
   up until `carto` looks for the missing `aux_data.*` table.
 - `get_file` returns `None` on a non-200 response, and its caller ignores that return value (R6).
+
+`bundler` doesn't fail on missing inputs either, but it does report them. It leaves out any layer
+with no per-layer `.mbtiles` or `.btis` file, any `-q` path that doesn't exist, and any input with
+no populated tiles table, then joins the rest. Each kind of skip prints its own `NOTE: skipping`
+line, and the run still reports `SUCCESS`. `export` moves a layer's file into place only once
+tippecanoe succeeds, and tippecanoe fails a layer with no features, so a layer that failed or had
+nothing to export shows up in the bundler only as a not-found note. Read the bundler output after
+a run.
 
 ## The schema content model
 

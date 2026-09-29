@@ -25,7 +25,8 @@ class Bundler(BaseModel):
         package_name: The filename for the final output (e.g., "joined.mbtiles").
         tile_layers: A list of TileLayer objects to be included in the bundle.
         additional_mbtiles: Paths to externally-produced mbtiles files to fold into the
-            bundle alongside the tile_layers (e.g. contours). Zero, one, or many.
+            bundle alongside the tile_layers (e.g. contours). Zero, one, or many. A path
+            that doesn't exist is skipped with a NOTE (see tile_list).
         metadata: Descriptive metadata (name, description, attribution, tags, license,
             etc., typically loaded from the schema repo's tile-metadata/metadata.py) to
             write into the joined mbtiles. `tile-join` has flags for only a few of these
@@ -49,10 +50,11 @@ class Bundler(BaseModel):
     def _has_tiles(path: Path) -> bool:
         """
         Returns True if an MBTiles file has a `tiles` table AND it's actually
-        populated. A layer with zero exported features still gets a file on
-        disk (tippecanoe creates the schema before it errors out on empty
-        input, e.g. exit code 110), so checking table existence alone isn't
-        enough to exclude genuinely empty layers.
+        populated. export only moves a finished tileset into place (see
+        exporter.py), but tippecanoe creates and initializes its output before
+        it reads any input, so a stub that an older export left at the final
+        path, or an empty -q input, can have a tiles table with no rows.
+        Checking table existence alone isn't enough to exclude those.
         """
         try:
             con = sqlite3.connect(path)
@@ -76,8 +78,8 @@ class Bundler(BaseModel):
     def tile_list(self) -> List[Path]:
         """Generates a list of all MBTiles file paths to be joined.
 
-        Excludes files with no tiles -- no tiles table, or an empty one
-        (layers with 0 features) -- which would cause tile-join to fail.
+        Excludes files with no tiles -- no tiles table, or an empty one (see
+        _has_tiles) -- which would cause tile-join to fail.
 
         Looks for either a `.mbtiles` or `.btis` file per layer -- the Bundler
         doesn't know whether `export` was run with --projection-override, so
@@ -85,15 +87,39 @@ class Bundler(BaseModel):
         `.mbtiles`. See mbtiles_metadata.resolve_crs_from_files (used by
         bundler.py), which reads the truth back out of whichever
         file it finds.
+
+        A layer with neither file on disk, and an additional_mbtiles path
+        that doesn't exist, are skipped too. export moves a layer's file into
+        place only once tippecanoe succeeds, and tippecanoe fails a layer with
+        no features (see mbtiles_metadata.is_complete_tileset), so a missing
+        layer file means that layer's export failed, found no features, or
+        never ran. Each kind of skip prints its own NOTE line -- otherwise
+        that layer would just go missing from the bundle -- and since this is
+        a cached_property, each NOTE prints once per Bundler even though
+        bundler.py reads tile_list more than once.
         """
         additional = [p for p in self.additional_mbtiles if p.exists()]
+        missing_additional = [str(p) for p in self.additional_mbtiles if not p.exists()]
         layer_files = []
+        missing_layers = []
         for t in self.tile_layers:
             for extension in ("mbtiles", "btis"):
                 candidate = t.mbtiles_dir / f"{t.layer_id}.{extension}"
                 if candidate.exists():
                     layer_files.append(candidate)
                     break
+            else:  # no break: neither extension exists for this layer
+                missing_layers.append(t.layer_id)
+        if missing_layers:
+            print(
+                f"NOTE: skipping {len(missing_layers)} layer mbtiles not found on disk "
+                f"(no .mbtiles or .btis): {', '.join(missing_layers)}"
+            )
+        if missing_additional:
+            print(
+                f"NOTE: skipping {len(missing_additional)} additional mbtiles not found on disk: "
+                f"{', '.join(missing_additional)}"
+            )
         candidates = layer_files + additional
         has_tiles = {p: self._has_tiles(p) for p in candidates}
         valid = [p for p in candidates if has_tiles[p]]

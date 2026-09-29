@@ -274,14 +274,14 @@ fi
 
 # Same fail-fast rationale again, for --contours: checked (and, for
 # reprojected projections, tagged) here rather than left to the bundler.
-# Bundler.tile_list silently *drops* a -q path that doesn't exist rather than
-# erroring, so a missing/misnamed contours file would otherwise ship a bundle
-# with no contours instead of failing loudly; and an untagged reprojected
-# contours file would otherwise only surface as a bundler ValueError at
-# [5/6], hours in. 3857 contours must carry no crs row, matching the
-# convention Overture/export output already follow for the default
-# projection; non-3857 contours get tagged in place if bare, or rejected if
-# already tagged with some other EPSG code than requested.
+# Bundler.tile_list *drops* a -q path that doesn't exist, printing only a
+# NOTE rather than erroring, so a missing/misnamed contours file would
+# otherwise ship a bundle with no contours instead of failing loudly; and an
+# untagged reprojected contours file would otherwise only surface as a
+# bundler ValueError at [5/6], hours in. 3857 contours must carry no crs row,
+# matching the convention Overture/export output already follow for the
+# default projection; non-3857 contours get tagged in place if bare, or
+# rejected if already tagged with some other EPSG code than requested.
 if [[ -n "$CONTOURS_DIR" ]]; then
     command -v sqlite3 >/dev/null 2>&1 || { echo "sqlite3 is required for --contours but was not found on PATH" >&2; exit 1; }
     for srs in "${PROJECTIONS[@]}"; do
@@ -542,9 +542,9 @@ fi
 # -- an empty q array otherwise, so this loop is identical either way.
 # overture_for/contours_for both point at .mbtiles regardless of projection;
 # contours' extension was already verified by the --contours preflight
-# above. Bundler.tile_list silently *drops* any -q path that doesn't exist
-# rather than erroring, so a wrong path here would produce a bundle
-# silently missing a layer instead of failing loudly.
+# above. Bundler.tile_list *drops* any -q path that doesn't exist, printing
+# only a NOTE rather than erroring, so a wrong path here would produce a
+# bundle missing a layer instead of failing loudly.
 echo "[5/6] bundler (${PROJECTIONS[*]}, in parallel)"
 pids=()
 for srs in "${PROJECTIONS[@]}"; do
