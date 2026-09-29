@@ -258,10 +258,11 @@ if [[ "$UPLOAD" == true ]]; then
 fi
 
 # Same fail-fast rationale as the AWS credential checks above, for the
-# Overture pipeline's own dependencies. setup_ubuntu.sh doesn't provision
-# duckdb -- only this pipeline needs it -- and the pipeline runs in the
-# background (see below), so a missing binary would otherwise only surface
-# in $OVERTURE_DIR/overture.log at the [5/6] wait_jobs join instead of here.
+# Overture pipeline's own dependencies. Only this pipeline needs duckdb:
+# setup_ubuntu.sh installs it unless INSTALL_DUCKDB=false, and a host set up
+# by hand may not have it. The pipeline runs in the background (see below),
+# so a missing binary would otherwise only surface in
+# $OVERTURE_DIR/overture.log at the [5/6] wait_jobs join instead of here.
 # ogr2ogr (from the same GDAL install --from export's own ogrinfo check
 # below already relies on) is what shard.sh now uses to reproject non-3857
 # targets -- see rbt-schema/scripts/overture/README.md's "Other projections"

@@ -472,11 +472,8 @@ output.
 
 ### Known doc drift
 
-Checked on 2026-09-29. If you find prose that disagrees with the code and can't fix it in the
-same change, list it here.
-
-- A comment in `init.sh`'s Overture preflight says `setup_ubuntu.sh` doesn't provision duckdb. It
-  does, unless `INSTALL_DUCKDB=false`.
+None known as of 2026-09-29. If you find prose that disagrees with the code and can't fix it in
+the same change, list it here.
 
 ## Where to start
 
