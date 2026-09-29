@@ -762,6 +762,16 @@ if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
     stage "Ensuring Postgres is running"
     pg_service_ensure_running
 
+    # Every psql/createdb below passes -p "$PG_PORT". Without it they dial
+    # libpq's default, 5432: sudo's env_reset drops an exported PGPORT, and
+    # postgresql-common's pg_wrapper (/usr/bin/psql) takes a port only from
+    # a registered cluster, and section 3 never registers its own. On any
+    # other PG_PORT they fail, or they configure whatever other server
+    # answers on 5432. The flag is repeated rather than put in a helper
+    # function: the ERR trap isn't inherited by functions (no set -E), so a
+    # call failing inside one would exit without on_error's "failed during
+    # stage" line.
+
     # initdb (section 3) is the only place this script sets authentication,
     # so a cluster initialized before PG_AUTH_LOCAL/PG_AUTH_HOST existed, or
     # by something else, keeps the pg_hba.conf it has. Warn about its trust
@@ -769,9 +779,9 @@ if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
     # deliberate. pg_hba_file_rules parses the file the way the server does,
     # so a commented-out rule doesn't count.
     if [[ "$PG_AUTH_LOCAL" != "trust" && "$PG_AUTH_HOST" != "trust" ]]; then
-        trust_rules="$(sudo -u postgres psql -tAc "SELECT count(*) FROM pg_hba_file_rules WHERE auth_method = 'trust'")"
+        trust_rules="$(sudo -u postgres psql -p "$PG_PORT" -tAc "SELECT count(*) FROM pg_hba_file_rules WHERE auth_method = 'trust'")"
         if [[ "$trust_rules" != "0" ]]; then
-            hba_file="$(sudo -u postgres psql -tAc "SHOW hba_file")"
+            hba_file="$(sudo -u postgres psql -p "$PG_PORT" -tAc "SHOW hba_file")"
             echo "Warning: ${hba_file} has ${trust_rules} trust rule(s), so the connections they match need no" >&2
             echo "password. A cluster from an older setup_ubuntu.sh trusts every local connection: any local user" >&2
             echo "can connect as any role, postgres included. This script never edits an existing pg_hba.conf;" >&2
@@ -783,7 +793,7 @@ if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
 
     # Unquoted heredoc so ${PG_USER}/${PG_PASSWORD} interpolate; \$\$ escapes
     # Postgres's own dollar-quoting so bash doesn't try to expand it.
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
+    sudo -u postgres psql -p "$PG_PORT" -v ON_ERROR_STOP=1 -q <<SQL
 DO \$\$
 BEGIN
     IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${PG_USER}') THEN
@@ -795,8 +805,8 @@ END
 \$\$;
 SQL
 
-    if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${PG_DB}'" | grep -q 1; then
-        sudo -u postgres createdb -O "${PG_USER}" "${PG_DB}"
+    if ! sudo -u postgres psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_database WHERE datname = '${PG_DB}'" | grep -q 1; then
+        sudo -u postgres createdb -p "$PG_PORT" -O "${PG_USER}" "${PG_DB}"
     fi
 
     stage "Creating extensions in '${PG_DB}'"
@@ -814,7 +824,7 @@ SQL
     # (e.g. 004_railway.sql's LOWER(service) % 'siding') for fuzzy-matching
     # OSM tag values/typos; it ships in postgresql-contrib but still needs
     # to be activated per-database like the others.
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q -d "${PG_DB}" <<'SQL'
+    sudo -u postgres psql -p "$PG_PORT" -v ON_ERROR_STOP=1 -q -d "${PG_DB}" <<'SQL'
 CREATE EXTENSION IF NOT EXISTS postgis;
 CREATE EXTENSION IF NOT EXISTS hstore;
 CREATE EXTENSION IF NOT EXISTS dblink;
@@ -824,15 +834,15 @@ SQL
     stage "Tuning postgresql.conf via ALTER SYSTEM (PG_TIER=${PG_TIER}, PG_BULK_LOAD=${PG_BULK_LOAD})"
 
     # lz4 when this build has it (Ubuntu's does), else the always-available pglz.
-    if sudo -u postgres psql -tAc "SELECT 'lz4' = ANY(enumvals) FROM pg_settings WHERE name = 'wal_compression'" | grep -qx t; then
+    if sudo -u postgres psql -p "$PG_PORT" -tAc "SELECT 'lz4' = ANY(enumvals) FROM pg_settings WHERE name = 'wal_compression'" | grep -qx t; then
         PG_WAL_COMPRESSION=lz4
     else
         PG_WAL_COMPRESSION=pglz
     fi
 
     if [[ "$PG_BULK_LOAD" == "true" ]]; then
-        replication_slots="$(sudo -u postgres psql -tAc "SELECT count(*) FROM pg_replication_slots")"
-        archive_mode="$(sudo -u postgres psql -tAc "SHOW archive_mode")"
+        replication_slots="$(sudo -u postgres psql -p "$PG_PORT" -tAc "SELECT count(*) FROM pg_replication_slots")"
+        archive_mode="$(sudo -u postgres psql -p "$PG_PORT" -tAc "SHOW archive_mode")"
         if [[ "$replication_slots" != "0" || "$archive_mode" != "off" ]]; then
             echo "PG_BULK_LOAD=true sets wal_level=minimal, and Postgres won't start with that while replication" >&2
             echo "slots exist (${replication_slots} here) or archive_mode is on (${archive_mode} here). Drop the" >&2
@@ -848,7 +858,7 @@ ALTER SYSTEM RESET max_wal_senders;
 ALTER SYSTEM RESET synchronous_commit;"
     fi
 
-    sudo -u postgres psql -v ON_ERROR_STOP=1 -q <<SQL
+    sudo -u postgres psql -p "$PG_PORT" -v ON_ERROR_STOP=1 -q <<SQL
 ALTER SYSTEM SET shared_buffers = '${PG_SHARED_BUFFERS}';
 ALTER SYSTEM SET effective_cache_size = '${PG_EFFECTIVE_CACHE_SIZE}';
 ALTER SYSTEM SET maintenance_work_mem = '${PG_MAINTENANCE_WORK_MEM}';
