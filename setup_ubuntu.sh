@@ -676,7 +676,12 @@ EOF
         if sudo test -d "$PG_DATA_DIR" && [[ -n "$(sudo find "$PG_DATA_DIR" -maxdepth 1 -mindepth 1 2>/dev/null)" ]]; then
             if [[ "$FORCE_REINIT_POSTGRES" == "true" ]]; then
                 echo "FORCE_REINIT_POSTGRES=true: wiping existing contents of ${PG_DATA_DIR}"
-                sudo rm -rf "${PG_DATA_DIR:?}"/*
+                # find lists the directory as root, dotfiles included (initdb
+                # refuses those too). A "${PG_DATA_DIR}"/* glob would expand
+                # as the invoking user, and from a non-root invoker it stays a
+                # literal '*': nothing is removed, and initdb then fails on
+                # the still non-empty directory.
+                sudo find "${PG_DATA_DIR:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
             else
                 echo "Error: ${PG_DATA_DIR} already exists, is not empty, and has no PG_VERSION marker." >&2
                 echo "Set FORCE_REINIT_POSTGRES=true to wipe it and initdb fresh, or set PG_DATA_DIR to a different path." >&2
