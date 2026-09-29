@@ -651,7 +651,10 @@ EOF
     # if an old postmaster for this same data dir/port is still attached to
     # a shared memory segment -- even after FORCE_REINIT_POSTGRES wipes its
     # files out from under it -- that bootstrap backend fails with "pre-
-    # existing shared memory block ... is still in use".
+    # existing shared memory block ... is still in use". It runs for an
+    # already-initialized cluster too: `systemctl enable --now` below only
+    # starts a stopped unit, so this stop is what makes a re-run pick up a
+    # changed PG_PORT or unit file when the cluster starts again.
     echo "Stopping any server already running against ${PG_DATA_DIR} before (re)initializing it"
     pg_service_stop
 
@@ -663,10 +666,14 @@ EOF
     # PG_VERSION is the canonical marker initdb leaves behind; its presence
     # is what "already initialized" means here (pg_lsclusters can't tell us,
     # since this data directory isn't registered with postgresql-common).
-    if [[ -f "$PG_DATA_DIR/PG_VERSION" && "$FORCE_REINIT_POSTGRES" != "true" ]]; then
+    # The tests run through sudo so they see PG_DATA_DIR as root does. It's
+    # 0700 postgres, so a plain [[ -f ]] from a non-root invoker can't see
+    # inside it, and would read an initialized cluster as a non-empty
+    # directory with no marker, whose error below says to wipe it.
+    if sudo test -f "$PG_DATA_DIR/PG_VERSION" && [[ "$FORCE_REINIT_POSTGRES" != "true" ]]; then
         echo "Data directory already initialized (found ${PG_DATA_DIR}/PG_VERSION), leaving it in place"
     else
-        if [[ -d "$PG_DATA_DIR" ]] && [[ -n "$(sudo find "$PG_DATA_DIR" -maxdepth 1 -mindepth 1 2>/dev/null)" ]]; then
+        if sudo test -d "$PG_DATA_DIR" && [[ -n "$(sudo find "$PG_DATA_DIR" -maxdepth 1 -mindepth 1 2>/dev/null)" ]]; then
             if [[ "$FORCE_REINIT_POSTGRES" == "true" ]]; then
                 echo "FORCE_REINIT_POSTGRES=true: wiping existing contents of ${PG_DATA_DIR}"
                 sudo rm -rf "${PG_DATA_DIR:?}"/*
