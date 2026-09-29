@@ -746,9 +746,13 @@ SQL
     stage "Creating extensions in '${PG_DB}'"
     # dblink is required because rbt-schema/carto_sql/005a_water_polygon.sql
     # and 009_land_cover.sql open password-less dblink_connect() sessions to
-    # fan out a parallel polygon dissolve; that only works for a superuser
-    # (or a role explicitly trusted via pg_hba.conf), which is why PG_USER
-    # above is created WITH ... SUPERUSER rather than a restricted role.
+    # fan out a parallel polygon dissolve. dblink refuses a connection string
+    # without a password from any role but a superuser, whatever pg_hba.conf
+    # says, which is why PG_USER above is created WITH ... SUPERUSER rather
+    # than a restricted role. The connection strings name no user either, so
+    # each session logs in as postgres over the local socket, which a cluster
+    # from the plain initdb above trusts. See the dblink item under "Report
+    # only" in docs/project/code-review-2026-09.md.
     # pg_trgm supplies the "%" similarity operator used throughout carto_sql
     # (e.g. 004_railway.sql's LOWER(service) % 'siding') for fuzzy-matching
     # OSM tag values/typos; it ships in postgresql-contrib but still needs

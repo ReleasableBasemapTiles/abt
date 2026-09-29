@@ -61,7 +61,7 @@ See [Testing](../project/testing.md) for how `requirements-dev.txt` is actually 
 |---|---|
 | `postgis` | The pipeline is geospatial end to end — required throughout `import`, `carto`, and `export`. |
 | `hstore` | imposm mappings store OSM tags in an `hstore_tags` column (see `rbt-schema/import/osm/*.yml`). |
-| `dblink` | The water/land-cover dissolve scripts in `carto_sql` open parallel `dblink` worker connections to fan out a global polygon dissolve. `dblink`'s password-less internal connections require the pipeline's Postgres role to be a superuser, or explicitly trusted via `pg_hba.conf`. |
+| `dblink` | The water/land-cover dissolve scripts in `carto_sql` open parallel `dblink` worker connections to fan out a global polygon dissolve. `dblink` accepts their password-less connection strings only from a superuser, whatever `pg_hba.conf` says, so the pipeline's Postgres role must be one. |
 | `pg_trgm` | Supplies the `%` similarity operator used across `carto_sql` for fuzzy-matching OSM tag values (e.g. typo-tolerant matching). |
 
 See [Ubuntu Setup](ubuntu.md#create-a-database-and-role) for the `CREATE ROLE`/`CREATE EXTENSION` statements that set these up.

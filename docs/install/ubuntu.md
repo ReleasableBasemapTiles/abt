@@ -38,7 +38,7 @@ psql --version
 
 ### Create a database and role
 
-The `carto` scripts run `CREATE EXTENSION IF NOT EXISTS dblink` and then open password-less internal connections via `dblink_connect` to fan out a parallel polygon dissolve (see `rbt-schema/carto_sql/005a_water_polygon.sql`). `dblink` will only accept a password-less connection string like this for a Postgres **superuser** (or a role explicitly trusted via `pg_hba.conf`). The simplest path is to make the pipeline's role a superuser. The names below are the ones `setup_ubuntu.sh` uses by default (`PG_USER`, `PG_PASSWORD` and `PG_DB` are all `rbt`), so the walkthroughs and `init.sh` work the same on either path:
+The `carto` scripts run `CREATE EXTENSION IF NOT EXISTS dblink` and then open password-less internal connections via `dblink_connect` to fan out a parallel polygon dissolve (see `rbt-schema/carto_sql/005a_water_polygon.sql`). `dblink` accepts a password-less connection string like this only from a Postgres **superuser**, whatever `pg_hba.conf` says, so the pipeline's role must be one. Those connections name no user either, so each logs in as `postgres` over the local socket, which the stock `local all postgres peer` line in `pg_hba.conf` allows; keep it. The names below are the ones `setup_ubuntu.sh` uses by default (`PG_USER`, `PG_PASSWORD` and `PG_DB` are all `rbt`), so the walkthroughs and `init.sh` work the same on either path:
 
 ```bash
 sudo -u postgres psql <<'SQL'
