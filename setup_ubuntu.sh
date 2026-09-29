@@ -644,6 +644,31 @@ EOF
     PG_LOG_FILE="${PG_LOG_FILE:-/var/log/postgresql/postgresql-${PG_MAJOR}-main.log}"
     stage "Initializing PostgreSQL ${PG_MAJOR} data directory at ${PG_DATA_DIR} (initdb)"
 
+    if ! mountpoint -q "$PG_DATA_DIR" && ! mountpoint -q "$(dirname "$PG_DATA_DIR")"; then
+        echo "Warning: neither ${PG_DATA_DIR} nor its parent directory is a separate mount point." >&2
+        echo "If this is meant to live on a dedicated NVMe device, mount it there before re-running." >&2
+    fi
+
+    # PG_VERSION is the canonical marker initdb leaves behind; its presence
+    # is what "already initialized" means here (pg_lsclusters can't tell us,
+    # since this data directory isn't registered with postgresql-common).
+    # The tests run through sudo so they see PG_DATA_DIR as root does. It's
+    # 0700 postgres, so a plain [[ -f ]] from a non-root invoker can't see
+    # inside it, and would read an initialized cluster as a non-empty
+    # directory with no marker, whose error below says to wipe it.
+    #
+    # That refusal comes before the stop below: stopping Postgres only to
+    # refuse would leave it down. PG_SERVICE_NAME's unit file is rewritten
+    # only further down, so on a re-run with a new PG_DATA_DIR the unit still
+    # runs the previous cluster, and that's the one the stop would take down.
+    if [[ "$FORCE_REINIT_POSTGRES" != "true" ]] && ! sudo test -f "$PG_DATA_DIR/PG_VERSION"; then
+        if sudo test -d "$PG_DATA_DIR" && [[ -n "$(sudo find "$PG_DATA_DIR" -maxdepth 1 -mindepth 1 2>/dev/null)" ]]; then
+            echo "Error: ${PG_DATA_DIR} already exists, is not empty, and has no PG_VERSION marker." >&2
+            echo "Set FORCE_REINIT_POSTGRES=true to wipe it and initdb fresh, or set PG_DATA_DIR to a different path." >&2
+            exit 1
+        fi
+    fi
+
     # Stop any server already running against this data directory (e.g. left
     # over from a previous run of this script, or started directly via
     # pg_ctl rather than systemctl) before touching its contents. initdb
@@ -658,22 +683,13 @@ EOF
     echo "Stopping any server already running against ${PG_DATA_DIR} before (re)initializing it"
     pg_service_stop
 
-    if ! mountpoint -q "$PG_DATA_DIR" && ! mountpoint -q "$(dirname "$PG_DATA_DIR")"; then
-        echo "Warning: neither ${PG_DATA_DIR} nor its parent directory is a separate mount point." >&2
-        echo "If this is meant to live on a dedicated NVMe device, mount it there before re-running." >&2
-    fi
-
-    # PG_VERSION is the canonical marker initdb leaves behind; its presence
-    # is what "already initialized" means here (pg_lsclusters can't tell us,
-    # since this data directory isn't registered with postgresql-common).
-    # The tests run through sudo so they see PG_DATA_DIR as root does. It's
-    # 0700 postgres, so a plain [[ -f ]] from a non-root invoker can't see
-    # inside it, and would read an initialized cluster as a non-empty
-    # directory with no marker, whose error below says to wipe it.
     if sudo test -f "$PG_DATA_DIR/PG_VERSION" && [[ "$FORCE_REINIT_POSTGRES" != "true" ]]; then
         echo "Data directory already initialized (found ${PG_DATA_DIR}/PG_VERSION), leaving it in place"
     else
         if sudo test -d "$PG_DATA_DIR" && [[ -n "$(sudo find "$PG_DATA_DIR" -maxdepth 1 -mindepth 1 2>/dev/null)" ]]; then
+            # The check above already refused a non-empty directory without
+            # FORCE_REINIT_POSTGRES=true. The flag is tested again so nothing
+            # is wiped without it; unset, initdb refuses the directory instead.
             if [[ "$FORCE_REINIT_POSTGRES" == "true" ]]; then
                 echo "FORCE_REINIT_POSTGRES=true: wiping existing contents of ${PG_DATA_DIR}"
                 # find lists the directory as root, dotfiles included (initdb
@@ -682,10 +698,6 @@ EOF
                 # literal '*': nothing is removed, and initdb then fails on
                 # the still non-empty directory.
                 sudo find "${PG_DATA_DIR:?}" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
-            else
-                echo "Error: ${PG_DATA_DIR} already exists, is not empty, and has no PG_VERSION marker." >&2
-                echo "Set FORCE_REINIT_POSTGRES=true to wipe it and initdb fresh, or set PG_DATA_DIR to a different path." >&2
-                exit 1
             fi
         fi
 
