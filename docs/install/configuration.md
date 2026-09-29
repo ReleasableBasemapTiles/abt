@@ -86,10 +86,11 @@ All configuration for `setup_ubuntu.sh` is via environment variables — every o
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `rbt` / `rbt` / `rbt` / `5432` | Pipeline's database/role. |
+| `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `rbt` / `rbt` / `rbt` / `5432` | Pipeline's database/role. `init.sh` reads the same variables, and it has to pass the same `PG_PASSWORD`, which `PG_AUTH_HOST=scram-sha-256` checks. |
 | `PG_SERVICE_NAME` | `postgresql-rbt` | Name of the custom systemd unit wrapping `initdb`/`pg_ctl` (the script bypasses Debian's `postgresql-common` cluster tooling entirely). |
 | `PG_DATA_DIR` | `/var/lib/postgresql/<major>/main` | PostgreSQL data directory — override to point at a mounted NVMe device. |
 | `FORCE_REINIT_POSTGRES` | `false` | Set `true` to allow wiping a non-empty `PG_DATA_DIR` before running `initdb` fresh; left `false` so the script fails loudly instead of silently deleting existing data. |
+| `PG_AUTH_LOCAL` / `PG_AUTH_HOST` | `peer` / `scram-sha-256` | How a fresh cluster's `pg_hba.conf` authenticates connections over the local socket and over TCP from `127.0.0.1`/`::1`: a stock Ubuntu cluster's rules. `initdb` writes them, so they don't change an existing cluster. `trust` for both brings back an older `setup_ubuntu.sh`'s rules, which let any local user connect as any role without a password. `PG_AUTH_LOCAL` takes only `peer` or `trust`, because `carto`'s `dblink` sessions log in as `postgres` over the socket without a password, and `PG_AUTH_HOST` only `scram-sha-256` or `trust`. See [Postgres authentication](ubuntu.md#postgres-authentication). |
 
 ### PostgreSQL tuning
 
