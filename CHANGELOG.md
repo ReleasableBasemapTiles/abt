@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add working-directory, glossary and prerequisites pages and a flag matrix
 - Record the September 2026 review and track the earlier one's status
 - Drop the packages nothing imports from env.yaml
+- Bring CLAUDE.md and CONTEXT.md up to date with the September 2026 review
 
 ### Fixed
 
