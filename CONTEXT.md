@@ -3,7 +3,7 @@
 This is background for anyone, human or agent, who is about to change this repo. It covers what
 the project produces, its vocabulary, how the pieces fit together, and why they are built the way
 they are. Operational rules and commands are in [CLAUDE.md](CLAUDE.md), and step-by-step guides
-are in `docs/`. Everything here was checked against the code on 2026-09-28. Where the prose docs
+are in `docs/`. Everything here was checked against the code on 2026-09-29. Where the prose docs
 and the code disagree, the code wins; see [Known doc drift](#known-doc-drift).
 
 ## What the project produces
@@ -55,7 +55,7 @@ data are under ODbL, which requires attribution and share-alike.
 | working dir | The output tree for a run, passed as `-w`. See [Working directory layout](#working-directory-layout). |
 | Geofabrik key | A region ID from Geofabrik's index, such as `norway`, passed as `-k`. The value `planet` means the full planet PBF, downloaded from several mirrors with `aria2c`. |
 | aux data | Any non-OSM source, with one `import/aux_data/*.json` config per source. `ogr2ogr` loads it into the `aux_data` schema. |
-| imposm (imposm3) | Loads the OSM PBF into the `osm` schema using the mappings in `import/osm/*.yml`, creating `osm.osm_<mapping>` tables. It's built from omniscale/imposm3. |
+| imposm (imposm3) | Loads the OSM PBF into the `osm` schema using the mappings in `import/osm/*.yml`, creating `osm.osm_<mapping>` tables. It's built from omniscale/imposm3. It drops every tag that nothing loads while it reads the PBF; see `import/imposm_base.yml`. |
 | carto | The SQL transform stage. It runs `carto_sql/*.sql` to build the `export.*` materialized views. It has nothing to do with CartoCSS. |
 | execution plan | `carto_sql/execution_plan.yml`, which splits the carto scripts into a prefix, groups that run concurrently, and a suffix. |
 | layer / `layer_id` | One output tile layer. Each has one `export/*.json` config, one `export.<layer_id>` view, and one per-layer `.mbtiles` file. |
@@ -80,7 +80,7 @@ The pipeline is a strict sequence of CLI subcommands. There's no DAG engine or s
 | `download` | Fetches the OSM PBF and every aux source | `requests`, `aria2c` (planet only, checksums compared across mirrors), `boto3` (anonymous S3 access) | Geofabrik index and source URLs → `osm/pbf/`, `aux_downloads/` | Skips files that are already present |
 | `import` | Loads everything into PostGIS | `imposm`, `ogr2ogr` | PBF and downloads → schemas `osm` and `aux_data` | Drops and rebuilds `aux_data`. Won't re-import into a populated `osm` schema without `-f`, because a planet import takes over 24 hours. `-c` clips the aux data to the extract's bounding box. |
 | `carto` | Builds the view for every layer | SQL through `psycopg2`, with `dblink` inside the SQL | `osm`, `aux_data` → `export` and the intermediate schemas | Always rebuilds everything; the scripts are idempotent |
-| `export` | For each layer, exports PostGIS → `.fgb` → `.mbtiles` | `ogr2ogr`, `tippecanoe` | `export.*` → `flatgeobuf/`, `mbtiles/` | Skips an existing `.fgb` and a complete `.mbtiles`. A crashed tippecanoe leaves a stub with no tiles; that stub is deleted and rebuilt. |
+| `export` | For each layer, exports PostGIS → `.fgb` → `.mbtiles` | `ogr2ogr`, `tippecanoe` | `export.*` → `flatgeobuf/`, `mbtiles/` | Skips an existing `.fgb` and an `.mbtiles` that holds tiles. Each tool writes under `.partial/`, and its file moves into place only when the tool exits 0, so a crash leaves nothing at the final path. A tile-less `.mbtiles` from older code is deleted and rebuilt; a truncated `.fgb` from older code is still skipped, so delete it. |
 | `bundler` | Joins the layer files and any `-q` extras | `tile-join`, SQLite | `mbtiles/` → `bundled/joined.mbtiles` | Always rebuilds everything |
 | `vundler` | Converts the bundle to Esri format | `abt-vundler` | `bundled/joined.mbtiles` → `bundled/vundled/p12/` | Always rebuilds everything |
 
@@ -89,15 +89,17 @@ For debugging, `debug_aux_import -a <name>` imports a single aux config,
 
 ### Working directory layout
 
-`ProcessingDirectorySchema.init_working_directories()` creates this tree on every invocation:
+`ProcessingDirectorySchema.init_working_directories()` creates this tree on every invocation
+except `vundler`'s. `docs/overview/working-directory.md` lists every file:
 
 ```text
 <working_dir>/
   osm/                 PBF (osm/pbf/), imposm cache and mapping
-  aux_downloads/       downloaded and extracted aux sources
-  flatgeobuf/          <layer_id>.fgb       (export, step 1)
-  mbtiles/             <layer_id>.mbtiles   (export, step 2)
-  bundled/             joined.mbtiles, _tmp/, vundled/p12/
+  aux_downloads/       downloaded and extracted aux sources; <file>.part while downloading,
+                       <name>_extracted.partial/ while extracting, then .<name>_extracted.complete
+  flatgeobuf/          <layer_id>.fgb       (export, step 1; written in flatgeobuf/.partial/ first)
+  mbtiles/             <layer_id>.mbtiles   (export, step 2; written in mbtiles/.partial/ first)
+  bundled/             joined.mbtiles, vundled/p12/, and _tmp/ (bundler -z only)
   tmp/                 ogr_tmp/, tippecanoe_tmp/, per-layer temp dirs
   logs/<run_id>/       one per invocation (YYYY-MM-DD_HHMMSS): download/ import/ carto/ fgb/
                        mbtiles/, a *.log per task, and summary.json
@@ -122,15 +124,17 @@ For debugging, `debug_aux_import -a <name>` imports a single aux config,
   - `dblink`, for the parallel dissolve workers inside the carto SQL
   - `pg_trgm`, for fuzzy matching of tag values
 
-  `dblink` opens loopback connections without a password, so the pipeline role must be a
-  superuser or be trusted in `pg_hba.conf`.
+  The carto scripts open `dblink` loopback connections with no user or password
+  (`dbname=… port=…`). dblink allows a password-less connection only for a superuser, whatever
+  `pg_hba.conf` says, so the pipeline role must be a superuser. The server must also accept
+  password-less local connections.
 - **Connection:** `-p env` reads `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`,
   and doesn't connect until the first query. `-p "host,port,user,password,db"` runs `SELECT 1` at
   startup to test the connection.
 - **`bundler` still needs `-p`,** even though it never queries Postgres. It builds `TileLayer`
   objects, and each one requires a `PGConfig`.
 - **`max_connections` has to be high.** `setup_ubuntu.sh` sets 400 because each concurrent carto
-  group can open about 16 extra `dblink` connections. A limit that's too low fails partway through
+  group can open up to 16 extra `dblink` connections. A limit that's too low fails partway through
   a run rather than at startup.
 
 ## How `abtv2-tools` is put together
@@ -163,7 +167,9 @@ abt-tools.py                 the root Typer app. Its callback raises RLIMIT_NOFI
 ### Concurrency
 
 - **Threads, not processes.** `ParallelExecutor` is a `ThreadPoolExecutor`. Each task spends most
-  of its time waiting on a subprocess, so the GIL doesn't matter.
+  of its time waiting on a subprocess, so the GIL doesn't matter. `download` and `import` also
+  run the OSM step on a thread of its own, alongside the `-n` aux workers, so with `-d all`
+  imposm and the aux imports share the host.
 - **Worker defaults scale with the host.** Each default is `max(floor, cpu_count // divisor)`,
   computed at import time. The floor is 4 unless noted.
 
@@ -179,14 +185,22 @@ abt-tools.py                 the root Typer app. Its callback raises RLIMIT_NOFI
   1. It creates everything in `custom_schemas` and `extensions` once, up front. Otherwise
      concurrent sessions would race on the first `CREATE SCHEMA`.
   2. It runs the prefix scripts one at a time.
-  3. It runs the groups concurrently. Each group gets one connection and runs its scripts in
-     order. A failing group doesn't stop the other groups.
+  3. It runs the groups concurrently, starting them in plan order, longest first. A group runs its
+     scripts in order, each on its own connection, so session state doesn't carry from one script
+     to the next. A failing group doesn't stop the other groups.
   4. It runs the suffix only if every group succeeded.
 
-  Before any of this, it checks the plan against the files on disk.
+  Before any of this, it checks the plan against the files on disk. All of it needs a plan and
+  `-n` above 1. At `-n 1`, the default below 12 vCPUs, carto runs every script in filename order,
+  and it neither checks the plan nor creates its schemas and extensions.
 - **Concurrent groups get scaled-down settings.** Each group connects with libpq
   `options='-c abt.dissolve_shards=N -c abt.parallel_workers_per_gather=M'`, sized so that all the
-  groups together don't oversubscribe the host. The heavy scripts (`003_road`,
+  groups together don't oversubscribe the host. The groups that start together split a budget of
+  `max(cpu_count - 4, cpu_count // 2)` in proportion to their `weights` in the plan (default 1; a
+  group's weight is its heaviest script's). A group gets its share as shards and a quarter of it
+  as workers, each at least 2 and at most the sequential defaults (16 and 10). `009_land_cover`
+  and `005a_water_polygon` have weight 2, so at 48 vCPU and `-n 8` they get 8 shards and every
+  other group 4. The heavy scripts (`003_road`,
   `005a_water_polygon`, `009_land_cover`, and `022_dam`) read these settings with
   `current_setting(..., true)`. When a setting isn't there, they fall back to the values they used
   when scripts ran one at a time.
@@ -197,15 +211,22 @@ abt-tools.py                 the root Typer app. Its callback raises RLIMIT_NOFI
 
 ### Failure semantics
 
-Every task records its outcome in `RunReporter`. A command exits with code 1 if it raises an
-exception or if `overall_status` isn't `SUCCESS`. When something fails, read
-`logs/<run_id>/summary.json` first, then the failed task's `*.log`.
+Every command except `vundler` records each task's outcome and `duration_s` in `RunReporter`.
+When a step fails, the task's later steps are recorded `FAILED` as `not attempted (<stage>
+failed)`, and `carto` also records every script under `carto_scripts`. A command exits with code
+1 if it raises an exception or if `overall_status` isn't `SUCCESS`; `vundler` exits 1 only if it
+raises. When something fails, read `logs/<run_id>/summary.json` first, then the failed task's
+`*.log`.
 
-Some failures are quiet:
+Some failures are quiet, or show up only a stage later:
 
-- A failed aux download (the MIRTA host on `usgovcloudapi.net` is a frequent example) doesn't show
-  up until `carto` looks for the missing `aux_data.*` table.
-- `get_file` returns `None` on a non-200 response, and its caller ignores that return value (R6).
+- An OSM tag key that no mapping loads reads as NULL in `carto_sql`, with no error, because imposm
+  drops it while it reads the PBF. `tests/test_imposm_tags.py` catches this for the keys that
+  `carto_sql` and the mapping filters read.
+- A failed aux download or import fails its stage, which exits 1. If you run the next stage
+  anyway, the gap shows up only when `carto` can't find that `aux_data.*` table. MIRTA is the
+  likeliest: its host, `www.acq.osd.mil`, may be unreachable from some networks, and its config
+  sets `"verify_tls": false` because that host omits an intermediate certificate.
 
 `bundler` doesn't fail on missing inputs either, but it does report them. It leaves out any layer
 with no per-layer `.mbtiles` or `.btis` file, any `-q` path that doesn't exist, and any input with
@@ -220,6 +241,7 @@ a run.
 | Path | Consumed by | Binding |
 |---|---|---|
 | `import/osm/*.yml` | `import`, through imposm | A mapping named `<name>` becomes the table `osm.osm_<name>`. |
+| `import/imposm_base.yml` | `import`, merged into `<working_dir>/osm/combined_mapping.yaml` | Optional top-level imposm settings; must not define `tables`. `tags: include:` keeps the tag keys that `carto_sql` or a mapping filter reads but no mapping loads. A change needs a fresh OSM import. |
 | `import/aux_data/*.json` | `download`, `import` | Each `aux_load` entry becomes a table in `aux_data`. See `docs/schema/aux-data.md`. |
 | `static_data/` | `import`, through `local_path` in the aux configs | Data files committed to git. |
 | `carto_sql/*.sql` | `carto`, which globs them non-recursively and sorts them | Each builds one or more `export.<layer_id>` views. |
@@ -250,7 +272,8 @@ a run.
 - **Every carto script has the same structure:** a header block, session-level `SET` statements,
   and then idempotent `BEGIN … COMMIT` blocks. Three scripts wrap the rest:
   - `000_update_aux_geom.sql` normalizes the geometry column of every `aux_data` table: it renames
-    the column to `geometry`, reprojects from 3857 to 4326, and adds an index.
+    the column to `geometry`, reprojects from 3857 to 4326, and builds a GiST index on it unless
+    one exists (ogr2ogr's import normally made one).
   - `001_set_schema.sql` recreates the `export` schema and helper functions such as `ZRes(z)`.
   - `099_update_geometry.sql` normalizes `export.*` at the end.
 
@@ -288,7 +311,7 @@ The script runs six steps:
 4. `export` for every projection, in parallel.
 5. `bundler` for every projection, in parallel. This step adds the Overture buildings and contours
    with `-q`.
-6. `aws s3 cp` for each bundle.
+6. `aws s3 cp` for each bundle, unless `--no-upload`, which prints the bundle paths instead.
 
 | Flag | Effect |
 |---|---|
@@ -297,10 +320,24 @@ The script runs six steps:
 | `--overture-clean` | Like `--overture`, and also deletes each projection's `.fgb` shards once that projection is tiled. |
 | `--contours <dir>` | Adds contours from `<dir>`. |
 | `--from export` | Skips steps 1–3. A preflight first runs `ogrinfo` to confirm that every `.fgb` exists and is readable. |
+| `--no-upload` | Stops after step 5. Skips the `aws` and AWS STS checks. |
+| `-h`, `--help` | Prints the flags and environment variables, then exits. |
 
-The configuration is hard-coded at the top of the script: `/rbt/...` paths, `JOBS=12`, `ZOOM=13`,
-a local Postgres (role and database `rbt` on `127.0.0.1`), and the S3 destination. The script
-stops immediately if the AWS STS environment variables aren't set.
+Only `-p env`, the planet, and `ZOOM=13` are fixed. Everything else comes from environment
+variables whose defaults match a `setup_ubuntu.sh` host, and `bash init.sh --help` lists them:
+
+- **Paths.** Data goes under `ABT_WORKSPACE_DIR` (`/rbt`), and `ABT_RUN_DIR` and
+  `ABT_OVERTURE_DIR` override the working directories under it. `ABT_TOOLS` and `ABT_SCHEMA_DIR`
+  default to the checkout next to `init.sh`.
+- **Run.** `ABT_JOBS` (12) sets the workers per stage, `ABT_S3_BUCKET_PREFIX` the upload
+  destination, and `PYTHON` the interpreter.
+- **Postgres.** `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASSWORD`, and `PG_DB` default to
+  `127.0.0.1`, `5432`, and `rbt` for the role and database. The script exports them as `PGHOST`
+  and the rest, overwriting any already set, so a shell still pointed at another database can't
+  send the build there.
+
+Unless `--no-upload` is passed, the script stops immediately if `aws` or the AWS STS variables
+are missing.
 
 ## Overture buildings
 
@@ -382,12 +419,15 @@ The tests, from narrowest to widest scope:
   `.cursor/rules/conventional-commits.mdc` holds the same commit rule for Cursor.
 - **The tests are recent.** Before the review in `docs/project/code-review-findings.md`, the
   Python package had no tests, and the Rust port had overwritten the oracle meant to check it.
-  That review added both suites, fixed findings F1–F9, and left R1–R10 open.
+  That review added both suites, fixed findings F1–F9, and left R1–R10 open. The September 2026
+  review (`docs/project/code-review-2026-09.md`) fixed B0–B20 and S1–S4, closed R4 and R6, added
+  the root `tests/` suite, and added the Tests workflow, which runs every suite in CI.
 
 ## Hosts and sizing
 
-The target OS is Ubuntu 26.04. `setup_ubuntu.sh` provisions everything in numbered stages, and
-each stage checks whether its work is already done before redoing it. The stages cover:
+The target OS is Ubuntu 26.04. `setup_ubuntu.sh` provisions everything in numbered stages. Most
+stages check whether their work is already done before redoing it, but by default the Postgres
+tuning stage re-applies its settings and restarts Postgres on every run. The stages cover:
 
 - kernel and ulimit tuning
 - PostgreSQL and PostGIS, run under a custom systemd unit (`postgresql-rbt`)
@@ -398,34 +438,51 @@ each stage checks whether its work is already done before redoing it. The stages
 
 | Tier | Hardware | Use |
 |---|---|---|
-| Small extract | 8 vCPU, 32 GB RAM, 100 GB SSD | Iterating on schema and SQL with one country (`docs/walkthroughs/norway.md`). Override the `PG_*` variables before running `setup_ubuntu.sh`, because its defaults are sized for the planet tier (`shared_buffers=96GB`). See `docs/install/performance.md`. |
-| Planet | 48 vCPU, 384 GB RAM, 2 TB+ NVMe | Production. The planet PBF is over 80 GB, and `import` alone takes over 24 hours. `setup_ubuntu.sh` tunes Postgres for this tier by default. |
+| Small extract | 8 vCPU, 32 GB RAM, 100 GB SSD | Iterating on schema and SQL with one country (`docs/walkthroughs/norway.md`). `setup_ubuntu.sh` sizes Postgres for this tier by itself: `PG_TIER=auto` picks it below 128 GB of RAM. See `docs/install/performance.md`. |
+| Planet | 48 vCPU, 384 GB RAM, 2 TB+ NVMe | Production. The planet PBF is over 80 GB, and `import` alone takes over 24 hours. `PG_TIER=auto` picks this tier at 128 GB of RAM or more. |
 
 Minimum tool versions: PostgreSQL 16 with PostGIS 3.4, GDAL 3.9.2, imposm3 0.14, and tippecanoe
 2.76. Planet downloads also need `aria2c`.
 
 ## Known issues and open decisions
 
-These findings from the code review (`docs/project/code-review-findings.md`) are still open, and
-each is waiting on a decision:
+These findings from the code review (`docs/project/code-review-findings.md`) are still open. The
+September 2026 review fixed R4 and R6 and says R1–R3 stand by design, though the findings table
+still marks them Open. The rest wait on a decision.
 
 | # | Issue |
 |---|---|
 | R1 | For an orphaned `map` row, Rust writes an empty `.bundle` file; Python writes nothing. |
 | R2 | At zoom 17 and above, bundle filenames grow past `R####C####` (in both implementations). |
 | R3 | A missing `metadata` table makes both implementations fail. |
-| R4 | HTTP downloads hard-code `verify=False` and suppress the warnings. |
-| R5 | `with self.conn as conn:` doesn't close psycopg2 connections, so every DB-touching `PGConfig` method leaks one connection per call. |
-| R6 | A failed download returns `None`, and the caller ignores it. |
+| R5 | `with self.conn as conn:` doesn't close psycopg2 connections, so `osm_populated`, `reset_aux_schema`, `test_sql`, and `execute_sql` (which `runSQLScript` calls) each leak one connection per call. `table_sizes` closes its own. |
 | R7 | Flag strings are split on spaces instead of with `shlex.split`. |
 | R8 | `layer_id` and attribute names go into SQL identifiers unescaped. The risk is low because the config is static. |
 | R9 | Loggers don't create their log directories, so every caller has to. |
 | R10 | Loggers are cached for the whole process by stage and name, so a later call with a different directory keeps writing to the first one. |
 
+The "Report only" section of `docs/project/code-review-2026-09.md` holds newer open decisions.
+Among them: sequential `carto` never creates the plan's extensions (`004` and `014` need
+`pg_trgm`); the `dblink` connection strings name no user; `init.sh --from` can't restart between
+download and export; `init.sh` requires `AWS_SESSION_TOKEN` and only checks that it's set; the
+Overture scripts have shellcheck findings, so CI skips them; and several SQL behaviors change the
+output.
+
 ### Known doc drift
 
-None known as of 2026-09-28. If you find prose that disagrees with the code and can't fix it in
-the same change, list it here.
+Checked on 2026-09-29. If you find prose that disagrees with the code and can't fix it in the
+same change, list it here.
+
+- `docs/schema/carto-sql.md` says `execution_plan.yml` is validated "before any run starts", and
+  the `tests/test_schema_guards.py` docstring calls plan coverage "the check `carto` itself runs
+  when it starts". `carto` checks the plan only when `-n` is above 1; see
+  [Concurrency](#concurrency).
+- The `dblink_connect` warning in `docs/reference/troubleshooting.md`, and a comment in
+  `setup_ubuntu.sh`'s extensions stage, offer a `pg_hba.conf` entry as an alternative to a
+  superuser role. dblink refuses a password-less connection from a non-superuser whatever
+  `pg_hba.conf` says; see [PostgreSQL](#postgresql).
+- A comment in `init.sh`'s Overture preflight says `setup_ubuntu.sh` doesn't provision duckdb. It
+  does, unless `INSTALL_DUCKDB=false`.
 
 ## Where to start
 
@@ -434,7 +491,7 @@ the same change, list it here.
 | Add or change a tile layer | `docs/schema/adding-a-layer.md`, then the schema checklist in CLAUDE.md |
 | Change how a layer tiles | `rbt-schema/export/<file>.json`, `abt/export/tile_layer_model.py` |
 | Debug a failing `carto` group | `logs/<run_id>/carto/`, `docs/reference/troubleshooting.md`, and the header of the failing script |
-| Speed up `carto` | The header of `execution_plan.yml`, `CartoProcessingModel._scaled_pg_config`, `docs/install/performance.md` |
+| Speed up `carto` | The header and `weights` of `execution_plan.yml`, `group_guc_values` and `CartoProcessingModel._group_pg_configs`, the `carto_scripts` stage in a run's `summary.json`, `docs/install/performance.md` |
 | Add a CLI flag | `abt/utils/fields.py`, then the stage's `cli_funcs/*.py` |
 | Add a data source | An existing `import/aux_data/*.json`, `abt/aux_data_model.py`, `debug_aux_import` |
 | Change bundle metadata or attribution | `rbt-schema/tile-metadata/metadata.py`, `abt/export/bundler.py` |
