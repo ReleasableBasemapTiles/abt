@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Record the September 2026 review and track the earlier one's status
 - Drop the packages nothing imports from env.yaml
 - Bring CLAUDE.md and CONTEXT.md up to date with the September 2026 review
+- Say carto checks the execution plan only when -n is above 1
+- Drop the pg_hba.conf alternative to a superuser pipeline role
+- Say setup_ubuntu.sh installs duckdb unless INSTALL_DUCKDB=false
 
 ### Fixed
 
