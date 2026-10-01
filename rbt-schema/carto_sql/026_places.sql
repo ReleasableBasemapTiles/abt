@@ -1,7 +1,7 @@
 -- =============================================================================
 -- LAYER: Populated Place Labels
 -- Schema:        export
--- Source layer:  populated_places
+-- Source layer:  place_labels
 -- Sources:       osm.osm_city_point
 --                aux_data.nga_geonames_populated_places
 --                aux_data.ne_10m_populated_places
@@ -29,6 +29,19 @@
 --    Ranks 4-8   : Medium-to-large cities graded by cartographic prominence.
 --    Ranks 9-10  : Small cities and towns.
 --    Ranks 11-12 : Villages, hamlets, and minor points.
+--
+-- CAPITAL CODES (capital, with the derived text column capital_role):
+--    2 (primary)   : National capital, the one the State Department symbolizes
+--                    as THE capital. Also the value for OSM capital=yes/2.
+--    1 (secondary) : Additional national capital of a country with several
+--                    (executive, legislative, judicial). Chosen by osm_id in
+--                    the override list below, never read from OSM, so it
+--                    can't collide with an OSM capital= value.
+--    3, 5, 6       : State, provincial, or regional capitals (OSM capital=3,
+--                    4, 5, 6; OSM 4 is folded into 3).
+--    none (NULL)   : Not a capital.
+--    capital_role is 'primary' for 2, 'secondary' for 1, and NULL otherwise.
+--    It is derived from capital so the two can't disagree.
 
 -- -----------------------------------------------------------------------------
 -- Source table indexes (idempotent — safe to rerun)
@@ -65,28 +78,11 @@ SELECT
         WHEN 'town'    THEN 2
         ELSE                3
     END                                                                 AS class_rank,
-    CASE
-        WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
-        -- DOS-directed primary capital override: Bujumbura remains primary per US State Dept
-        WHEN o.osm_id = 60715062               THEN 2   -- Bujumbura (Burundi)
-        -- Secondary national capitals (de facto, seat of government, legislative, judicial)
-        WHEN o.osm_id IN (
-              235857686,   -- The Hague (Netherlands)
-              266478791,   -- La Paz (Bolivia)
-             1046100133,   -- Abidjan (Côte d'Ivoire)
-             2872238032,   -- Putrajaya (Malaysia)
-               26576175,   -- Yangon (Myanmar)
-              313764484,   -- Sucre (Bolivia)
-               32675806,   -- Cape Town (South Africa)
-               26938845,   -- Bloemfontein (South Africa)
-              301351574,   -- Gitega (Burundi)
-               50794342,   -- Colombo (Sri Lanka)
-             4415037938    -- Lobamba (Eswatini)
-        )                                       THEN 3
-        WHEN o.capital = 'yes'                  THEN 2
-        WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
-        WHEN o.capital = '4'                    THEN 3
-    END                                                                 AS capital,
+    cap.capital                                                         AS capital,
+    CASE cap.capital
+        WHEN 2 THEN 'primary'
+        WHEN 1 THEN 'secondary'
+    END                                                                 AS capital_role,
     COALESCE(
         CASE
             WHEN o.name_en = 'Taipei'                                    THEN 1  -- DOS Bulletin 37: capital suppressed but prominence preserved
@@ -125,6 +121,35 @@ SELECT
     )                                                                   AS rank,
     o.geometry
 FROM osm.osm_city_point o
+-- The capital code is defined once, here, so capital_role in the SELECT list
+-- is derived from the same value and can't drift from it. It reads only
+-- columns of o, so it is cheap and the planner may inline it.
+CROSS JOIN LATERAL (
+    SELECT
+        CASE
+            WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
+            -- DOS-directed primary capital override: Bujumbura remains primary per US State Dept
+            WHEN o.osm_id = 60715062               THEN 2   -- Bujumbura (Burundi)
+            -- Secondary national capitals (de facto, seat of government, legislative, judicial).
+            -- Code 1 is never produced from an OSM capital= value, so it can't collide with one.
+            WHEN o.osm_id IN (
+                  235857686,   -- The Hague (Netherlands)
+                  266478791,   -- La Paz (Bolivia)
+                 1046100133,   -- Abidjan (Côte d'Ivoire)
+                 2872238032,   -- Putrajaya (Malaysia)
+                   26576175,   -- Yangon (Myanmar)
+                  313764484,   -- Sucre (Bolivia)
+                   32675806,   -- Cape Town (South Africa)
+                   26938845,   -- Bloemfontein (South Africa)
+                  301351574,   -- Gitega (Burundi)
+                   50794342,   -- Colombo (Sri Lanka)
+                 4415037938    -- Lobamba (Eswatini)
+            )                                       THEN 1
+            WHEN o.capital = 'yes'                  THEN 2
+            WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
+            WHEN o.capital = '4'                    THEN 3
+        END                                                             AS capital
+) cap
 LEFT JOIN LATERAL (
     SELECT g.ufi
     FROM aux_data.nga_geonames_populated_places g
@@ -203,12 +228,11 @@ SELECT
         WHEN 'hamlet'        THEN 6
         ELSE                      7
     END                                                                 AS class_rank,
-    CASE
-        WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
-        WHEN o.capital = 'yes'                  THEN 2
-        WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
-        WHEN o.capital = '4'                    THEN 3
-    END                                                                 AS capital,
+    cap.capital                                                         AS capital,
+    CASE cap.capital
+        WHEN 2 THEN 'primary'
+        WHEN 1 THEN 'secondary'
+    END                                                                 AS capital_role,
     CASE o.place
         WHEN 'village'       THEN 11
         WHEN 'hamlet'        THEN 11
@@ -218,6 +242,18 @@ SELECT
     END                                                                 AS rank,
     o.geometry
 FROM osm.osm_city_point o
+-- No secondary-capital override list here: every listed osm_id is a city or
+-- town, so none can reach this branch. A national capital mapped as a village
+-- still gets capital 2 and capital_role 'primary' from its OSM capital= tag.
+CROSS JOIN LATERAL (
+    SELECT
+        CASE
+            WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
+            WHEN o.capital = 'yes'                  THEN 2
+            WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
+            WHEN o.capital = '4'                    THEN 3
+        END                                                             AS capital
+) cap
 WHERE o.place IN ('village', 'hamlet', 'suburb', 'neighbourhood')
 
 UNION ALL
@@ -243,6 +279,7 @@ SELECT
     'island'::text                                                      AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
+    NULL::text                                                          AS capital_role,
     CASE
         WHEN island.area_m2 >= 1e12 THEN 1
         WHEN island.area_m2 >= 1e11 THEN 2
@@ -269,6 +306,7 @@ SELECT
     'island'::text                                                      AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
+    NULL::text                                                          AS capital_role,
     7                                                                   AS rank,
     geometry
 FROM osm.osm_island_point p
@@ -290,6 +328,7 @@ SELECT
     'island_group'::text                                                AS class,
     NULL::int                                                           AS class_rank,
     NULL::int                                                           AS capital,
+    NULL::text                                                          AS capital_role,
     scalerank + 1                                                       AS rank,
     ST_PointOnSurface(
         ST_MakeValid(geometry)
