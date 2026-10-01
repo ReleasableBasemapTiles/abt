@@ -17,7 +17,12 @@
         {
             "name": "capital",
             "type": "int",
-            "description": ""
+            "description": "Capital level: 2=primary national capital, 1=secondary national capital (countries with several, e.g. South Africa), 3/5/6=state, provincial, or regional capital; absent if not a capital"
+        },
+        {
+            "name": "capital_role",
+            "type": "string",
+            "description": "primary (capital=2) or secondary (capital=1) for national capitals; absent otherwise"
         },
         {"name": "name",    "type": "string", "description": ""},
         {"name": "rank",    "type": "int",    "description": ""}
