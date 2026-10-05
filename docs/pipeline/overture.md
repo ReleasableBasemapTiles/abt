@@ -85,22 +85,24 @@ instead of DuckDB's own `ST_Transform` for any non-4326 `TARGET_SRS` — see
 `proj>=9.8` so that engine stays correct too.
 
 The export path's own `--projection-override` reprojects inside PostGIS — a
-third, independently-versioned PROJ install — and DuckDB is kept around here
-purely as a regression trip-wire in case its `ST_Transform` is ever
-reintroduced into the reprojection path. `check_proj_agreement.py` checks
-that every reachable engine on this box — `pyproj`, `duckdb`, and
-Postgres/PostGIS — agrees on a handful of fixed control-point transforms
-before committing to hours of work on a given EPSG code:
+second, independently-versioned PROJ install. `check_proj_agreement.py`
+checks that both engines that reproject — the GDAL behind the `ogr2ogr` on
+`PATH` (probed through the `gdaltransform` next to it) and Postgres/PostGIS —
+agree with `pyproj` on a handful of fixed control-point transforms before
+committing to hours of work on a given EPSG code:
 
 ```bash
 python check_proj_agreement.py 4087 [3395 ...]
 ```
 
-Every engine except `pyproj` itself is optional: a missing `duckdb` binary or
-an unreachable Postgres is reported as a skipped check, not a failure, so
-this still runs standalone. Two reachable engines disagreeing by more than
-1mm (`PROJ_AGREEMENT_TOLERANCE_M` to change that) at any control point fails
-with a report naming both engines' PROJ versions and the size of the
+`duckdb` is probed as well, but its result is only reported, never failed
+on: DuckDB doesn't reproject, and its bundled PROJ would otherwise fail every
+EPSG:4087 run. Every engine except `pyproj` itself is optional: a missing
+`ogr2ogr` or `duckdb` binary, or an unreachable Postgres, is reported as a
+skipped check, not a failure, so this still runs standalone. A reprojecting
+engine that disagrees with `pyproj` by more than 1mm
+(`PROJ_AGREEMENT_TOLERANCE_M` to change that) at any control point fails the
+check, with a report naming both PROJ versions and the size of the
 disagreement. [`init.sh`](../walkthroughs/init-sh.md) runs this automatically
 for every non-`3857` entry in `--projections`, before either the background
 Overture pipeline or `[4/6] export` starts.
