@@ -92,7 +92,9 @@ actually reprojects disagrees by more than 1mm (`PROJ_AGREEMENT_TOLERANCE_M`
 to change that): the GDAL behind the `ogr2ogr` on PATH, probed through the
 `gdaltransform` next to it, and Postgres/PostGIS. `duckdb` is probed too, but
 only reported, since it never reprojects; its bundled PROJ would otherwise
-fail every 4087 run. Each engine is skipped, not failed, if unreachable:
+fail every 4087 run. Each engine is skipped, not failed, if unreachable. The
+check refuses to run at all if `pyproj` itself links PROJ older than 9.8,
+since a stale reference would agree with an equally stale GDAL:
 
 ```bash
 python check_proj_agreement.py 4087 [3395 ...]

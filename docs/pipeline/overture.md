@@ -99,7 +99,9 @@ python check_proj_agreement.py 4087 [3395 ...]
 on: DuckDB doesn't reproject, and its bundled PROJ would otherwise fail every
 EPSG:4087 run. Every engine except `pyproj` itself is optional: a missing
 `ogr2ogr` or `duckdb` binary, or an unreachable Postgres, is reported as a
-skipped check, not a failure, so this still runs standalone. A reprojecting
+skipped check, not a failure, so this still runs standalone. `pyproj` is the
+reference, so the check fails outright if it links PROJ older than 9.8: a
+stale `pyproj` would agree with an equally stale GDAL. A reprojecting
 engine that disagrees with `pyproj` by more than 1mm
 (`PROJ_AGREEMENT_TOLERANCE_M` to change that) at any control point fails the
 check, with a report naming both PROJ versions and the size of the

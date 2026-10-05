@@ -62,12 +62,20 @@ from pyproj import Transformer
 CONTROL_LATITUDES: Tuple[float, ...] = (0.0, 30.0, 45.0, 60.0, 84.0)
 CONTROL_LONGITUDE = 0.0
 DEFAULT_TOLERANCE_M = 0.001
+# PROJ 9.8.0 added EPSG:1028; the reference engine must be at least this new.
+MIN_REFERENCE_PROJ = (9, 8)
 
 # lat -> (x, y)
 PointMap = Dict[float, Tuple[float, float]]
 # (points, engine's own PROJ version string, reason this engine was skipped)
 # -- exactly one of (points, version) or reason is populated.
 EngineResult = Tuple[Optional[PointMap], Optional[str], Optional[str]]
+
+
+def pyproj_proj_version() -> Tuple[int, int]:
+    """(major, minor) of the PROJ this process's pyproj links."""
+    major, minor = pyproj.proj_version_str.split(".")[:2]
+    return int(major), int(minor)
 
 
 def pyproj_reference(epsg: int) -> PointMap:
@@ -299,6 +307,18 @@ def main(argv: List[str]) -> int:
         sys.exit(f"epsg codes must be numeric, got: {' '.join(argv[1:])}")
 
     tolerance = float(os.environ.get("PROJ_AGREEMENT_TOLERANCE_M", DEFAULT_TOLERANCE_M))
+
+    # Every engine is compared against pyproj, so a pre-9.8 pyproj would make
+    # equally stale engines look correct: GDAL and pyproj from the same old
+    # conda env agree with each other on the spherical values and pass.
+    if pyproj_proj_version() < MIN_REFERENCE_PROJ:
+        print(
+            f"ERROR: pyproj links PROJ {pyproj.proj_version_str}, but the reference needs PROJ >= "
+            f"{'.'.join(map(str, MIN_REFERENCE_PROJ))} (ellipsoidal eqc, EPSG:1028). Run this under "
+            "the abtv2 env, whose env.yaml pins proj>=9.8.",
+            file=sys.stderr,
+        )
+        return 1
 
     all_ok = True
     for epsg in epsg_codes:

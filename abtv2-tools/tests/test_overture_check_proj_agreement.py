@@ -263,7 +263,25 @@ def test_main_returns_zero_when_every_engine_agrees_or_is_skipped(monkeypatch):
     for var in ("PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE"):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setattr(check_proj_agreement.shutil, "which", lambda name: None)
+    monkeypatch.setattr(check_proj_agreement, "pyproj_proj_version", lambda: (9, 8))
     assert check_proj_agreement.main(["check_proj_agreement.py", "4087"]) == 0
+
+
+def test_main_fails_when_pyproj_reference_predates_proj_9_8(monkeypatch, capsys):
+    """A stale pyproj would agree with an equally stale GDAL, so main()
+    refuses to use it as the reference rather than passing both."""
+    monkeypatch.setattr(check_proj_agreement, "pyproj_proj_version", lambda: (9, 6))
+    monkeypatch.setattr(check_proj_agreement, "check_epsg", lambda epsg, tolerance: pytest.fail("ran checks"))
+    assert check_proj_agreement.main(["check_proj_agreement.py", "4087"]) == 1
+    assert "PROJ >= 9.8" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("version_str, expected", [("9.8.0", (9, 8)), ("10.0.1", (10, 0)), ("9.10.2", (9, 10))])
+def test_pyproj_proj_version_parses_major_minor(monkeypatch, version_str, expected):
+    # Numeric, not string, comparison: "9.10" must count as newer than "9.8".
+    monkeypatch.setattr(check_proj_agreement.pyproj, "proj_version_str", version_str)
+    assert check_proj_agreement.pyproj_proj_version() == expected
+    assert (check_proj_agreement.pyproj_proj_version() >= check_proj_agreement.MIN_REFERENCE_PROJ) is True
 
 
 # --- real DuckDB integration (skipped if the binary isn't on PATH) --------
