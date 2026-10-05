@@ -86,10 +86,15 @@ predates that fix; this is exactly why `shard.sh` reprojects non-4326
 `proj>=9.8` so that engine stays correct too.
 
 `check_proj_agreement.py` verifies this agreement at runtime: it transforms a
-handful of fixed control points via every engine it can reach on this box --
-`pyproj` (required), plus `duckdb` and Postgres/PostGIS (each skipped, not
-failed, if unreachable) -- and fails if any two disagree by more than 1mm
-(`PROJ_AGREEMENT_TOLERANCE_M` to change that):
+handful of fixed control points via every engine it can reach on this box and
+compares each against `pyproj` (required). It fails if either engine that
+actually reprojects disagrees by more than 1mm (`PROJ_AGREEMENT_TOLERANCE_M`
+to change that): the GDAL behind the `ogr2ogr` on PATH, probed through the
+`gdaltransform` next to it, and Postgres/PostGIS. `duckdb` is probed too, but
+only reported, since it never reprojects; its bundled PROJ would otherwise
+fail every 4087 run. Each engine is skipped, not failed, if unreachable. The
+check refuses to run at all if `pyproj` itself links PROJ older than 9.8,
+since a stale reference would agree with an equally stale GDAL:
 
 ```bash
 python check_proj_agreement.py 4087 [3395 ...]
