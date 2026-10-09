@@ -14,7 +14,7 @@ from ..utils.logger import get_logger
 from ..utils.subprocess_tools import run_subprocess
 from .mbtiles_metadata import (
     BTIS_SCHEMA_VERSION,
-    BTIS_CHANGELOG_URL_PLACEHOLDER,
+    BTIS_CHANGELOG_URL,
     TOOL_COMPUTED_METADATA_KEYS,
     OVERRIDE_ONLY_DROPPED_METADATA_KEYS,
     TIPPECANOE_BUILD_METADATA_KEYS,
@@ -153,7 +153,7 @@ def export_bundled(bundle: Bundler) -> None:
             "center": ",".join(str(v) for v in center),
             "crs": crs,
             "btp_schema_version": BTIS_SCHEMA_VERSION,
-            "changelog_url": BTIS_CHANGELOG_URL_PLACEHOLDER,
+            "changelog_url": BTIS_CHANGELOG_URL,
         })
         delete_mbtiles_metadata(bundle.bundled_mbtiles_path, list(OVERRIDE_ONLY_DROPPED_METADATA_KEYS))
     elif bundle.metadata and "center" in bundle.metadata:

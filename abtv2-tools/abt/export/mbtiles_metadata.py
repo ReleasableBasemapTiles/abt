@@ -18,7 +18,9 @@ from pyproj import CRS
 
 # BTIS (Basemap Tile Package) metadata per NGA.IS.0081-1
 BTIS_SCHEMA_VERSION = "1.0.0"
-BTIS_CHANGELOG_URL_PLACEHOLDER = "TBD"
+# No changelog is published yet. The row is still written, empty, so that
+# reprojected output carries the key rather than a placeholder value.
+BTIS_CHANGELOG_URL = ""
 
 TOOL_COMPUTED_METADATA_KEYS = {"bounds", "center", "format"}
 OVERRIDE_ONLY_DROPPED_METADATA_KEYS = {"antimeridian_adjusted_bounds"}
