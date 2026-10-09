@@ -47,6 +47,25 @@ def test_validate_projection_override_rejects_invalid_forms(bad_value):
         fields.validate_projection_override(bad_value)
 
 
+def test_validate_data_version_passes_through_none():
+    assert fields.validate_data_version(None) is None
+
+
+@pytest.mark.parametrize("good_value", ["2026-10-08.0", "2026-10-08.12", "2024-02-29.0"])
+def test_validate_data_version_accepts_a_date_and_counter(good_value):
+    assert fields.validate_data_version(good_value) == good_value
+
+
+@pytest.mark.parametrize(
+    "bad_value",
+    ["", "2026-10-08", "2026-10-08.", "2026-10-08.x", "2026-1-8.0", "2026-10-08.0 ",
+     "2026-13-08.0", "2026-02-30.0", "2025-02-29.0", "٢٠٢٦-١٠-٠٨.0"],
+)
+def test_validate_data_version_rejects_malformed_values(bad_value):
+    with pytest.raises(typer.BadParameter):
+        fields.validate_data_version(bad_value)
+
+
 def test_cli_data_type_enum_values():
     assert fields.CliDataType.OSM.value == "osm"
     assert fields.CliDataType.AUX.value == "aux"

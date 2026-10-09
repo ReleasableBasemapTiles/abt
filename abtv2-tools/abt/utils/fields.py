@@ -7,6 +7,7 @@ It ensures consistent argument definitions, help text, and type annotations
 for various commands related to data processing.
 """
 
+from datetime import datetime
 from typing import Optional
 from enum import Enum
 import os
@@ -55,6 +56,7 @@ single_aux_file_aliases = ['-a', '--aux-file']
 
 projection_override_aliases = ['--projection-override']
 output_name_aliases = ['-o', '--output-name']
+data_version_aliases = ['--data-version']
 vundler_input_aliases = ['-i', '--input-path']
 vundler_output_dir_aliases = ['-o', '--output-dir']
 
@@ -199,6 +201,45 @@ output_name_field = typer.Option(
     ...,
     *output_name_aliases,
     help="Filename for the bundled output. Defaults to joined.mbtiles.",
+)
+
+DATA_VERSION_FORMAT = "YYYY-MM-DD.N"
+_DATA_VERSION_RE = re.compile(r"(\d{4}-\d{2}-\d{2})\.\d+", re.ASCII)
+
+
+def check_data_version(value: str) -> str:
+    """Returns `value` if it is a data version -- a date, a dot and a build
+    counter, like 2026-10-08.0 -- and raises ValueError saying what is wrong
+    with it otherwise. The date has to be a real one."""
+    match = _DATA_VERSION_RE.fullmatch(value)
+    if match is None:
+        raise ValueError(f"data version must look like {DATA_VERSION_FORMAT}, e.g. 2026-10-08.0 (got {value!r})")
+    try:
+        datetime.strptime(match.group(1), "%Y-%m-%d")
+    except ValueError:
+        raise ValueError(f"data version {value!r} does not start with a real date")
+    return value
+
+
+def validate_data_version(value: Optional[str]) -> Optional[str]:
+    """Ensures --data-version is either unset or a data version (see check_data_version)."""
+    if value is None:
+        return None
+    try:
+        return check_data_version(value)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
+
+
+data_version_field = typer.Option(
+    ...,
+    *data_version_aliases,
+    envvar="ABT_DATA_VERSION",
+    callback=validate_data_version,
+    help="Version stamped on the bundle, as YYYY-MM-DD.N: the build date (UTC) and a "
+         "counter for rebuilds on the same day, e.g. 2026-10-08.1. Defaults to the UTC "
+         "date the bundler starts on, with .0, so pass it only to name a same-day "
+         "rebuild. The flag wins over the ABT_DATA_VERSION environment variable.",
 )
 
 vundler_input_field = typer.Option(
