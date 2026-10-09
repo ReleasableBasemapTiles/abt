@@ -7,7 +7,7 @@ descriptive metadata into the result. Like [`import`](import.md) and
 updating an existing bundle.
 
 ```bash
-python abt-tools.py bundler -w <working_dir> -s <schema_dir> [-p pg_config] [-q path ...] [-o output_name] [-z max_zoom]
+python abt-tools.py bundler -w <working_dir> -s <schema_dir> [-p pg_config] [-q path ...] [-o output_name] [-z max_zoom] [--data-version YYYY-MM-DD.N]
 ```
 
 ## Flags
@@ -20,6 +20,7 @@ python abt-tools.py bundler -w <working_dir> -s <schema_dir> [-p pg_config] [-q 
 | `-q`, `--additional-mbtiles` | no | none | Path to an externally-produced mbtiles file to fold into the bundle (e.g. contours, or [Overture buildings](overture.md)). Repeatable for more than one. |
 | `-o`, `--output-name` | no | `joined.mbtiles` | Overrides the output filename; used exactly as given. |
 | `-z`, `--max-zoom` | no | none (no cap) | Caps the bundle at a given zoom level by pre-trimming every input with SQLite before `tile-join` runs — e.g. for a smaller "RBT Small" package. |
+| `--data-version` | no | the UTC date the bundler starts on, plus `.0` (e.g. `2026-10-08.0`) | Version stamped on the bundle, as `YYYY-MM-DD.N`: the build date and a counter for rebuilds on the same day (`.1`, `.2`). Also read from the `ABT_DATA_VERSION` environment variable; the flag wins. A malformed value fails before anything runs. |
 
 ## Notable behavior & edge cases
 
@@ -62,6 +63,13 @@ python abt-tools.py bundler -w <working_dir> -s <schema_dir> [-p pg_config] [-q 
   `-N` description, `-A` attribution), but not for tags, license and the rest, so
   the bundler writes all of the joined output's descriptive metadata from this
   schema file after `tile-join` runs, passing only the name as `-n`.
+- **`version` is the data version, and the bundler sets it.** The schema file
+  has no `version` (one there would be replaced). The bundler writes the UTC
+  date it started on with a counter, `2026-10-08.0` for the first build of that
+  day, so a bundle says when it was built. Pass `--data-version 2026-10-08.1`
+  (or set `ABT_DATA_VERSION`) to name a rebuild the same day. Bundlers started
+  together for several projections agree unless they start either side of
+  midnight UTC; to guarantee it, set `ABT_DATA_VERSION` once for the whole run.
 
 ## See also
 

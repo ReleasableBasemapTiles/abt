@@ -7,7 +7,6 @@ production_date = datetime.now(timezone.utc).strftime(datetime_format)
 
 metadata = {
     "name": "Releasable Basemap Tiles (RBT)",
-    "version": "2.0.0",
     "production_date": production_date,
     "description": "",
     "attribution": (

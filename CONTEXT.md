@@ -293,7 +293,7 @@ in three steps:
    area of use for the CRS, because tippecanoe's values are wrong for this data.
 
 `bundler` does the same for the joined file, and also adds `btp_schema_version` and
-`changelog_url` (whose value is still `TBD`). The trick only makes sense for CRSs measured in
+`changelog_url` (empty, because no changelog is published yet). The trick only makes sense for CRSs measured in
 metres. Nothing checks this: a degree-based code produces garbage tiles without any error. Passing
 `EPSG:3857` explicitly is treated as no override.
 
