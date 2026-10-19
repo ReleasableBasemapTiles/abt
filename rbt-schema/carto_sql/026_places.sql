@@ -263,6 +263,9 @@ UNION ALL
 
 -- Islands from points: only where no polygon with the same name exists nearby.
 -- Avoids duplicating labels for islands mapped as both polygon and node.
+-- imposm stores a missing name:en as '', not NULL, so name_en is compared
+-- through NULLIF: a bare '' = '' would let any named polygon within 0.1°
+-- suppress every point island that lacks name:en (17,774 on the planet).
 SELECT
     osm_id,
     COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
@@ -277,7 +280,8 @@ WHERE NULLIF(name, '') IS NOT NULL
       SELECT 1
       FROM osm.osm_island_polygon poly
       WHERE NULLIF(poly.name, '') IS NOT NULL
-        AND (lower(poly.name) = lower(p.name) OR lower(poly.name_en) = lower(p.name_en))
+        AND (lower(poly.name) = lower(p.name)
+             OR lower(NULLIF(poly.name_en, '')) = lower(NULLIF(p.name_en, '')))
         AND ST_DWithin(poly.geometry, p.geometry, 0.1)
   )
 
