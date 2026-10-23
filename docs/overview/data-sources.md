@@ -38,6 +38,7 @@ the same dict `bundler` writes into the final `.mbtiles`.
 | `osm_ocean_simplified` | [https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip](https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip) | shp | `aux_data.osm_ocean_simplified` |
 | `ourairports_airports` | [https://davidmegginson.github.io/ourairports-data/airports.csv](https://davidmegginson.github.io/ourairports-data/airports.csv) | csv | `aux_data.ourairports_airports` |
 | `ourairports_runways` | [https://davidmegginson.github.io/ourairports-data/runways.csv](https://davidmegginson.github.io/ourairports-data/runways.csv) | csv | `aux_data.ourairports_runways` |
+| `overture_urban` | Overture Maps `base/land_cover` (2026-10-21.0), where `subtype = 'urban' AND cartography.min_zoom = 8` | overture | `aux_data.overture_urban` |
 | `usgs_domestic_names` | [https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_National_Text.zip](https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_National_Text.zip) | txt | `aux_data.usgs_domestic_names` |
 
 OSM data itself (the other input alongside these auxiliary sources) is loaded via [imposm mappings](../schema/osm-mappings.md), not an `aux_data/*.json` config, and isn't listed above.
