@@ -21,7 +21,7 @@ schema supports.
 | Schema | Loaded by | Contents |
 |---|---|---|
 | `osm` | `import` (imposm3) | 24 distinct OSM source tables referenced below |
-| `aux_data` | `import` (ogr2ogr) | 27 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
+| `aux_data` | `import` (ogr2ogr) | 26 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
 | `water` | `carto` (SQL transforms) | Intermediate staging tables/views for the `water`-owned layer(s) below |
 | `transportation` | `carto` (SQL transforms) | Intermediate staging tables/views for the `transportation`-owned layer(s) below |
 | `landuse` | `carto` (SQL transforms) | Intermediate staging tables/views for the `landuse`-owned layer(s) below |
@@ -392,14 +392,8 @@ flowchart LR
         osm_osm_landuse_polygon["osm.osm_landuse_polygon"]
         osm_osm_park_polygon["osm.osm_park_polygon"]
     end
-    subgraph src_aux ["aux_data"]
-        aux_data_ne_10m_urban_areas["aux_data.ne_10m_urban_areas"]
-    end
     script_007_builtup_area["Built-up Area<br/>(007_builtup_area.sql)"]
-    aux_data_ne_10m_urban_areas --> script_007_builtup_area
     osm_osm_builtup_area --> script_007_builtup_area
-    inter_landuse_builtuparea_ne["landuse.builtuparea_ne"]
-    script_007_builtup_area --> inter_landuse_builtuparea_ne
     inter_landuse_builtuparea_osm["landuse.builtuparea_osm"]
     script_007_builtup_area --> inter_landuse_builtuparea_osm
     export_builtup_polygon["export.builtup_polygon"]
@@ -427,7 +421,7 @@ flowchart LR
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
 |---|---|---|---|---|---|---|
-| `export.builtup_polygon` | `007_builtup_area.sql` | `aux_data.ne_10m_urban_areas`<br/>`osm.osm_builtup_area` | `landuse.builtuparea_ne`<br/>`landuse.builtuparea_osm` | polygon | 4–13 | Yes |
+| `export.builtup_polygon` | `007_builtup_area.sql` | `osm.osm_builtup_area` | `landuse.builtuparea_osm` | polygon | 7–13 | Yes |
 | `export.cemetery_polygon` | `024_cemetery.sql` | `osm.osm_landuse_polygon` | `landuse.tmp_cemetery_ranked` | polygon | 9–13 | Yes |
 | `export.cemetery_label` | `024_cemetery.sql` | `osm.osm_landuse_polygon` | `landuse.tmp_cemetery_ranked` | point | 9–13 | Yes |
 | `export.stadium_polygon` | `025_sports.sql` | `osm.osm_builtup_area`<br/>`osm.osm_park_polygon` | — | polygon | 9–13 | Yes |
