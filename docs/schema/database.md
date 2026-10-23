@@ -21,7 +21,7 @@ schema supports.
 | Schema | Loaded by | Contents |
 |---|---|---|
 | `osm` | `import` (imposm3) | 24 distinct OSM source tables referenced below |
-| `aux_data` | `import` (ogr2ogr) | 26 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
+| `aux_data` | `import` (ogr2ogr) | 27 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
 | `water` | `carto` (SQL transforms) | Intermediate staging tables/views for the `water`-owned layer(s) below |
 | `transportation` | `carto` (SQL transforms) | Intermediate staging tables/views for the `transportation`-owned layer(s) below |
 | `landuse` | `carto` (SQL transforms) | Intermediate staging tables/views for the `landuse`-owned layer(s) below |
@@ -392,10 +392,20 @@ flowchart LR
         osm_osm_landuse_polygon["osm.osm_landuse_polygon"]
         osm_osm_park_polygon["osm.osm_park_polygon"]
     end
+    subgraph src_aux ["aux_data"]
+        aux_data_overture_urban["aux_data.overture_urban"]
+    end
     script_007_builtup_area["Built-up Area<br/>(007_builtup_area.sql)"]
     osm_osm_builtup_area --> script_007_builtup_area
+    aux_data_overture_urban --> script_007_builtup_area
     inter_landuse_builtuparea_osm["landuse.builtuparea_osm"]
     script_007_builtup_area --> inter_landuse_builtuparea_osm
+    inter_landuse_builtuparea_overture["landuse.builtuparea_overture"]
+    script_007_builtup_area --> inter_landuse_builtuparea_overture
+    inter_landuse_bua_ov_opened["landuse.bua_ov_opened"]
+    script_007_builtup_area --> inter_landuse_bua_ov_opened
+    inter_landuse_bua_ov_final["landuse.bua_ov_final"]
+    script_007_builtup_area --> inter_landuse_bua_ov_final
     export_builtup_polygon["export.builtup_polygon"]
     script_007_builtup_area --> export_builtup_polygon
     script_024_cemetery["Cemetery<br/>(024_cemetery.sql)"]
@@ -421,7 +431,7 @@ flowchart LR
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
 |---|---|---|---|---|---|---|
-| `export.builtup_polygon` | `007_builtup_area.sql` | `osm.osm_builtup_area` | `landuse.builtuparea_osm` | polygon | 7–13 | Yes |
+| `export.builtup_polygon` | `007_builtup_area.sql` | `osm.osm_builtup_area`<br/>`aux_data.overture_urban` | `landuse.builtuparea_osm`<br/>`landuse.builtuparea_overture`<br/>`landuse.bua_ov_opened`<br/>`landuse.bua_ov_final` | polygon | 4–13 | Yes |
 | `export.cemetery_polygon` | `024_cemetery.sql` | `osm.osm_landuse_polygon` | `landuse.tmp_cemetery_ranked` | polygon | 9–13 | Yes |
 | `export.cemetery_label` | `024_cemetery.sql` | `osm.osm_landuse_polygon` | `landuse.tmp_cemetery_ranked` | point | 9–13 | Yes |
 | `export.stadium_polygon` | `025_sports.sql` | `osm.osm_builtup_area`<br/>`osm.osm_park_polygon` | — | polygon | 9–13 | Yes |

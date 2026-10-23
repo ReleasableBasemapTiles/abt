@@ -25,7 +25,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `airport_label` | point | 8 | 13 | 11 | `--drop-rate=1` | enabled |
 | `airport_polygon` | polygon | 11 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `building_polygon` | polygon | 11 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | **disabled** (`.skip`) |
-| `builtup_polygon` | polygon | 7 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
+| `builtup_polygon` | polygon | 4 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
 | `cemetery_label` | point | 9 | 13 | 7 | `--drop-rate=1` | enabled |
 | `cemetery_polygon` | polygon | 9 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `culvert_point` | point | 9 | 13 | 2 | `--drop-rate=1` | enabled |
