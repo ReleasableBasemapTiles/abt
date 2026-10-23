@@ -61,7 +61,18 @@ def _aux_sources_section() -> str:
         folder_name = config.get("folder_name", path.stem)
         url = config.get("url")
         local_path = config.get("local_path")
-        origin = f"[{url}]({url})" if url else f"`{local_path}` (bundled in-repo)"
+        overture = config.get("overture_params") or {}
+        if url:
+            origin = f"[{url}]({url})"
+        elif overture:
+            # Overture sources have no url: DuckDB reads one theme/type from
+            # the public S3 bucket (see abt/download/downloader.py).
+            release = overture.get("release") or "latest release"
+            origin = f"Overture Maps `{overture.get('theme')}/{overture.get('type')}` ({release})"
+            if overture.get("where"):
+                origin += f", where `{overture['where']}`"
+        else:
+            origin = f"`{local_path}` (bundled in-repo)"
         file_type = config.get("type", "")
         aux_load = config.get("aux_load", []) or []
         layer_names = [

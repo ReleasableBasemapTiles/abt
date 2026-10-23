@@ -1,10 +1,12 @@
 """Tests for abt.download.downloader: get_retry_session's retry config,
 get_file's atomic/verified download, Extractor's atomic extraction,
-build_aria2c_cmd, and overture_folder_release_by_date. No real network
-calls or S3 access -- the HTTP session is faked."""
+build_aria2c_cmd, and DownloadOverture's release choice, DuckDB query and
+extraction. No real network calls, S3 access or DuckDB -- the HTTP
+session, the S3 client and the DuckDB connection are faked."""
 
 import datetime
 import logging
+from pathlib import Path
 from zipfile import ZipFile
 
 import pytest
@@ -13,6 +15,8 @@ import requests
 from abt.download import downloader as downloader_module
 from abt.download.downloader import (
     DownloadAria2,
+    DownloadOverture,
+    Downloader,
     Extractor,
     build_aria2c_cmd,
     get_file,
@@ -82,6 +86,143 @@ def test_get_retry_session_bakes_in_a_default_timeout():
 def test_overture_folder_release_by_date_parses_the_date_segment():
     result = overture_folder_release_by_date("release/2024-06-13.0/")
     assert result == datetime.datetime(2024, 6, 13)
+
+
+# --- DownloadOverture: release choice, the DuckDB query, and extraction ----------
+
+class FakeS3:
+    def __init__(self, prefixes):
+        self.prefixes = prefixes
+
+    def list_objects(self, **kwargs):
+        return {"CommonPrefixes": [{"Prefix": p} for p in self.prefixes]}
+
+
+def test_latest_release_breaks_a_same_day_tie_on_the_suffix(monkeypatch):
+    # Regression test: ranking by date alone made release/2026-09-23.0/ and
+    # .1/ the same key, so which one won depended on listing order.
+    monkeypatch.setattr(downloader_module, "s3", FakeS3([
+        "release/2026-09-23.1/", "release/2026-08-20.0/", "release/2026-09-23.0/",
+    ]))
+    dl = DownloadOverture(theme="base", type="land_cover")
+    assert dl.latest_release == "release/2026-09-23.1/"
+    assert dl.resolved_release() == "2026-09-23.1"
+
+
+def test_a_pinned_release_is_used_without_listing_the_bucket(monkeypatch):
+    monkeypatch.setattr(downloader_module, "s3", None)  # any S3 call would fail
+    dl = DownloadOverture(theme="base", type="land_cover", release="2026-10-21.0")
+    assert dl.resolved_release() == "2026-10-21.0"
+
+
+def test_select_sql_keeps_the_columns_the_filter_and_the_geometry():
+    dl = DownloadOverture(
+        theme="base", type="land_cover", where="subtype = 'urban'",
+        columns=["id", "cartography.min_zoom AS min_zoom"],
+    )
+    assert dl.select_sql("2026-10-21.0") == (
+        "SELECT id, cartography.min_zoom AS min_zoom, geometry\n"
+        "FROM read_parquet('s3://overturemaps-us-west-2/release/2026-10-21.0/theme=base/type=land_cover/*')\n"
+        "WHERE subtype = 'urban'"
+    )
+
+
+def test_select_sql_without_a_filter_reads_every_row():
+    sql = DownloadOverture(theme="base", type="land_cover").select_sql("2026-10-21.0")
+    assert sql.startswith("SELECT geometry\n")
+    assert "WHERE" not in sql
+
+
+def test_copy_sql_quotes_the_output_path():
+    sql = DownloadOverture(theme="base", type="land_cover").copy_sql("r", Path("/data/o'brien/x.fgb"))
+    assert "TO '/data/o''brien/x.fgb' WITH (FORMAT GDAL, DRIVER 'FlatGeobuf')" in sql
+
+
+class FakeDuckDB:
+    """Records statements; the COPY writes the file it names, like DuckDB."""
+
+    def __init__(self, fail=False, unknown=()):
+        self.statements = []
+        self.closed = False
+        self.fail = fail
+        self.unknown = unknown
+
+    def execute(self, sql):
+        if sql in self.unknown:
+            raise RuntimeError(f"unrecognized configuration parameter in: {sql}")
+        self.statements.append(sql)
+        if sql.startswith("COPY"):
+            if self.fail:
+                raise RuntimeError("S3 read failed")
+            target = sql.split(" TO '")[1].split("' WITH")[0]
+            Path(target).write_bytes(b"fgb")
+
+    def close(self):
+        self.closed = True
+
+
+def test_extract_writes_the_file_and_records_its_release(tmp_path, monkeypatch):
+    con = FakeDuckDB()
+    monkeypatch.setattr(downloader_module, "_duckdb_connect", lambda: con)
+    out = tmp_path / "overture_urban.fgb"
+    DownloadOverture(theme="base", type="land_cover", release="2026-10-21.0").extract(out, LOGGER)
+    assert out.read_bytes() == b"fgb"
+    assert (tmp_path / "overture_urban.fgb.release").read_text() == "2026-10-21.0\n"
+    assert "LOAD spatial" in con.statements and "LOAD httpfs" in con.statements
+    assert con.closed
+    # Staged under .partial/ (keeping the .fgb name GDAL needs), then moved.
+    assert not (tmp_path / ".partial" / "overture_urban.fgb").exists()
+
+
+def test_extract_works_on_a_duckdb_without_the_axis_order_setting(tmp_path, monkeypatch):
+    con = FakeDuckDB(unknown={"SET geometry_always_xy = true"})
+    monkeypatch.setattr(downloader_module, "_duckdb_connect", lambda: con)
+    out = tmp_path / "overture_urban.fgb"
+    DownloadOverture(theme="base", type="land_cover", release="r1").extract(out, LOGGER)
+    assert out.read_bytes() == b"fgb"
+
+
+def test_a_failed_extract_leaves_nothing_at_the_final_path(tmp_path, monkeypatch):
+    con = FakeDuckDB(fail=True)
+    monkeypatch.setattr(downloader_module, "_duckdb_connect", lambda: con)
+    out = tmp_path / "overture_urban.fgb"
+    with pytest.raises(RuntimeError, match="S3 read failed"):
+        DownloadOverture(theme="base", type="land_cover", release="r1").extract(out, LOGGER)
+    assert not out.exists()
+    assert not (tmp_path / "overture_urban.fgb.release").exists()
+    assert con.closed
+
+
+def test_extract_skips_a_file_already_extracted(tmp_path, monkeypatch):
+    def no_duckdb():
+        raise AssertionError("must not extract again")
+
+    monkeypatch.setattr(downloader_module, "_duckdb_connect", no_duckdb)
+    out = tmp_path / "overture_urban.fgb"
+    out.write_bytes(b"old")
+    (tmp_path / "overture_urban.fgb.release").write_text("2026-10-21.0\n")
+    DownloadOverture(theme="base", type="land_cover", release="2026-10-21.0").extract(out, LOGGER)
+    DownloadOverture(theme="base", type="land_cover").extract(out, LOGGER)  # unpinned: any release
+    assert out.read_bytes() == b"old"
+
+
+def test_extract_refuses_a_file_from_a_different_pinned_release(tmp_path, monkeypatch):
+    monkeypatch.setattr(downloader_module, "_duckdb_connect", lambda: FakeDuckDB())
+    out = tmp_path / "overture_urban.fgb"
+    out.write_bytes(b"old")
+    (tmp_path / "overture_urban.fgb.release").write_text("2026-09-23.1\n")
+    with pytest.raises(RuntimeError, match="pinned to 2026-10-21.0"):
+        DownloadOverture(theme="base", type="land_cover", release="2026-10-21.0").extract(out, LOGGER)
+    assert out.read_bytes() == b"old"
+
+
+def test_the_downloader_runs_an_overture_extraction(tmp_path, monkeypatch):
+    monkeypatch.setattr(downloader_module, "_duckdb_connect", lambda: FakeDuckDB())
+    Downloader(
+        downloader=DownloadOverture(theme="base", type="land_cover", release="r1"),
+        output_dir=tmp_path, filename="overture_urban.fgb", log_dir=tmp_path,
+    ).download()
+    assert (tmp_path / "overture_urban.fgb").read_bytes() == b"fgb"
 
 
 def test_build_aria2c_cmd_includes_checksum_and_split_count():

@@ -1,6 +1,6 @@
 # Auxiliary Data
 
-`import/aux_data/` holds 23 JSON configs, each describing one non-OSM
+`import/aux_data/` holds 24 JSON configs, each describing one non-OSM
 dataset: where to get it, its format, and which layer(s) inside it to load
 into Postgres. Parsed by `AuxDataLayer` (`abtv2-tools/abt/aux_data_model.py`).
 
@@ -9,16 +9,32 @@ into Postgres. Parsed by `AuxDataLayer` (`abtv2-tools/abt/aux_data_model.py`).
 | Field | Required | Notes |
 |---|---|---|
 | `folder_name` | yes | Local download/extraction folder name |
-| `url` | one of `url`/`local_path` | Remote source |
+| `url` | one of `url`/`local_path` (neither for `type: overture`) | Remote source |
 | `local_path` | one of `url`/`local_path` | Path relative to this directory's root (see [`static_data/`](#static_data-bundled-local-data-files) below) |
 | `type` | yes | `gpkg`, `gdb`, `fgb`, `shp`, `csv`, `txt`, or `overture` |
 | `zipped` | yes | Whether the source is a zip archive |
-| `overture_params` | no | `{theme, type}`, only for `type: overture` — unused in this schema today; see [Overture Buildings](../pipeline/overture.md) for how Overture data is actually loaded here |
+| `overture_params` | only for `type: overture` | `theme` and `type` (required), plus optional `release` (e.g. `"2026-10-21.0"`; default the latest), `where` (a DuckDB filter) and `columns` (DuckDB select expressions; alias nested fields). See [Overture sources](#overture-sources) below |
 | `aux_load` | yes | List of layers to import from this source |
 | `verify_tls` | no (default `true`) | Set `false` to skip TLS certificate verification for this one source. Only for a host whose certificate chain is broken server-side; `download` logs a warning every time. Used today only by `disdi_mirta.json`: `www.acq.osd.mil` sends its certificate without the IdenTrust intermediate, which OpenSSL (and so Python and curl on Linux) can't complete on its own. `ABT_INSECURE_DOWNLOADS=1` turns verification off for every source. |
 
 !!! note "`url` and `local_path` are mutually exclusive"
-    Exactly one of the two must be set — `AuxDataLayer` raises otherwise.
+    Exactly one of the two must be set — `AuxDataLayer` raises otherwise. An
+    `overture` source sets neither: `overture_params` says what to read.
+
+### Overture sources
+
+An `overture` source doesn't download files. At `download`, DuckDB reads one
+Overture theme/type straight from the public `overturemaps-us-west-2` S3
+bucket, keeps only the rows matching `where` and the listed `columns` plus
+the geometry, and writes them to `<folder_name>.fgb`, which `import` then
+loads like any FlatGeobuf. A whole type can be over 100 GB per release
+(`base/land_cover` is 109 GB), so filter as tightly as the layer allows.
+
+The release used is written to `<folder_name>.fgb.release`. A rerun skips an
+extraction already on disk, but fails if `release` pins a different one, so
+delete the `.fgb` to switch releases. Used today by `overture_urban.json`
+(urban land cover for the z4–z6 built-up areas). The building layer is
+separate: see [Overture Buildings](../pipeline/overture.md).
 
 Each `aux_load` entry becomes one `ogr2ogr` import into
 `aux_data.<aux_layer_name>`:

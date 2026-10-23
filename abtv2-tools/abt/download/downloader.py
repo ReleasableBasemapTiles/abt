@@ -3,8 +3,8 @@ downloader.py
 
 Provides a robust framework for downloading files from various sources, including
 standard HTTP(S) endpoints and the Overture Maps S3 bucket. It features
-automatic retries for network requests, progress tracking, and specific logic
-for discovering and downloading Overture Maps data releases. The module also
+automatic retries for network requests, progress tracking, and a filtered
+extraction of one Overture Maps theme/type via DuckDB. The module also
 includes a simple utility for extracting zip archives.
 
 Downloads and extractions are atomic: a file only appears at its final path
@@ -12,7 +12,7 @@ once it has been fully written, so an interrupted run never leaves a
 truncated file or half-extracted folder that a rerun would mistake for done.
 """
 from pydantic import BaseModel, HttpUrl
-from typing import Union, List
+from typing import Union, List, Optional, Tuple
 from pathlib import Path
 import requests
 from requests.adapters import HTTPAdapter
@@ -25,7 +25,7 @@ import shutil
 from ..utils.logger import get_logger
 from ..utils.subprocess_tools import run_subprocess
 from ..utils.zip_tools import extract_zip
-from .boto_configuration import s3, multipart_transfer_config
+from .boto_configuration import s3
 
 # TLS certificates are verified by default. Setting this to 1/true/yes turns
 # verification off for HTTP(S) downloads (with a warning), as an escape hatch
@@ -131,6 +131,31 @@ def overture_folder_release_by_date(datestr: str) -> datetime.datetime:
     return datetime.datetime.fromisoformat(datestr.split('/')[1][:10])
 
 
+def overture_release_sort_key(prefix: str) -> Tuple[datetime.datetime, int]:
+    """Orders Overture release folders such as `release/2026-09-23.1/`.
+
+    The date alone can't: Overture sometimes publishes two releases on one
+    day (2026-09-23.0 and 2026-09-23.1 both exist), so the `.N` suffix
+    breaks the tie.
+    """
+    name = prefix.split('/')[1]
+    _, _, minor = name.partition('.')
+    return overture_folder_release_by_date(prefix), int(minor) if minor.isdigit() else 0
+
+
+def _duckdb_connect():
+    """Opens an in-memory DuckDB connection. Imported here, not at module
+    level, so the other download types keep working without duckdb, and so
+    tests can replace this function."""
+    import duckdb
+    return duckdb.connect()
+
+
+def _sql_literal(text: str) -> str:
+    """Quotes `text` as a SQL string literal."""
+    return "'" + text.replace("'", "''") + "'"
+
+
 class DownloadFile(BaseModel):
     """A Pydantic model for a standard file download via a direct URL."""
     url: HttpUrl
@@ -182,17 +207,32 @@ def build_aria2c_cmd(downloader: DownloadAria2, output_dir: Path, filename: str)
 
 class DownloadOverture(BaseModel):
     """
-    A Pydantic model to manage downloading data from the Overture Maps S3 bucket.
+    Extracts one Overture Maps theme/type, filtered, into a single FlatGeobuf.
 
-    This model contains the logic to discover the latest data release for a given
-    theme and type, and to list all associated Parquet files for download.
+    A whole type is far more than a layer needs: base/land_cover is 128
+    parquet files and 109 GB per release, of which the urban areas are a
+    small slice. So instead of downloading the parquet files, DuckDB reads
+    the release straight from the public S3 bucket, pulls only the rows
+    that match `where` and only the `columns` asked for, and writes them to
+    one FlatGeobuf that the normal ogr2ogr aux import can load.
 
     Attributes:
-        theme: The Overture Maps theme (e.g., 'admins', 'places').
-        type: The feature type within the theme (e.g., 'locality', 'building').
+        theme: The Overture Maps theme (e.g., 'base', 'buildings').
+        type: The feature type within the theme (e.g., 'land_cover').
+        release: Release to read, e.g. '2026-10-21.0'. None takes the latest
+            one, resolved when the download runs.
+        where: Optional DuckDB WHERE condition, e.g.
+            "subtype = 'urban' AND cartography.min_zoom = 8".
+        columns: DuckDB select expressions to keep alongside the geometry,
+            e.g. ["id", "cartography.min_zoom AS min_zoom"]. Nested struct
+            fields need an alias, since FlatGeobuf has no struct type. The
+            geometry is always written last, as `geometry`.
     """
     theme: str
     type: str
+    release: Optional[str] = None
+    where: Optional[str] = None
+    columns: List[str] = []
 
     @property
     def bucket(self) -> str:
@@ -200,26 +240,106 @@ class DownloadOverture(BaseModel):
         return "overturemaps-us-west-2"
 
     @property
+    def region(self) -> str:
+        """The bucket's AWS region, which DuckDB needs to address it."""
+        return "us-west-2"
+
+    @property
     def latest_release(self) -> str:
         """Finds and returns the S3 prefix for the most recent data release."""
         response = s3.list_objects(Bucket=self.bucket, Prefix='release/', Delimiter='/')
-        releases = {
-            overture_folder_release_by_date(p.get('Prefix')): p.get('Prefix')
-            for p in response['CommonPrefixes']
-        }
-        return releases[max(releases.keys())]
+        prefixes = [p.get('Prefix') for p in response['CommonPrefixes']]
+        return max(prefixes, key=overture_release_sort_key)
 
-    @property
-    def data_prefix(self) -> str:
-        """Constructs the full S3 prefix to the specified theme/type data."""
-        return f"{self.latest_release}theme={self.theme}/type={self.type}/"
+    def resolved_release(self) -> str:
+        """The release name this download reads, e.g. '2026-10-21.0'."""
+        if self.release:
+            return self.release
+        return self.latest_release.split('/')[1]
 
-    def parquet_paths(self) -> str:
-        """A generator that yields the S3 key for every Parquet file in the data prefix."""
-        paginator = s3.get_paginator('list_objects_v2')
-        for page in paginator.paginate(Bucket=self.bucket, Prefix=self.data_prefix):
-            for obj in page.get('Contents', []):
-                yield obj['Key']
+    def source_glob(self, release: str) -> str:
+        """The s3:// glob DuckDB reads for this theme/type in `release`."""
+        return f"s3://{self.bucket}/release/{release}/theme={self.theme}/type={self.type}/*"
+
+    def select_sql(self, release: str) -> str:
+        """The DuckDB query selecting the rows and columns to keep."""
+        select = ", ".join([*self.columns, "geometry"])
+        sql = f"SELECT {select}\nFROM read_parquet({_sql_literal(self.source_glob(release))})"
+        if self.where:
+            sql += f"\nWHERE {self.where}"
+        return sql
+
+    def setup_statements(self) -> List[str]:
+        """Loads DuckDB's spatial (GDAL writer) and httpfs (S3 reader)
+        extensions. The bucket is public, so no credentials are set: DuckDB
+        sends unsigned requests when it has no S3 secret."""
+        return [
+            "INSTALL spatial", "LOAD spatial",
+            "INSTALL httpfs", "LOAD httpfs",
+            f"SET s3_region = {_sql_literal(self.region)}",
+        ]
+
+    @staticmethod
+    def optional_statements() -> List[str]:
+        """Settings that only some DuckDB versions have. DuckDB 1.5 warns that
+        GDAL may write EPSG:4326 in latitude/longitude order unless
+        geometry_always_xy is set (and only accepts it once spatial is
+        loaded); older versions reject the setting, which is logged and
+        skipped rather than failing the download."""
+        return ["SET geometry_always_xy = true"]
+
+    def copy_sql(self, release: str, output: Path) -> str:
+        """The DuckDB COPY writing the selected rows to `output` (.fgb)."""
+        return (
+            f"COPY ({self.select_sql(release)})\n"
+            f"TO {_sql_literal(str(output))} WITH (FORMAT GDAL, DRIVER 'FlatGeobuf')"
+        )
+
+    def extract(self, output_path: Path, logger) -> Path:
+        """Writes the filtered rows to `output_path`, unless an earlier run did.
+
+        The release used is recorded in `<output_path>.release`. A rerun with
+        the file already present skips the extraction, and fails instead if
+        it was pinned to a different release than the one on disk, so a
+        pinned run never silently imports another release's data (the same
+        rule as scripts/overture/fetch.sh). The FlatGeobuf is written under
+        `.partial/` and moved into place only once DuckDB finishes; GDAL's
+        FlatGeobuf driver treats a name not ending in .fgb as a directory,
+        so the staging file keeps the final name.
+        """
+        release_file = output_path.with_name(output_path.name + ".release")
+        if output_path.exists():
+            on_disk = release_file.read_text().strip() if release_file.exists() else "unknown"
+            if self.release and on_disk != self.release:
+                raise RuntimeError(
+                    f"{output_path} was extracted from Overture release {on_disk}, but this "
+                    f"source is pinned to {self.release}. Delete it to extract again."
+                )
+            logger.info(f"{output_path} already exists (release {on_disk}). Skipping extraction.")
+            return output_path
+
+        release = self.resolved_release()
+        staging = output_path.parent / ".partial" / output_path.name
+        staging.parent.mkdir(parents=True, exist_ok=True)
+        staging.unlink(missing_ok=True)
+        copy = self.copy_sql(release, staging)
+        logger.info(f"Extracting Overture {self.theme}/{self.type} release {release} to {output_path}:\n{copy}")
+        con = _duckdb_connect()
+        try:
+            for statement in self.setup_statements():
+                con.execute(statement)
+            for statement in self.optional_statements():
+                try:
+                    con.execute(statement)
+                except Exception as e:  # duckdb.Error, but duckdb is imported lazily
+                    logger.info(f"Skipping '{statement}': {e}")
+            con.execute(copy)
+        finally:
+            con.close()
+        os.replace(staging, output_path)
+        release_file.write_text(release + "\n")
+        logger.info(f"Extracted {output_path} from Overture release {release}")
+        return output_path
 
 
 class Downloader(BaseModel):
@@ -272,21 +392,7 @@ class Downloader(BaseModel):
             )
 
         elif isinstance(self.downloader, DownloadOverture):
-            output_path = self.output_dir / self.filename
-            output_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Starting Overture download for theme '{self.downloader.theme}'")
-            for key in self.downloader.parquet_paths():
-                key_path = output_path / key.split('/')[-1]
-                if not key_path.exists():
-                    logger.info(f"Downloading {key} to {key_path}")
-                    s3.download_file(
-                        Bucket=self.downloader.bucket,
-                        Key=key,
-                        Filename=str(key_path),
-                        Config=multipart_transfer_config
-                    )
-                else:
-                    logger.info(f"File {key_path} already exists. Skipping.")
+            self.downloader.extract(self.output_dir / self.filename, logger)
         else:
             logger.error("Unknown downloader type provided.")
             raise TypeError("Unsupported downloader type.")
