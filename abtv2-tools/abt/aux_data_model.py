@@ -113,7 +113,9 @@ class AuxDataLayer(BaseModel):
         url: The URL from which to download the data.
         type: The format of the data, as defined by FormatType.
         zipped: A boolean indicating if the downloaded file is a zip archive.
-        overture_params: Specific parameters for downloading Overture Maps data.
+        overture_params: For an overture source, the DownloadOverture fields:
+            theme and type (required), and release, where and columns
+            (optional). Takes the place of url.
         aux_load: A list of AuxLayer models defining the layers to import.
         verify_tls: Whether to verify the source host's TLS certificate
             (default True). Set `"verify_tls": false` only for a host whose
@@ -131,7 +133,16 @@ class AuxDataLayer(BaseModel):
 
     @model_validator(mode='after')
     def validate_source(self) -> "AuxDataLayer":
-        """Ensures exactly one of url or local_path is provided."""
+        """Ensures exactly one of url or local_path is provided, or, for an
+        Overture source, overture_params with a theme and a type instead.
+        (Overture sources used to need a url too, which nothing ever read.)"""
+        if self.type == FormatType.OVERTURE:
+            params = self.overture_params or {}
+            if not params.get('theme') or not params.get('type'):
+                raise ValueError("An overture source needs overture_params with 'theme' and 'type'.")
+            if self.url is not None or self.local_path is not None:
+                raise ValueError("An overture source takes overture_params, not 'url' or 'local_path'.")
+            return self
         if self.url is None and self.local_path is None:
             raise ValueError("Either 'url' or 'local_path' must be provided.")
         if self.url is not None and self.local_path is not None:
@@ -184,7 +195,7 @@ class AuxDataLayer(BaseModel):
         if self.type != FormatType.OVERTURE:
             return DownloadFile(url=self.url, verify_tls=self.verify_tls)
         else:
-            return DownloadOverture(theme=self.overture_params.get('theme'), type=self.overture_params.get('type'))
+            return DownloadOverture(**self.overture_params)
 
     @property
     def download_filename(self) -> str:
@@ -194,7 +205,8 @@ class AuxDataLayer(BaseModel):
         if self.type != FormatType.OVERTURE:
             return self.url.path.split("/")[-1]
         else:
-            return self.folder_name
+            # DownloadOverture writes one FlatGeobuf; see DownloadOverture.extract.
+            return f"{self.folder_name}.fgb"
 
     def init_download(self, output_directory: Path, log_dir: Path) -> Downloader:
         """Initializes a Downloader instance for this data layer.

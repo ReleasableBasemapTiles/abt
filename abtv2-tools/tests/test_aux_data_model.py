@@ -60,14 +60,51 @@ def test_dl_cls_returns_download_file_for_non_overture_types():
 
 def test_dl_cls_returns_download_overture_with_theme_and_type():
     layer = AuxDataLayer(
-        folder_name="admins", url="https://example.com/overture",
-        type=FormatType.OVERTURE, zipped=False,
+        folder_name="admins", type=FormatType.OVERTURE, zipped=False,
         overture_params={"theme": "admins", "type": "locality"},
     )
     dl = layer.dl_cls
     assert isinstance(dl, DownloadOverture)
     assert dl.theme == "admins"
     assert dl.type == "locality"
+    assert dl.release is None and dl.where is None and dl.columns == []
+
+
+def test_dl_cls_passes_the_overture_filter_through():
+    layer = AuxDataLayer.from_dict({
+        "folder_name": "overture_urban", "type": "overture",
+        "overture_params": {
+            "theme": "base", "type": "land_cover", "release": "2026-10-21.0",
+            "where": "subtype = 'urban'", "columns": ["id", "cartography.min_zoom AS min_zoom"],
+        },
+    })
+    dl = layer.dl_cls
+    assert dl.release == "2026-10-21.0"
+    assert dl.where == "subtype = 'urban'"
+    assert dl.columns == ["id", "cartography.min_zoom AS min_zoom"]
+
+
+def test_an_overture_source_needs_no_url():
+    layer = AuxDataLayer(
+        folder_name="urban", type=FormatType.OVERTURE, zipped=False,
+        overture_params={"theme": "base", "type": "land_cover"},
+    )
+    assert layer.is_local is False
+
+
+@pytest.mark.parametrize("params", [None, {"theme": "base"}, {"type": "land_cover"}])
+def test_an_overture_source_needs_a_theme_and_a_type(params):
+    with pytest.raises(ValidationError, match="'theme' and 'type'"):
+        AuxDataLayer(folder_name="urban", type=FormatType.OVERTURE, zipped=False, overture_params=params)
+
+
+def test_an_overture_source_rejects_a_url():
+    with pytest.raises(ValidationError, match="not 'url' or 'local_path'"):
+        AuxDataLayer(
+            folder_name="urban", url="https://example.com/overture",
+            type=FormatType.OVERTURE, zipped=False,
+            overture_params={"theme": "base", "type": "land_cover"},
+        )
 
 
 def test_download_filename_uses_url_basename_for_non_overture(tmp_path):
@@ -78,13 +115,25 @@ def test_download_filename_uses_url_basename_for_non_overture(tmp_path):
     assert layer.download_filename == "data.zip"
 
 
-def test_download_filename_uses_folder_name_for_overture():
+def test_download_filename_is_a_flatgeobuf_named_for_the_overture_folder():
     layer = AuxDataLayer(
-        folder_name="admins", url="https://example.com/overture",
-        type=FormatType.OVERTURE, zipped=False,
+        folder_name="admins", type=FormatType.OVERTURE, zipped=False,
         overture_params={"theme": "admins", "type": "locality"},
     )
-    assert layer.download_filename == "admins"
+    assert layer.download_filename == "admins.fgb"
+
+
+def test_an_overture_source_imports_its_flatgeobuf(tmp_path):
+    layer = AuxDataLayer.from_dict({
+        "folder_name": "overture_urban", "type": "overture",
+        "overture_params": {"theme": "base", "type": "land_cover"},
+        "aux_load": [{"aux_file_name": "overture_urban.fgb", "aux_layer_name": "overture_urban",
+                      "aux_load_options": "-nlt MULTIPOLYGON"}],
+    })
+    (importer,) = layer.init_importer(output_directory=tmp_path, log_dir=tmp_path, pg_string="postgresql://u:p@h:5432/d")
+    assert importer.importer.prep_error is None
+    assert importer.importer.cmd[-1] == str(tmp_path / "overture_urban.fgb")
+    assert "aux_data.overture_urban" in importer.importer.cmd
 
 
 def test_ogr_options_splits_on_spaces():

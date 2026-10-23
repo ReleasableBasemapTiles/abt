@@ -16,6 +16,8 @@ run time until hours into a build, or ever:
   whatever -n a build would use.
 - A group script may only create a schema or extension that the plan
   creates up front, so concurrent groups never race to create it first.
+- Every import/aux_data/*.json must load as an AuxDataLayer. `download` and
+  `import` parse them only when they run.
 """
 
 import json
@@ -135,3 +137,18 @@ def test_group_scripts_only_create_schemas_and_extensions_the_plan_creates(plan)
         "group scripts create schemas/extensions missing from execution_plan.yml's "
         f"custom_schemas/extensions: {unplanned}"
     )
+
+
+@pytest.mark.parametrize(
+    "config", sorted((SCHEMA_DIR / "import" / "aux_data").glob("*.json")), ids=lambda p: p.name
+)
+def test_every_aux_data_config_loads(config):
+    # `download` and `import` parse these only when they run. Overture sources
+    # failed AuxDataLayer validation (they need no url) without anyone
+    # noticing, because no config used them yet.
+    from abt.aux_data_model import AuxDataLayer
+
+    layer = AuxDataLayer.from_file(config)
+    assert layer.aux_load, f"{config.name} loads no layers"
+    if not layer.is_local:
+        assert layer.download_filename
