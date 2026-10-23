@@ -1,0 +1,13 @@
+{
+    "folder_name": "overture_land_cover",
+    "url": "https://huggingface.co/datasets/myerste/rbt-overture-small-scale-landcover/resolve/main/overture_land_cover_2026-10-21.0.zip",
+    "type": "fgb",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "overture_land_cover.fgb",
+            "aux_layer_name": "overture_land_cover",
+            "aux_load_options": "-nlt MULTIPOLYGON -a_srs EPSG:4326 -lco GEOMETRY_NAME=geometry -overwrite"
+        }
+    ]
+}

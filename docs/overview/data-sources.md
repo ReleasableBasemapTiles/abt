@@ -38,6 +38,7 @@ the same dict `bundler` writes into the final `.mbtiles`.
 | `osm_ocean_simplified` | [https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip](https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip) | shp | `aux_data.osm_ocean_simplified` |
 | `ourairports_airports` | [https://davidmegginson.github.io/ourairports-data/airports.csv](https://davidmegginson.github.io/ourairports-data/airports.csv) | csv | `aux_data.ourairports_airports` |
 | `ourairports_runways` | [https://davidmegginson.github.io/ourairports-data/runways.csv](https://davidmegginson.github.io/ourairports-data/runways.csv) | csv | `aux_data.ourairports_runways` |
+| `overture_land_cover` | [https://huggingface.co/datasets/myerste/rbt-overture-small-scale-landcover/resolve/main/overture_land_cover_2026-10-21.0.zip](https://huggingface.co/datasets/myerste/rbt-overture-small-scale-landcover/resolve/main/overture_land_cover_2026-10-21.0.zip) | fgb | `aux_data.overture_land_cover` |
 | `usgs_domestic_names` | [https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_National_Text.zip](https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_National_Text.zip) | txt | `aux_data.usgs_domestic_names` |
 
 OSM data itself (the other input alongside these auxiliary sources) is loaded via [imposm mappings](../schema/osm-mappings.md), not an `aux_data/*.json` config, and isn't listed above.
@@ -51,11 +52,12 @@ Per `tile-metadata/metadata.py`, **Releasable Basemap Tiles (RBT)** combines the
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) | ODbL 1.0 |
 | [FieldMaps](https://fieldmaps.io/data/) | ODbL 1.0 |
 | [Overture Maps Foundation](https://overturemaps.org/resources/license/) | ODbL 1.0 |
+| [ESA WorldCover (via Overture Maps Foundation land cover)](https://docs.overturemaps.org/attribution/) | CC BY 4.0 |
 | [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) | Public Domain |
 | [OurAirports](https://ourairports.com/about.html) | Public Domain |
 
 Attribution string embedded in the bundled `.mbtiles`:
 
-> <a href='https://www.agc.army.mil'>Army Geospatial Center</a> <a href='https://www.openstreetmap.org/copyright'>© OpenStreetMap contributors</a> <a href='https://fieldmaps.io'>FieldMaps</a> <a href='https://www.naturalearthdata.com'>Natural Earth</a> <a href='https://overturemaps.org'>Overture Maps Foundation</a> <a href='https://www.usgs.gov'>USGS</a> <a href='https://www.nga.mil'>National Geospatial-Intelligence Agency</a> <a href='https://ourairports.com'>OurAirports</a>
+> <a href='https://www.agc.army.mil'>Army Geospatial Center</a> <a href='https://www.openstreetmap.org/copyright'>© OpenStreetMap contributors</a> <a href='https://fieldmaps.io'>FieldMaps</a> <a href='https://www.naturalearthdata.com'>Natural Earth</a> <a href='https://overturemaps.org'>Overture Maps Foundation</a> <a href='https://esa-worldcover.org'>ESA WorldCover</a> <a href='https://www.usgs.gov'>USGS</a> <a href='https://www.nga.mil'>National Geospatial-Intelligence Agency</a> <a href='https://ourairports.com'>OurAirports</a>
 
 Tags: `Army`, `Basemap`, `Tiles`, `Vector`, `Schema`, `Geospatial`, `OpenStreetMap`, `FieldMaps`, `Natural Earth`, `USGS`, `Overture Maps`, `NGA`, `OurAirports`
