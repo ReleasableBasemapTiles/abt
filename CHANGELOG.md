@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Drop Natural Earth urban areas from the pipeline
 - Stamp the data version into the bundle metadata
 - Add barrier_point and barrier_line layers
 - Show cables and rail from z8/z7 and airport labels from z7
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Place Natural Earth sea and lake labels in open water
 - Check ogr2ogr's PROJ, not DuckDB's, before non-3857 builds
 - Refuse a pyproj older than PROJ 9.8 as the PROJ check's reference
 - Leave changelog_url empty instead of TBD
