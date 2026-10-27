@@ -300,9 +300,10 @@ metres. Nothing checks this: a degree-based code produces garbage tiles without 
 EPSG:4087 needs PROJ 9.8 or later, which added the ellipsoidal Equidistant Cylindrical method.
 Older PROJ versions put northings tens of kilometres off. `env.yaml` pins `proj>=9.8`. DuckDB
 bundles an older PROJ, so the Overture `shard.sh` reprojects with the system `ogr2ogr` instead of
-DuckDB's `ST_Transform`. `scripts/overture/check_proj_agreement.py` checks that pyproj, DuckDB, and
-PostGIS agree within 1 mm, and `init.sh` runs it for every non-3857 projection before any other
-work starts.
+DuckDB's `ST_Transform`. `scripts/overture/check_proj_agreement.py` checks that the GDAL behind
+`ogr2ogr` and PostGIS agree with pyproj within 1 mm, and `init.sh` runs it for every non-3857
+projection before any other work starts. It reports DuckDB's result but doesn't fail on it, since
+DuckDB doesn't reproject.
 
 ## `init.sh`, the production orchestrator
 

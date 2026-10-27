@@ -382,8 +382,9 @@ if [[ "$START_STAGE" == export ]]; then
 fi
 
 # Same fail-fast rationale again: verifies every non-3857 projection's PROJ
-# transform agrees between whichever engines are reachable (pyproj, DuckDB,
-# PostGIS) before either the background Overture pipeline or [4/6] export
+# transform agrees between pyproj and whichever reprojecting engines are
+# reachable (the GDAL behind shard.sh's ogr2ogr, and PostGIS; DuckDB is only
+# reported) before either the background Overture pipeline or [4/6] export
 # spends hours producing coordinates that later turn out to disagree by
 # tens of kilometers -- see check_proj_agreement.py and this pipeline's
 # README.md for the PROJ 9.8.0 ellipsoidal-eqc background that motivates

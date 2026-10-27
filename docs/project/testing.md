@@ -32,7 +32,7 @@ The shell checks need `shellcheck` (`brew install shellcheck` on macOS, `sudo ap
 shellcheck init.sh setup_ubuntu.sh .github/scripts/subtree-sync.sh
 ```
 
-To build these docs as well, `pip install -r requirements-docs.txt` into the same environment and run `mkdocs serve` (or `mkdocs build --strict`, as the Docs workflow does). One test in `test_overture_check_proj_agreement.py` also needs `duckdb` on `PATH`, and skips itself without it.
+To build these docs as well, `pip install -r requirements-docs.txt` into the same environment and run `mkdocs serve` (or `mkdocs build --strict`, as the Docs workflow does). Two tests in `test_overture_check_proj_agreement.py` also need `duckdb` or `ogr2ogr` on `PATH`, and skip themselves without it.
 
 ## `abtv2-tools/tests/`
 
