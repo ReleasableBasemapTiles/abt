@@ -103,6 +103,7 @@ groups:
   - [030_pier.sql]
   - [033_culvert.sql]
   - [034_barrier.sql]
+  - [009a_land_cover_small.sql]
 
 suffix:
   - 099_update_geometry.sql

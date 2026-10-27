@@ -5,7 +5,7 @@
 --                landuse.builtuparea_overture
 --                landuse.bua_ov_opened .. landuse.bua_ov_final (transient)
 -- Sources:       osm.osm_builtup_area
---                aux_data.overture_urban
+--                aux_data.overture_land_cover
 -- =============================================================================
 
 
@@ -105,16 +105,19 @@ DROP TABLE IF EXISTS landuse.bua_ov_opened, landuse.bua_ov_merged,
 
 -- 1. Opening, per source polygon. ST_YMax < 85 keeps clear of Web Mercator's
 -- limit; there's no urban land cover that far north or south anyway.
--- The source has 5,060,166 polygons worldwide (release 2026-10-21.0), mostly
--- small pixel clusters. A polygon that can't contain a 150 m-radius disk
--- (area < π·150² ≈ 70,686 m²) is erased by the opening, so it's skipped
--- before any buffering rather than buffered to nothing.
+-- The source is Overture's detailed urban band (min_zoom 8; 009a reads the
+-- small-scale rows of the same table): 5,060,166 polygons worldwide in
+-- release 2026-10-21.0, mostly small pixel clusters. A polygon that can't
+-- contain a 150 m-radius disk (area < π·150² ≈ 70,686 m²) is erased by the
+-- opening, so it's skipped before any buffering rather than buffered to
+-- nothing.
 CREATE UNLOGGED TABLE landuse.bua_ov_opened AS
 WITH src AS (
     SELECT ST_Transform(geometry, 3857)                             AS g,
            1 / cos(radians(ST_Y(ST_PointOnSurface(geometry))))      AS k
-    FROM aux_data.overture_urban
-    WHERE geometry IS NOT NULL
+    FROM aux_data.overture_land_cover
+    WHERE subtype = 'urban' AND min_zoom = 8
+      AND geometry IS NOT NULL
       AND abs(ST_YMax(geometry)) < 85 AND abs(ST_YMin(geometry)) < 85
       AND ST_Area(geometry::geography) >= 70686
 )
