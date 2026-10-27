@@ -55,10 +55,19 @@ BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.place_labels CASCADE;
 CREATE MATERIALIZED VIEW export.place_labels AS
 
--- Cities and towns: full three-source ranking via GeoNames + NE + OSM fallback
+-- Cities and towns: full three-source ranking via GeoNames + NE + OSM fallback.
+-- The label is the BGN conventional name (GeoNames nt = 'C') when the matched
+-- GeoNames place has one, so US-policy English forms win over OSM's: Rangoon,
+-- Sanaa, Gallipoli, Calicut. A difference only in letter case keeps OSM's
+-- spelling. As of October 2026 this relabels 9 cities and 5 towns.
 SELECT
     o.osm_id,
-    COALESCE(NULLIF(o.name_en, ''), NULLIF(o.name, ''))                 AS name,
+    CASE
+        WHEN g.bgn_name IS NOT NULL
+         AND lower(g.bgn_name) <> lower(COALESCE(NULLIF(o.name_en, ''), NULLIF(o.name, ''), ''))
+            THEN g.bgn_name
+        ELSE COALESCE(NULLIF(o.name_en, ''), NULLIF(o.name, ''))
+    END                                                                 AS name,
     o.place                                                             AS class,
     CASE o.place
         WHEN 'city'    THEN 1
@@ -137,7 +146,9 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
     SELECT
         g.desig_cd,
-        NULLIF(split_part(g.display, ',', -1), '')::int AS display_max
+        NULLIF(split_part(g.display, ',', -1), '')::int AS display_max,
+        -- The C record sorts first below, so this is the place's conventional name if it has one.
+        CASE WHEN g.nt = 'C' THEN NULLIF(g.full_nm_nd, '') END AS bgn_name
     FROM aux_data.nga_geonames_populated_places g
     WHERE g.ufi = g_match.ufi
       AND g.name_rank::text = '1'
