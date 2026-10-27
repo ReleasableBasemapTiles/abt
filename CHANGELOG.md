@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add barrier_point and barrier_line layers
 - Show cables and rail from z8/z7 and airport labels from z7
 - One lifecycle scheme for road, rail, power and runway lines
+- Label cities and towns with BGN conventional names
 
 ### Changed
 
