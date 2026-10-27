@@ -100,6 +100,10 @@ ne_label_override AS (
         -- The White Sea's widest water is the funnel at its mouth and its
         -- PointOnSurface sits against the Karelian coast; label the basin.
         (1159116395, ST_SetSRID(ST_MakePoint(38.4, 65.7), 4326)),          -- White Sea
+        -- Long canyon reservoirs: the widest water is a bay at one end
+        -- (Wahweap, Boulder Basin), so label the middle of the lake instead.
+        (1159123979, ST_SetSRID(ST_MakePoint(-110.81, 37.33), 4326)),      -- Lake Powell
+        (1159123963, ST_SetSRID(ST_MakePoint(-114.40, 36.15), 4326)),      -- Lake Mead
         (1159116479, NULL::geometry),                                      -- Golfo de California
         (1159119119, NULL),                                                -- Gulf of Ob
         (1159119141, NULL),                                                -- Yenisey Gulf
