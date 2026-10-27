@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Stamp the data version into the bundle metadata
+- Add barrier_point and barrier_line layers
 
 ### Changed
 
