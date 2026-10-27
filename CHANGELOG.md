@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Drop USGS names with unknown location from Null Island
 - Disable GDAL's PG layer metadata to stop a parallel aux import race
 - Stop empty name:en from suppressing point island labels
+- Show large intermittent lakes from z5
 
 ## [2.1.0] - 2026-09-29
 
