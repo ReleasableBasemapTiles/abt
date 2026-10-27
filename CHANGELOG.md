@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show cables and rail from z8/z7 and airport labels from z7
 - One lifecycle scheme for road, rail, power and runway lines
 - Label cities and towns with BGN conventional names
+- Mark secondary national capitals with capital=1 and capital_role
 
 ### Changed
 
@@ -33,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Show large intermittent lakes from z5
 - Label the White Sea basin and delay coastal lagoon labels
 - Label Lake Powell and Lake Mead mid-lake
+- Align multi-capital countries with the agreed capitals list
 
 ## [2.1.0] - 2026-09-29
 
