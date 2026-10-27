@@ -23,7 +23,6 @@ includes:
 | Key | Notes |
 |---|---|
 | `name` | Tileset display name |
-| `version` | Tileset version string |
 | `production_date` | Computed at load time, UTC |
 | `description` | Free text |
 | `attribution` | HTML attribution string |
@@ -40,6 +39,11 @@ includes:
     Regardless of what's set here, those three fields are computed from the
     actual joined tiles, not user-configurable.
 
+!!! note "`version` is not set here"
+    The bundler writes the `version` row itself: the build date and a counter,
+    like `2026-10-08.0`, from `--data-version` or the UTC date it starts on. A
+    `version` in this file is replaced. See [Bundler](../pipeline/bundler.md).
+
 A trimmed example of the current file's shape (values omitted or shortened
 where they'd duplicate the generated
 [Data Sources & Licensing](../overview/data-sources.md) page):
@@ -47,7 +51,6 @@ where they'd duplicate the generated
 ```python
 metadata = {
     "name": "Releasable Basemap Tiles (RBT)",
-    "version": "2.0.0",
     "production_date": production_date,
     "description": "",
     "attribution": "...",

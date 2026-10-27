@@ -145,7 +145,8 @@ $ abt-tools export [OPTIONS]
 Join the per-layer MBTiles into one bundle with tile-join.
 
 Writes &lt;working-dir&gt;/bundled/joined.mbtiles (or --output-name) with the
-metadata from &lt;schema-dir&gt;/tile-metadata/metadata.py.
+metadata from &lt;schema-dir&gt;/tile-metadata/metadata.py, and with the data
+version from --data-version as its version.
 
 **Usage**:
 
@@ -161,6 +162,7 @@ $ abt-tools bundler [OPTIONS]
 * `-q, --additional-mbtiles <path>`: (Optional, repeatable) Path to an externally-produced mbtiles file to fold into the bundle -- e.g. contours. Pass multiple times to include more than one.
 * `-o, --output-name <str>`: Filename for the bundled output. Defaults to joined.mbtiles.
 * `-z, --max-zoom <int>`: Cap the bundled output at this zoom level. Omit for no cap (full resolution).
+* `--data-version <str>`: Version stamped on the bundle, as YYYY-MM-DD.N: the build date (UTC) and a counter for rebuilds on the same day, e.g. 2026-10-08.1. Defaults to the UTC date the bundler starts on, with .0, so pass it only to name a same-day rebuild. The flag wins over the ABT_DATA_VERSION environment variable.  [env var: ABT_DATA_VERSION]
 * `--help`: Show this message and exit.
 
 ## `abt-tools vundler`

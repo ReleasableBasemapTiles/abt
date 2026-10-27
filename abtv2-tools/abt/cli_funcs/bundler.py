@@ -1,4 +1,5 @@
 import typer
+from datetime import datetime, timezone
 from typing import Annotated, List, Optional
 from pathlib import Path
 import importlib.util
@@ -17,6 +18,8 @@ from ..utils.fields import (
     additional_mbtiles_field,
     output_name_field,
     optional_max_zoom_field,
+    data_version_field,
+    check_data_version,
 )
 
 
@@ -30,6 +33,21 @@ def _load_metadata(schema_dir: Path) -> dict:
     return mod.metadata
 
 
+def resolve_data_version(data_version: Optional[str] = None, now: Optional[datetime] = None) -> str:
+    """The version stamped on the bundle: `data_version` if given (after
+    checking its form), else the UTC date of `now` -- by default the current
+    time -- with a build counter of 0.
+
+    UTC rather than local time, so every machine, and every projection's
+    bundler, names a given moment's day the same way. `now` should be
+    timezone-aware.
+    """
+    if data_version is not None:
+        return check_data_version(data_version)
+    now = now or datetime.now(timezone.utc)
+    return f"{now.astimezone(timezone.utc):%Y-%m-%d}.0"
+
+
 def init_bundler(
     working_dir: Path,
     schema_dir: Path,
@@ -37,6 +55,7 @@ def init_bundler(
     additional_mbtiles: Optional[List[Path]] = None,
     output_name: Optional[str] = None,
     max_zoom: Optional[int] = None,
+    data_version: Optional[str] = None,
 ):
     """Bundles exported tile layers into a single MBTiles file via tile-join.
 
@@ -52,11 +71,22 @@ def init_bundler(
             joined.mbtiles.
         max_zoom: Optional zoom cap for the bundled output (e.g. for an RBT
             Small package). Omit for no cap (full resolution).
+        data_version: Optional version to stamp on the bundle, as
+            YYYY-MM-DD.N. Defaults to the UTC date this run starts on, with
+            a counter of 0. See resolve_data_version.
+
+    Raises:
+        ValueError: If data_version is not of the form YYYY-MM-DD.N.
     """
+    # First, so a malformed version fails before anything is created.
+    version = resolve_data_version(data_version)
     data_schema = DataSchema(base_schema_dir=schema_dir)
     processing_directory = ProcessingDirectorySchema.init_working_directories(working_dir=working_dir)
     reporter = RunReporter(run_id=processing_directory.run_id, command="abt bundler")
-    joined_metadata = _load_metadata(schema_dir)
+    # The data version is the bundler's to set: whatever tile-metadata/metadata.py
+    # says (it no longer has a version) is replaced.
+    joined_metadata = {**_load_metadata(schema_dir), "version": version}
+    print(f"--- Data version: {version} ---")
 
     pg_config = get_pg_config(cli_input=pg_config_type, log_dir=processing_directory.carto_log_dir)
 
@@ -100,11 +130,13 @@ def cli_bundler(
     additional_mbtiles: Annotated[List[Path], additional_mbtiles_field] = None,
     output_name: Annotated[str, output_name_field] = None,
     max_zoom: Annotated[Optional[int], optional_max_zoom_field] = None,
+    data_version: Annotated[Optional[str], data_version_field] = None,
 ):
     """Join the per-layer MBTiles into one bundle with tile-join.
 
     Writes <working-dir>/bundled/joined.mbtiles (or --output-name) with the
-    metadata from <schema-dir>/tile-metadata/metadata.py.
+    metadata from <schema-dir>/tile-metadata/metadata.py, and with the data
+    version from --data-version as its version.
     \f
     Args:
         working_dir: Root directory for all processing and output files.
@@ -115,6 +147,8 @@ def cli_bundler(
             contours) to fold into the bundle. Repeatable.
         output_name: Optional filename for the bundled output.
         max_zoom: Optional zoom cap for the bundle. Omit for no cap.
+        data_version: Version to stamp on the bundle, as YYYY-MM-DD.N. Defaults
+            to the UTC date the bundler starts on, with .0.
     """
     try:
         reporter = init_bundler(
@@ -124,6 +158,7 @@ def cli_bundler(
             additional_mbtiles=additional_mbtiles,
             output_name=output_name,
             max_zoom=max_zoom,
+            data_version=data_version,
         )
     except Exception as e:
         typer.echo(f"Error during bundler process: {e}. Check logs for details.", err=True)
