@@ -12,7 +12,7 @@ for the field reference and how to add a new one, or
 [Database Schema](database.md) for how each view is actually built, traced
 back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 
-61 layers total (60 enabled, 1 disabled).
+62 layers total (61 enabled, 1 disabled).
 
 | Layer ID | Geometry | Min Zoom | Max Zoom | Attributes | Tippecanoe flags | Status |
 |---|---|---|---|---|---|---|
@@ -45,6 +45,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `inland_water_intermittent_polygon` | polygon | 5 | 13 | 0 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
 | `landcover_label` | point | 4 | 13 | 7 | `--base-zoom=5 --no-feature-limit` | enabled |
 | `landcover_polygon` | polygon | 4 | 13 | 6 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit` | enabled |
+| `landcover_small_polygon` | polygon | 0 | 7 | 2 | `--simplify-only-low-zooms --detect-shared-borders --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `lock_label` | point | 9 | 13 | 1 | `--drop-rate=1` | enabled |
 | `lock_line` | linestring | 9 | 13 | 2 | `--simplify-only-low-zooms` | enabled |
 | `ocean_polygon` | polygon | 0 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit` | enabled |

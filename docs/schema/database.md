@@ -30,7 +30,7 @@ schema supports.
 | `aeroway` | `carto` (SQL transforms) | Intermediate staging tables/views for the `aeroway`-owned layer(s) below |
 | `dam` | `carto` (SQL transforms) | Intermediate staging tables/views for the `dam`-owned layer(s) below |
 | `poi` | `carto` (SQL transforms) | Intermediate staging tables/views for the `poi`-owned layer(s) below |
-| `export` | `carto` (SQL transforms) | 62 materialized views, 60 of which are tiled — see [Layer Registry](layers.md) |
+| `export` | `carto` (SQL transforms) | 63 materialized views, 61 of which are tiled — see [Layer Registry](layers.md) |
 
 ```mermaid
 flowchart LR
@@ -139,6 +139,7 @@ flowchart LR
         aux_data_ne_10m_antarctic_ice_shelves_polys["aux_data.ne_10m_antarctic_ice_shelves_polys"]
         aux_data_ne_10m_glaciated_areas["aux_data.ne_10m_glaciated_areas"]
         aux_data_osm_icesheet["aux_data.osm_icesheet"]
+        aux_data_overture_land_cover["aux_data.overture_land_cover"]
         aux_data_ne_physical_centerlines["aux_data.ne_physical_centerlines"]
     end
     script_008_glacier["Glacier<br/>(008_glacier.sql)"]
@@ -168,6 +169,16 @@ flowchart LR
     script_009_land_cover --> export_landcover_polygon
     export_landcover_label["export.landcover_label"]
     script_009_land_cover --> export_landcover_label
+    script_009a_land_cover_small["Small-Scale Land Cover<br/>(009a_land_cover_small.sql)"]
+    aux_data_overture_land_cover --> script_009a_land_cover_small
+    inter_landcover_small_leveled["landcover.small_leveled"]
+    script_009a_land_cover_small --> inter_landcover_small_leveled
+    inter_landcover_small_src["landcover.small_src"]
+    script_009a_land_cover_small --> inter_landcover_small_src
+    inter_landcover_small_urban["landcover.small_urban"]
+    script_009a_land_cover_small --> inter_landcover_small_urban
+    export_landcover_small_polygon["export.landcover_small_polygon"]
+    script_009a_land_cover_small --> export_landcover_small_polygon
     script_010_park["Park<br/>(010_park.sql)"]
     osm_osm_park_polygon --> script_010_park
     osm_osm_landuse_polygon --> script_010_park
@@ -184,6 +195,7 @@ flowchart LR
 | `export.glacier_polygon` | `008_glacier.sql` | `aux_data.ne_10m_antarctic_ice_shelves_polys`<br/>`aux_data.ne_10m_glaciated_areas`<br/>`osm.osm_landcover_polygon`<br/>`aux_data.osm_icesheet` | `landcover.glacier_ne`<br/>`landcover.glacier_osm` | polygon | 0–13 | Yes |
 | `export.landcover_polygon` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | polygon | 4–13 | Yes |
 | `export.landcover_label` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | point | 4–13 | Yes |
+| `export.landcover_small_polygon` | `009a_land_cover_small.sql` | `aux_data.overture_land_cover` | `landcover.small_leveled`<br/>`landcover.small_src`<br/>`landcover.small_urban` | polygon | 0–7 | Yes |
 | `export.park_polygon` | `010_park.sql` | `osm.osm_park_polygon`<br/>`osm.osm_landuse_polygon` | — | polygon | 9–13 | Yes |
 | `export.physical_labels` | `029_physical_labels.sql` | `aux_data.ne_physical_centerlines` (static — see carto_sql/static_data/) | — | linestring | 3–13 | Yes |
 

@@ -50,7 +50,7 @@ THEMES: list[tuple[str, list[str]]] = [
         "005a_water_polygon", "005b_water_line", "006_geonames_hydrographic", "033_culvert",
     ]),
     ("Terrain, landcover & parks", [
-        "008_glacier", "009_land_cover", "010_park", "029_physical_labels",
+        "008_glacier", "009_land_cover", "009a_land_cover_small", "010_park", "029_physical_labels",
     ]),
     ("Boundaries & places", [
         "026_places", "027_admin",
