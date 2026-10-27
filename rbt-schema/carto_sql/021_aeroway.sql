@@ -377,7 +377,9 @@ SELECT
     ST_Length(ST_Transform(geometry, 3857))::real                       AS runway_length_m,
     NULLIF(surface, '')                                                 AS runway_surface
 FROM osm.osm_aeroway_linestring
-WHERE subclass = 'runway';
+-- class = 'aeroway' keeps out the abandoned:aeroway=runway rows that the
+-- lifecycle mappings import for runway_line
+WHERE class = 'aeroway' AND subclass = 'runway';
 
 CREATE INDEX idx_osm_runway_line_geometry ON aeroway.osm_runway_line USING gist(geometry);
 COMMIT;
@@ -793,8 +795,11 @@ CREATE MATERIALIZED VIEW export.runway_line AS
 SELECT
     osm_id,
     NULLIF(ref,      '')                                                AS ref,
-    class,
-    subclass,
+    -- abandoned:aeroway=runway is still a runway: class stays 'aeroway', the
+    -- state goes in lifecycle_type (see 001_set_schema.sql)
+    'aeroway'                                                           AS class,
+    public.lifecycle_subject(class, subclass, tags, 'aeroway', 'unknown') AS subclass,
+    public.lifecycle_type(class, subclass, tags, 'aeroway')             AS lifecycle_type,
     NULLIF(icao,     '')                                                AS icao,
     NULLIF(iata,     '')                                                AS iata,
     NULLIF(surface,  '')                                                AS surface,

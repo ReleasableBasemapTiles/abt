@@ -12,10 +12,16 @@
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.powerline_line CASCADE;
 CREATE MATERIALIZED VIEW export.powerline_line AS
+SELECT * FROM (
 SELECT
     osm_id,
-    class,
-    subclass,
+    -- abandoned:power=line is still a power line
+    CASE WHEN class LIKE '%:power' THEN 'power' ELSE class END          AS class,
+    -- What the line is, whatever its lifecycle (see lifecycle_subject() in
+    -- 001_set_schema.sql): power=construction + construction=line is a line.
+    -- Filtered on below, so man_made=construction + construction=pipeline no
+    -- longer gets in as a 'construction' power line.
+    public.lifecycle_subject(class, subclass, tags, 'power', 'line')    AS subclass,
     NULLIF(name, '')                                                    AS name,
     CASE
         WHEN seamark_type = 'cable_submarine' THEN 'underwater'
@@ -28,35 +34,14 @@ SELECT
     NULLIF(operator, '')                                                AS operator,
     NULLIF(cables, '')                                                  AS cables,
     NULLIF(wires, '')                                                   AS wires,
-    CASE
-        WHEN subclass IN (
-            'construction', 'proposed', 'disused', 'abandoned',
-            'demolished', 'razed', 'removed'
-        )                                                               THEN subclass
-        -- lifecycle prefix pattern: construction:power=line, disused:power=line, etc.
-        WHEN NULLIF(TRIM(tags -> 'construction:power'), '') IS NOT NULL THEN 'construction'
-        WHEN NULLIF(TRIM(tags -> 'proposed:power'),     '') IS NOT NULL THEN 'proposed'
-        WHEN NULLIF(TRIM(tags -> 'disused:power'),      '') IS NOT NULL THEN 'disused'
-        WHEN NULLIF(TRIM(tags -> 'abandoned:power'),    '') IS NOT NULL THEN 'abandoned'
-        WHEN NULLIF(TRIM(tags -> 'demolished:power'),   '') IS NOT NULL THEN 'demolished'
-        WHEN NULLIF(TRIM(tags -> 'razed:power'),        '') IS NOT NULL THEN 'razed'
-        WHEN NULLIF(TRIM(tags -> 'removed:power'),      '') IS NOT NULL THEN 'removed'
-        -- simple tag pattern: power=line + disused=yes
-        WHEN NULLIF(TRIM(disused),    '') IS NOT NULL                   THEN 'disused'
-        WHEN NULLIF(TRIM(abandoned),  '') IS NOT NULL                   THEN 'abandoned'
-        WHEN NULLIF(TRIM(demolished), '') IS NOT NULL                   THEN 'demolished'
-        WHEN NULLIF(TRIM(razed),      '') IS NOT NULL                   THEN 'razed'
-        WHEN NULLIF(TRIM(removed),    '') IS NOT NULL                   THEN 'removed'
-        ELSE 'intact'
-    END                                                                 AS lifecycle_type,
+    public.lifecycle_type(class, subclass, tags, 'power')               AS lifecycle_type,
     geometry
 FROM osm.osm_utility_linestring
+) u
 WHERE subclass IN (
     'line', 'minor_line', 'insulator', 'transmission',
     'sub_station', 'substation', 'cable', 'wire',
-    'cable_submarine', 'cable_overhead', 'busbar', 'bay', 'power',
-    'construction', 'proposed', 'disused', 'abandoned',
-    'demolished', 'razed', 'removed'
+    'cable_submarine', 'cable_overhead', 'busbar', 'bay', 'power'
 )
 AND (
     cable_overhead_category IS NULL

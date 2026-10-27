@@ -48,8 +48,38 @@
     - name: tags
       type: hstore_tags
     mapping:
+      # Lifecycle-prefixed features with no plain aeroway key (abandoned:aeroway=*):
+      # see lifecycle_type() in carto_sql/001_set_schema.sql.
+      construction:aeroway:
+      - runway
+      - taxiway
+      proposed:aeroway:
+      - runway
+      - taxiway
+      planned:aeroway:
+      - runway
+      - taxiway
+      disused:aeroway:
+      - runway
+      - taxiway
+      abandoned:aeroway:
+      - runway
+      - taxiway
+      destroyed:aeroway:
+      - runway
+      - taxiway
+      demolished:aeroway:
+      - runway
+      - taxiway
+      razed:aeroway:
+      - runway
+      - taxiway
+      removed:aeroway:
+      - runway
+      - taxiway
       aeroway:
       - runway
+      - construction
       - taxiway
       - holding_position
       - parking_position

@@ -9,6 +9,11 @@
             "description": ""
         },
         {
+            "name": "lifecycle_type",
+            "type": "string",
+            "description": "intact, construction, proposed, planned, disused, abandoned, destroyed, demolished, razed, or removed"
+        },
+        {
             "name": "subclass",
             "type": "string",
             "description": ""

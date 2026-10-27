@@ -36,14 +36,45 @@ def filters(tables):
     return build_filters(tables, load_base(SCHEMA_DIR))
 
 
+# lifecycle_type() and lifecycle_subject() (001_set_schema.sql) build their
+# keys at run time -- tags -> (state || ':' || base_key) -- so the patterns
+# above can't see them. Each call reads every lifecycle state as a bare key
+# (disused=yes) and prefixed with its base_key literal (disused:railway).
+# railway=ruins also reads ruins/ruins:railway for its subject; that only
+# names the type of a feature rail_line drops anyway, so it isn't modelled.
+LIFECYCLE_CALL = re.compile(
+    r"(?<!FUNCTION public\.)\blifecycle_(?:type|subject)\s*\([^;]*?'(\w+)'"
+)
+LIFECYCLE_STATES = re.compile(
+    r"FUNCTION\s+public\.lifecycle_states\(\).*?ARRAY\[([^\]]*)\]", re.S | re.I
+)
+
+
+def lifecycle_states():
+    text = (SCHEMA_DIR / "carto_sql" / "001_set_schema.sql").read_text()
+    return re.findall(r"'([^']+)'", LIFECYCLE_STATES.search(text).group(1))
+
+
 def carto_sql_hstore_keys():
     keys = {}
+    states = lifecycle_states()
     for sql in sorted((SCHEMA_DIR / "carto_sql").glob("*.sql")):
         text = re.sub(r"--[^\n]*", "", sql.read_text())
         for pattern in HSTORE_KEY_READS:
             for key in pattern.findall(text):
                 keys.setdefault(key, set()).add(sql.name)
+        for base_key in LIFECYCLE_CALL.findall(text):
+            for state in states:
+                for key in (state, f"{state}:{base_key}"):
+                    keys.setdefault(key, set()).add(sql.name)
     return keys
+
+
+def test_lifecycle_keys_are_modelled():
+    # Guards the lifecycle extraction: every line layer's base key is seen.
+    keys = carto_sql_hstore_keys()
+    for base_key in ("highway", "railway", "power", "aeroway"):
+        assert f"disused:{base_key}" in keys
 
 
 def test_carto_sql_hstore_reads_are_found():
