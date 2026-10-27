@@ -13,28 +13,39 @@
 # Changing this list only affects a fresh import (imposm -read).
 tags:
   include:
-    # 003_road.sql: lifecycle-prefixed highways and destroyed tunnels
-    - demolished:highway
+    # 003_road.sql: destroyed tunnels. (Lifecycle-prefixed highway keys are
+    # mapped with __any__ in highway_linestring.yml, so they already survive.)
     - destroyed:tunnel
-    - razed:highway
-    - removed:highway
-    # 004_railway.sql: lifecycle-prefixed railways
+    # lifecycle_type() in 001_set_schema.sql: lifecycle-prefixed railway,
+    # power and aeroway keys. Their mappings list only the track, line and
+    # runway values, so railway=rail + disused:railway=yes would lose the tag.
+    - abandoned:aeroway
+    - construction:aeroway
+    - demolished:aeroway
+    - destroyed:aeroway
+    - disused:aeroway
+    - planned:aeroway
+    - proposed:aeroway
+    - razed:aeroway
+    - removed:aeroway
+    - abandoned:power
+    - construction:power
+    - demolished:power
+    - destroyed:power
+    - disused:power
+    - planned:power
+    - proposed:power
+    - razed:power
+    - removed:power
     - abandoned:railway
     - construction:railway
     - demolished:railway
+    - destroyed:railway
     - disused:railway
     - planned:railway
     - proposed:railway
     - razed:railway
     - removed:railway
-    # 018_powerline.sql: lifecycle-prefixed power features
-    - abandoned:power
-    - construction:power
-    - demolished:power
-    - disused:power
-    - proposed:power
-    - razed:power
-    - removed:power
     # 022_dam.sql
     - dam:type
     # 023_military.sql

@@ -127,6 +127,44 @@
     - name: tags
       type: hstore_tags
     mapping:
+      # Lifecycle-prefixed features with no plain power key (abandoned:power=*):
+      # see lifecycle_type() in carto_sql/001_set_schema.sql.
+      construction:power:
+      - line
+      - minor_line
+      - cable
+      proposed:power:
+      - line
+      - minor_line
+      - cable
+      planned:power:
+      - line
+      - minor_line
+      - cable
+      disused:power:
+      - line
+      - minor_line
+      - cable
+      abandoned:power:
+      - line
+      - minor_line
+      - cable
+      destroyed:power:
+      - line
+      - minor_line
+      - cable
+      demolished:power:
+      - line
+      - minor_line
+      - cable
+      razed:power:
+      - line
+      - minor_line
+      - cable
+      removed:power:
+      - line
+      - minor_line
+      - cable
       man_made:
       - pipeline
       - construction

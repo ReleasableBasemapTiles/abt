@@ -130,6 +130,98 @@
     - name: tags
       type: hstore_tags
     mapping:
+      # Lifecycle-prefixed features with no plain railway key (abandoned:railway=*):
+      # see lifecycle_type() in carto_sql/001_set_schema.sql.
+      construction:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      proposed:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      planned:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      disused:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      abandoned:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      destroyed:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      demolished:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      razed:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
+      removed:railway:
+      - rail
+      - narrow_gauge
+      - preserved
+      - funicular
+      - subway
+      - light_rail
+      - monorail
+      - tram
+      - miniature
       railway:
       - rail
       - narrow_gauge

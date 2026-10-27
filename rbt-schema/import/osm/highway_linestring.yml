@@ -139,6 +139,26 @@
     - name: tags
       type: hstore_tags
     mapping:
+      # Lifecycle-prefixed features with no plain highway key (abandoned:highway=*):
+      # see lifecycle_type() in carto_sql/001_set_schema.sql.
+      construction:highway:
+      - __any__
+      proposed:highway:
+      - __any__
+      planned:highway:
+      - __any__
+      disused:highway:
+      - __any__
+      abandoned:highway:
+      - __any__
+      destroyed:highway:
+      - __any__
+      demolished:highway:
+      - __any__
+      razed:highway:
+      - __any__
+      removed:highway:
+      - __any__
       highway:
       - motorway
       - motorway_link

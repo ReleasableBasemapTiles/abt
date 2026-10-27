@@ -18,26 +18,8 @@ DROP MATERIALIZED VIEW IF EXISTS transportation.railway_normalized CASCADE;
 CREATE MATERIALIZED VIEW transportation.railway_normalized AS
 SELECT
     osm_id,
-    CASE
-        WHEN subclass IN (
-            'construction', 'proposed', 'planned',
-            'destroyed', 'demolished', 'razed', 'removed', 'disused', 'abandoned', 'ruins'
-        ) THEN subclass
-        ELSE 'intact'
-    END                                                             AS lifecycle_type,
-    CASE
-        WHEN subclass = 'construction' THEN NULLIF(TRIM(construction), '')
-        WHEN subclass = 'proposed'     THEN NULLIF(TRIM(proposed), '')
-        WHEN subclass = 'planned'      THEN NULLIF(TRIM(planned), '')
-        WHEN subclass = 'destroyed'    THEN NULLIF(TRIM(destroyed), '')
-        WHEN subclass = 'demolished'   THEN NULLIF(TRIM(demolished), '')
-        WHEN subclass = 'razed'        THEN NULLIF(TRIM(razed), '')
-        WHEN subclass = 'removed'      THEN NULLIF(TRIM(removed), '')
-        WHEN subclass = 'disused'      THEN NULLIF(TRIM(disused), '')
-        WHEN subclass = 'abandoned'    THEN NULLIF(TRIM(abandoned), '')
-        WHEN subclass = 'ruins'        THEN NULLIF(TRIM(ruins), '')
-        ELSE NULL
-    END                                                             AS lifecycle_desc,
+    -- railway=ruins comes back as 'abandoned', so rail_line drops it too
+    public.lifecycle_type(class, subclass, tags, 'railway')         AS lifecycle_type,
     CASE
         WHEN subclass IN ('narrow_gauge', 'miniature')                                  THEN 'narrow'
         WHEN gauge IS NULL OR gauge IN ('railway', 'rail', 'unknown', 'no', 'standard')
@@ -152,33 +134,7 @@ SELECT
         WHEN r.is_tunnel THEN 'tunnel'
         WHEN r.is_ford   THEN 'ford'
     END                                                             AS brunnel,
-    CASE lower(r.subclass)
-        WHEN 'construction' THEN COALESCE(NULLIF(TRIM(LOWER(r.construction)),           ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'construction:railway')), ''),
-                                          'unknown')
-        WHEN 'proposed'     THEN COALESCE(NULLIF(TRIM(LOWER(r.proposed)),               ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'proposed:railway')),     ''),
-                                          'unknown')
-        WHEN 'planned'      THEN COALESCE(NULLIF(TRIM(LOWER(r.planned)),                ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'planned:railway')),      ''),
-                                          'unknown')
-        WHEN 'disused'      THEN COALESCE(NULLIF(TRIM(LOWER(r.disused)),                ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'disused:railway')),      ''),
-                                          'unknown')
-        WHEN 'abandoned'    THEN COALESCE(NULLIF(TRIM(LOWER(r.abandoned)),              ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'abandoned:railway')),    ''),
-                                          'unknown')
-        WHEN 'demolished'   THEN COALESCE(NULLIF(TRIM(LOWER(r.demolished)),             ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'demolished:railway')),   ''),
-                                          'unknown')
-        WHEN 'razed'        THEN COALESCE(NULLIF(TRIM(LOWER(r.razed)),                  ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'razed:railway')),        ''),
-                                          'unknown')
-        WHEN 'removed'      THEN COALESCE(NULLIF(TRIM(LOWER(r.removed)),                ''),
-                                          NULLIF(TRIM(LOWER(r.tags -> 'removed:railway')),      ''),
-                                          'unknown')
-        ELSE r.subclass
-    END                                                                 AS subclass,
+    public.lifecycle_subject(r.class, r.subclass, r.tags, 'railway', 'unknown') AS subclass,
     COALESCE(NULLIF(TRIM(r.name_en), ''), NULLIF(TRIM(r.name), '')) AS name,
     NULLIF(TRIM(r.ref), '')                                         AS ref,
     NULLIF(TRIM(r.network), '')                                     AS network,

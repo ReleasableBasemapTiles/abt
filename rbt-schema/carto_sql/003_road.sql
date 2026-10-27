@@ -126,14 +126,10 @@ enriched AS (
             NULLIF(TRIM(h.bridge_name), ''),
             NULLIF(TRIM(h.tunnel_name), '')
         )                                                               AS brunnel_name,
-        CASE lower(h.subclass)
-            WHEN 'construction' THEN COALESCE(NULLIF(TRIM(lower(h.construction)), ''), 'road')
-            WHEN 'proposed'     THEN COALESCE(NULLIF(TRIM(lower(h.proposed)), ''), 'road')
-            WHEN 'planned'      THEN COALESCE(NULLIF(TRIM(lower(h.planned)), ''), 'road')
-            WHEN 'destroyed'    THEN COALESCE(NULLIF(TRIM(lower(h.destroyed_highway)), ''), 'road')
-            WHEN 'demolished'   THEN COALESCE(NULLIF(TRIM(lower(h.tags->'demolished:highway')), ''), 'road')
-            WHEN 'razed'        THEN COALESCE(NULLIF(TRIM(lower(h.tags->'razed:highway')), ''), 'road')
-            WHEN 'removed'      THEN COALESCE(NULLIF(TRIM(lower(h.tags->'removed:highway')), ''), 'road')
+        -- What the road is, whatever its lifecycle (see lifecycle_subject() in
+        -- 001_set_schema.sql): highway=construction + construction=primary is
+        -- a primary road; a lifecycle value naming no type falls back to 'road'.
+        CASE lower(public.lifecycle_subject(h.class, h.subclass, h.tags, 'highway', 'road'))
             WHEN 'motorway'          THEN 'motorway'
             WHEN 'motoway'           THEN 'motorway'
             WHEN 'trunk'             THEN 'trunk'
@@ -158,15 +154,13 @@ enriched AS (
             WHEN 'corridor'          THEN 'corridor'
             WHEN 'path'              THEN 'path'
             WHEN 'cycleway'          THEN 'cycleway'
-            WHEN 'abandoned'         THEN 'abandoned'
-            WHEN 'demolished'        THEN 'demolished'
             WHEN 'motorway_link'     THEN 'motorway_link'
             WHEN 'trunk_link'        THEN 'trunk_link'
             WHEN 'primary_link'      THEN 'primary_link'
             WHEN 'secondary_link'    THEN 'secondary_link'
             WHEN 'tertiary_link'     THEN 'tertiary_link'
             WHEN 'unclassified_link' THEN 'unclassified_link'
-            ELSE lower(h.subclass)
+            ELSE lower(public.lifecycle_subject(h.class, h.subclass, h.tags, 'highway', 'road'))
         END                                                             AS subclass,
         COALESCE(NULLIF(h.name_en, ''), NULLIF(h.name, ''))            AS name,
         length(h.name)                                                  AS name_len,
@@ -189,22 +183,7 @@ enriched AS (
             WHEN lower(h.surface) ~ '(unpaved|dirt|gravel|sand|earth|mud|grass|ground|clay|soil|compacted|fine_gravel|ice|snow|shell|rock|stone)' THEN 'unpaved'
             ELSE 'unknown'
         END                                                             AS surface,
-        CASE
-            WHEN lower(h.subclass) IN (
-                'construction', 'proposed', 'planned', 'destroyed',
-                'demolished', 'razed', 'removed', 'disused', 'abandoned'
-            ) THEN lower(h.subclass)
-            -- Pattern 1: highway=<class> + <lifecycle>:highway=<class> — detect via prefix tags
-            WHEN NULLIF(TRIM(h.destroyed_highway), '') IS NOT NULL
-              OR NULLIF(h.tags->'destroyed', '')        IS NOT NULL     THEN 'destroyed'
-            WHEN NULLIF(h.tags->'demolished:highway', '') IS NOT NULL
-              OR NULLIF(h.tags->'demolished', '')        IS NOT NULL    THEN 'demolished'
-            WHEN NULLIF(h.tags->'razed:highway', '')    IS NOT NULL
-              OR NULLIF(h.tags->'razed', '')             IS NOT NULL    THEN 'razed'
-            WHEN NULLIF(h.tags->'removed:highway', '')  IS NOT NULL
-              OR NULLIF(h.tags->'removed', '')           IS NOT NULL    THEN 'removed'
-            ELSE 'intact'
-        END                                                             AS lifecycle_type,
+        public.lifecycle_type(h.class, h.subclass, h.tags, 'highway')   AS lifecycle_type,
         CASE
             WHEN h.lanes IN ('1','2','3','4','5') THEN h.lanes::int
             ELSE NULL
@@ -310,7 +289,7 @@ base AS (
 SELECT * FROM base
 WHERE geometry IS NOT NULL
   AND subclass IN (
-      'demolished', 'abandoned', 'bridleway','bus_guideway','corridor','cycleway','footway',
+      'bridleway','bus_guideway','corridor','cycleway','footway',
       'living_street','motorway','motorway_link','path','pedestrian','primary',
       'primary_link','raceway','residential','road','secondary','secondary_link',
       'service','steps','tertiary','tertiary_link','track','trunk','trunk_link',

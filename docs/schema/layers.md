@@ -66,7 +66,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `rail_line` | linestring | 7 | 13 | 7 | `--simplify-only-low-zooms` | enabled |
 | `road_line` | linestring | 6 | 13 | 11 | `--simplify-only-low-zooms` | enabled |
 | `road_polygon` | polygon | 12 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
-| `runway_line` | linestring | 11 | 13 | 3 | `-pS` | enabled |
+| `runway_line` | linestring | 11 | 13 | 4 | `-pS` | enabled |
 | `stadium_label` | point | 9 | 13 | 3 | `--drop-rate=1` | enabled |
 | `stadium_polygon` | polygon | 9 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `transportation_station_label` | point | 11 | 13 | 7 | `--drop-rate=1` | enabled |
