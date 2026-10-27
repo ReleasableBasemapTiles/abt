@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Stamp the data version into the bundle metadata
+
 ### Changed
 
 - Add aria2 to the conda environment
@@ -15,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Check ogr2ogr's PROJ, not DuckDB's, before non-3857 builds
 - Refuse a pyproj older than PROJ 9.8 as the PROJ check's reference
+- Leave changelog_url empty instead of TBD
 
 ## [2.1.0] - 2026-09-29
 
