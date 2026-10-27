@@ -42,7 +42,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `grain_polygon` | polygon | 9 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `heliport_point` | point | 9 | 13 | 8 | `--drop-rate=1` | enabled |
 | `hydrographic_label` | point | 0 | 13 | 5 | `--drop-rate=1` | enabled |
-| `inland_water_intermittent_polygon` | polygon | 8 | 13 | 0 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
+| `inland_water_intermittent_polygon` | polygon | 5 | 13 | 0 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
 | `landcover_label` | point | 4 | 13 | 7 | `--base-zoom=5 --no-feature-limit` | enabled |
 | `landcover_polygon` | polygon | 4 | 13 | 6 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit` | enabled |
 | `lock_label` | point | 9 | 13 | 1 | `--drop-rate=1` | enabled |

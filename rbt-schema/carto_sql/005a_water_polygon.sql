@@ -235,6 +235,11 @@ COMMIT;
 -- Same per-row validate/simplify shape as water.water_surface above (just
 -- the intermittent/seasonal slice), same nshards-worker dblink fan-out into
 -- water.inland_water_intermittent_parts.
+--
+-- z_level uses water_polygon's area thresholds (zres(z)^2 of the whole
+-- feature), floored at 8, the layer's old minimum zoom. Natural Earth lakes
+-- end at z4, so without it big intermittent lakes (Lake Eyre and the other
+-- Australian salt lakes) vanished from z5 to z7.
 -- -----------------------------------------------------------------------------
 
 BEGIN;
@@ -246,7 +251,8 @@ CREATE UNLOGGED TABLE water.inland_water_intermittent_parts (
     subclass    text,
     geometry    geometry(Polygon, 4326),
     area        real,
-    intermittent text
+    intermittent text,
+    z_level     int
 );
 COMMIT;
 
@@ -263,7 +269,7 @@ BEGIN
         PERFORM dblink_connect('wintw_w' || i, connstr);
         PERFORM dblink_send_query('wintw_w' || i, format($q$
             INSERT INTO water.inland_water_intermittent_parts
-                (osm_id, name, subclass, geometry, area, intermittent)
+                (osm_id, name, subclass, geometry, area, intermittent, z_level)
             SELECT
                 osm_id,
                 COALESCE(NULLIF(name_en, ''), NULLIF(name, '')),
@@ -275,7 +281,13 @@ BEGIN
                     )
                 )).geom::geometry(Polygon, 4326),
                 ST_Area(ST_Transform(geometry, 3857))::real,
-                intermittent
+                intermittent,
+                CASE
+                    WHEN ST_Area(geometry::geography, false) >= POWER(zres(5), 2) THEN 5
+                    WHEN ST_Area(geometry::geography, false) >= POWER(zres(6), 2) THEN 6
+                    WHEN ST_Area(geometry::geography, false) >= POWER(zres(7), 2) THEN 7
+                    ELSE 8
+                END
             FROM osm.osm_water_polygon
             WHERE (intermittent = 't' OR subclass IN ('intermittent', 'seasonal', 'drystream'))
               AND geometry IS NOT NULL
@@ -311,6 +323,7 @@ CREATE INDEX idx_inland_water_intermittent_osm_id   ON export.inland_water_inter
 CREATE INDEX idx_inland_water_intermittent_subclass ON export.inland_water_intermittent_polygon USING btree(subclass);
 CREATE INDEX idx_inland_water_intermittent_area     ON export.inland_water_intermittent_polygon USING btree(area);
 CREATE INDEX idx_inland_water_intermittent_name     ON export.inland_water_intermittent_polygon USING btree(name) WHERE name IS NOT NULL;
+CREATE INDEX idx_inland_water_intermittent_z_level  ON export.inland_water_intermittent_polygon USING btree(z_level);
 COMMIT;
 
 -- -----------------------------------------------------------------------------

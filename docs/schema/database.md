@@ -119,7 +119,7 @@ flowchart LR
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
 |---|---|---|---|---|---|---|
-| `export.inland_water_intermittent_polygon` | `005a_water_polygon.sql` | `osm.osm_water_polygon`<br/>`aux_data.osm_ocean`<br/>`aux_data.ne_50m_ocean`<br/>`aux_data.ne_50m_lakes` | `water.water_surface`<br/>`water.valid_ocean`<br/>`water.water_surface_parts`<br/>`water.inland_water_intermittent_parts`<br/>`water.water_polygon_parts` | polygon | 8–13 | Yes |
+| `export.inland_water_intermittent_polygon` | `005a_water_polygon.sql` | `osm.osm_water_polygon`<br/>`aux_data.osm_ocean`<br/>`aux_data.ne_50m_ocean`<br/>`aux_data.ne_50m_lakes` | `water.water_surface`<br/>`water.valid_ocean`<br/>`water.water_surface_parts`<br/>`water.inland_water_intermittent_parts`<br/>`water.water_polygon_parts` | polygon | 5–13 | Yes |
 | `export.ocean_polygon` | `005a_water_polygon.sql` | `osm.osm_water_polygon`<br/>`aux_data.osm_ocean`<br/>`aux_data.ne_50m_ocean`<br/>`aux_data.ne_50m_lakes` | `water.water_surface`<br/>`water.valid_ocean`<br/>`water.water_surface_parts`<br/>`water.inland_water_intermittent_parts`<br/>`water.water_polygon_parts` | polygon | 0–13 | Yes |
 | `export.water_polygon` | `005a_water_polygon.sql` | `osm.osm_water_polygon`<br/>`aux_data.osm_ocean`<br/>`aux_data.ne_50m_ocean`<br/>`aux_data.ne_50m_lakes` | `water.water_surface`<br/>`water.valid_ocean`<br/>`water.water_surface_parts`<br/>`water.inland_water_intermittent_parts`<br/>`water.water_polygon_parts` | polygon | 0–13 | Yes |
 | `export.water_line` | `005b_water_line.sql` | `osm.osm_waterway_relation`<br/>`osm.osm_waterway_linestring` | `water.waterway_relation_union` | linestring | 6–13 | Yes |
