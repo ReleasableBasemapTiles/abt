@@ -31,11 +31,6 @@
         },
         {
             "aux_file_name": "natural_earth_vector.gpkg",
-            "aux_layer_name": "ne_10m_urban_areas",
-            "aux_load_options": "-nlt MULTIPOLYGON"
-        },
-        {
-            "aux_file_name": "natural_earth_vector.gpkg",
             "aux_layer_name": "ne_10m_land",
             "aux_load_options": "-nlt MULTIPOLYGON"
         },

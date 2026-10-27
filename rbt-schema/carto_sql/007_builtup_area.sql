@@ -1,10 +1,8 @@
 -- =============================================================================
 -- LAYER: Built-up Area
 -- Schema:        export
--- Intermediates: landuse.builtuparea_ne
---                landuse.builtuparea_osm
--- Sources:       aux_data.ne_10m_urban_areas
---                osm.osm_builtup_area
+-- Intermediates: landuse.builtuparea_osm
+-- Sources:       osm.osm_builtup_area
 -- =============================================================================
 
 
@@ -18,29 +16,12 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
--- landuse.builtuparea_ne — Natural Earth urban area polygons
+-- Natural Earth urban areas are no longer part of this layer: the map shows
+-- only OSM built-up area, from z7. Drop the NE view left by earlier runs.
 -- -----------------------------------------------------------------------------
 
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS landuse.builtuparea_ne CASCADE;
-CREATE MATERIALIZED VIEW landuse.builtuparea_ne AS
-SELECT
-    'ne'                                                            AS class,
-    featurecla                                                      AS subclass,
-    ST_Area(ST_Transform(geometry, 3857))::real                     AS area,
-    (ST_Dump(
-        ST_MakeValid(
-            ST_SimplifyPreserveTopology(geometry, 0.000001),
-            'method=structure'
-        )
-    )).geom::geometry(Polygon, 4326)                                AS geometry
-FROM aux_data.ne_10m_urban_areas
-WHERE geometry IS NOT NULL;
-
-CREATE INDEX idx_builtuparea_ne_geometry ON landuse.builtuparea_ne USING gist(geometry);
-CREATE INDEX idx_builtuparea_ne_class    ON landuse.builtuparea_ne USING btree(class);
-CREATE INDEX idx_builtuparea_ne_subclass ON landuse.builtuparea_ne USING btree(subclass);
-CREATE INDEX idx_builtuparea_ne_area     ON landuse.builtuparea_ne USING btree(area);
 COMMIT;
 
 
@@ -83,21 +64,13 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
--- export.builtup_polygon — unified output tile layer (NE + OSM)
+-- export.builtup_polygon — output tile layer (OSM only; class stays 'osm' so
+--                           existing style filters keep matching)
 -- -----------------------------------------------------------------------------
 
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.builtup_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.builtup_polygon AS
-SELECT
-    class,
-    subclass,
-    area,
-    geometry
-FROM landuse.builtuparea_ne
-
-UNION ALL
-
 SELECT
     class,
     subclass,

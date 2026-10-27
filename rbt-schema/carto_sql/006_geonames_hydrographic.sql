@@ -79,6 +79,33 @@ usgs_hydro AS (
     -- Null Island. No US feature lies within 2° of 0/0 (same box as 021_aeroway).
     AND NOT ST_Contains(ST_MakeEnvelope(-2, -2, 2, 2, 4326), u.geometry)
 ),
+ne_label_override AS (
+    -- Natural Earth label points are the centre of each polygon's maximum
+    -- inscribed circle (the open water farthest from any shore), which beats
+    -- ST_PointOnSurface for most seas and lakes: it moved the Black Sea label off
+    -- the Crimean coast. It fails on a few shapes, overridden here by ne_id
+    -- (names repeat: 745 NE lakes share 728 names):
+    --   * a point: the traditional placement. The Mediterranean polygon is what
+    --     is left after NE cuts out the Ionian, Aegean, Tyrrhenian etc., so its
+    --     widest water is the Levantine basin, 2,300 km east of where it is
+    --     normally labelled.
+    --   * NULL: keep ST_PointOnSurface. Funnel-shaped gulfs, widest at the line
+    --     NE draws across the mouth, and lakes whose mid-length point reads better.
+    SELECT ne_id, geometry
+    FROM (VALUES
+        (1159115321::bigint, ST_SetSRID(ST_MakePoint(20.0, 35.0), 4326)),  -- Mediterranean Sea
+        (1159115379, ST_SetSRID(ST_MakePoint(-75.0, 15.0), 4326)),         -- Caribbean Sea
+        (1159115461, ST_SetSRID(ST_MakePoint(50.8, 42.0), 4326)),          -- Caspian Sea
+        (1159115597, ST_SetSRID(ST_MakePoint(51.5, 27.0), 4326)),          -- Persian Gulf
+        (1159116479, NULL::geometry),                                      -- Golfo de California
+        (1159119119, NULL),                                                -- Gulf of Ob
+        (1159116395, NULL),                                                -- White Sea
+        (1159119141, NULL),                                                -- Yenisey Gulf
+        (1159116815, NULL),                                                -- Río de la Plata
+        (1159113185, NULL),                                                -- Lake Tanganyika
+        (1159113081, NULL)                                                 -- Georgian Bay
+    ) AS o(ne_id, geometry)
+),
 ne_water AS (
     -- Natural Earth marine polygons — curated major water bodies (oceans, seas, gulfs, bays, major lakes). 
     SELECT
@@ -99,8 +126,20 @@ ne_water AS (
         NULL::character varying   AS display,
         n.scalerank,
         n.min_label,
-        ST_PointOnSurface(n.geometry) AS geometry
+        -- Oceans keep ST_PointOnSurface: the Arctic Ocean reaches 90°N, which has
+        -- no Web Mercator coordinate, and the Pacific is split at the antimeridian.
+        -- Seas are clipped to the Web Mercator latitude limit for the same reason
+        -- (the Ross Sea reaches 85.19°S).
+        CASE
+            WHEN o.geometry IS NOT NULL THEN o.geometry
+            WHEN o.ne_id IS NOT NULL OR lower(n.featurecla) = 'ocean'
+                THEN ST_PointOnSurface(n.geometry)
+            ELSE ST_Transform((ST_MaximumInscribedCircle(ST_Transform(
+                     ST_Intersection(n.geometry, ST_MakeEnvelope(-180, -85.0511, 180, 85.0511, 4326)),
+                     3857))).center, 4326)
+        END                       AS geometry
     FROM aux_data.ne_10m_geography_marine_polys n
+    LEFT JOIN ne_label_override o ON o.ne_id = n.ne_id::bigint
     WHERE NULLIF(n.name, '') IS NOT NULL
       AND lower(n.featurecla) IN ('ocean','sea','bay','gulf','lake')
 ),
@@ -118,8 +157,14 @@ ne_lakes AS (
         NULL::character varying   AS display,
         l.scalerank::integer      AS scalerank,
         l.min_label,
-        ST_PointOnSurface(l.geometry) AS geometry
+        -- Same rule as ne_water; no clip needed, the northernmost lake is at 75°N.
+        CASE
+            WHEN o.geometry IS NOT NULL THEN o.geometry
+            WHEN o.ne_id IS NOT NULL    THEN ST_PointOnSurface(l.geometry)
+            ELSE ST_Transform((ST_MaximumInscribedCircle(ST_Transform(l.geometry, 3857))).center, 4326)
+        END                       AS geometry
     FROM aux_data.ne_10m_lakes l
+    LEFT JOIN ne_label_override o ON o.ne_id = l.ne_id::bigint
     WHERE NULLIF(l.name, '') IS NOT NULL
       AND lower(l.featurecla) IN ('lake','intermittent lake','reservoir','alkaline lake')
       AND l.scalerank IS NOT NULL
