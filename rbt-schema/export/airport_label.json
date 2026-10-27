@@ -17,7 +17,7 @@
     ],
     "source_attribution": "",
     "tippecanoe_options": {
-        "minimum_zoom": 8,
+        "minimum_zoom": 7,
         "maximum_zoom": 13,
         "additional_flags": "--drop-rate=1",
         "filter": {}
