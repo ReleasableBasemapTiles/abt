@@ -49,4 +49,17 @@
       type: hstore_tags
     mapping:
       barrier:
-      - __any__
+      - bollard
+      - border_control
+      - cattle_grid
+      - cycle_barrier
+      - full-height_turnstile
+      - gate
+      - kissing_gate
+      - lift_gate
+      - motorcycle_barrier
+      - sally_port
+      - stile
+      - swing_gate
+      - toll_booth
+      - turnstile

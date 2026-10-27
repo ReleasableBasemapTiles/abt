@@ -20,7 +20,7 @@ schema supports.
 
 | Schema | Loaded by | Contents |
 |---|---|---|
-| `osm` | `import` (imposm3) | 24 distinct OSM source tables referenced below |
+| `osm` | `import` (imposm3) | 26 distinct OSM source tables referenced below |
 | `aux_data` | `import` (ogr2ogr) | 27 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
 | `water` | `carto` (SQL transforms) | Intermediate staging tables/views for the `water`-owned layer(s) below |
 | `transportation` | `carto` (SQL transforms) | Intermediate staging tables/views for the `transportation`-owned layer(s) below |
@@ -449,6 +449,8 @@ flowchart LR
         osm_osm_water_polygon["osm.osm_water_polygon"]
         osm_osm_water_point["osm.osm_water_point"]
         osm_osm_highway_linestring["osm.osm_highway_linestring"]
+        osm_osm_barrier_point["osm.osm_barrier_point"]
+        osm_osm_barrier_linestring["osm.osm_barrier_linestring"]
     end
     subgraph src_aux ["aux_data"]
         aux_data_ne_10m_land["aux_data.ne_10m_land"]
@@ -517,6 +519,13 @@ flowchart LR
     script_022_dam --> export_dam_line
     export_dam_label["export.dam_label"]
     script_022_dam --> export_dam_label
+    script_034_barrier["Barriers<br/>(034_barrier.sql)"]
+    osm_osm_barrier_point --> script_034_barrier
+    osm_osm_barrier_linestring --> script_034_barrier
+    export_barrier_point["export.barrier_point"]
+    script_034_barrier --> export_barrier_point
+    export_barrier_line["export.barrier_line"]
+    script_034_barrier --> export_barrier_line
 ```
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
@@ -535,6 +544,8 @@ flowchart LR
 | `export.dam_polygon` | `022_dam.sql` | `osm.osm_waterway_linestring`<br/>`osm.osm_water_polygon`<br/>`osm.osm_water_point`<br/>`osm.osm_highway_linestring` (surface enrichment) | — | polygon | 9–13 | Yes |
 | `export.dam_line` | `022_dam.sql` | `osm.osm_waterway_linestring`<br/>`osm.osm_water_polygon`<br/>`osm.osm_water_point`<br/>`osm.osm_highway_linestring` (surface enrichment) | — | linestring | 9–13 | Yes |
 | `export.dam_label` | `022_dam.sql` | `osm.osm_waterway_linestring`<br/>`osm.osm_water_polygon`<br/>`osm.osm_water_point`<br/>`osm.osm_highway_linestring` (surface enrichment) | — | point | 9–13 | Yes |
+| `export.barrier_point` | `034_barrier.sql` | `osm.osm_barrier_point`<br/>`osm.osm_barrier_linestring` | — | point | 13–13 | Yes |
+| `export.barrier_line` | `034_barrier.sql` | `osm.osm_barrier_point`<br/>`osm.osm_barrier_linestring` | — | linestring | 13–13 | Yes |
 
 ## Military & security
 
