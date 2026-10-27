@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Add aria2 to the conda environment
+
 ### Fixed
 
 - Check ogr2ogr's PROJ, not DuckDB's, before non-3857 builds
