@@ -177,3 +177,18 @@ def test_a_source_that_cannot_be_resolved_fails_only_its_own_layer(tmp_path, mon
     assert "aux_data.lsib" in bad.importer.prep_error
     assert good.importer.prep_error is None
     assert good.importer.cmd[-1] == "plain"
+
+
+def test_postgres_imports_disable_gdal_layer_metadata(tmp_path):
+    # Regression test: with GDAL's PG metadata on, parallel aux imports into
+    # a fresh database raced to create the ogr_system_tables schema, and the
+    # loser failed with a pg_namespace_nspname_index duplicate key.
+    layer = AuxDataLayer.from_dict({
+        "folder_name": "lsib", "url": "https://example.com/LSIB.gpkg", "type": "gpkg", "zipped": False,
+        "aux_load": [{"aux_file_name": "LSIB.gpkg", "aux_source_name": "lsib", "aux_layer_name": "lsib"}],
+    })
+    (importer,) = layer.init_importer(output_directory=tmp_path, log_dir=tmp_path, pg_string="postgresql://u:p@h:5432/d")
+    cmd = importer.importer.cmd
+    assert cmd[0] == "ogr2ogr"
+    i = cmd.index("OGR_PG_ENABLE_METADATA")
+    assert cmd[i - 1:i + 2] == ["--config", "OGR_PG_ENABLE_METADATA", "NO"]

@@ -264,9 +264,19 @@ class AuxDataLayer(BaseModel):
 
         Returns:
             A list of strings representing the start of an ogr2ogr command.
+
+        OGR_PG_ENABLE_METADATA=NO stops GDAL (>=3.7) from keeping layer
+        metadata in an ogr_system_tables schema. On a database without that
+        schema's metadata table, each ogr2ogr creates the schema, the table, a
+        function and a sql_drop event trigger. The aux imports run in
+        parallel, so on a fresh database they raced to create them, and the
+        loser failed with `duplicate key value violates unique constraint
+        "pg_namespace_nspname_index"`, which aborted init.sh. Nothing in the
+        pipeline reads that metadata.
         """
         return [
             'ogr2ogr',
+            '--config', 'OGR_PG_ENABLE_METADATA', 'NO',
             '-f', 'PostgreSQL',
             f'PG:{pg_string}',
             "-nln"  # Assign new layer name
