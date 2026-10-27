@@ -162,7 +162,7 @@ flowchart TD
     setupSchemas --> prefix01
     prefix02["001_set_schema"]
     prefix01 --> prefix02
-    subgraph groupsBox ["29 independent groups -- concurrent, up to --carto-concurrency at a time"]
+    subgraph groupsBox ["30 independent groups -- concurrent, up to --carto-concurrency at a time"]
         group01["009_land_cover (weight 2)"]
         group02["005a_water_polygon then 005b_water_line (weight 2)"]
         group03["003_road"]
@@ -192,13 +192,14 @@ flowchart TD
         group27["029_physical_labels"]
         group28["030_pier"]
         group29["033_culvert"]
+        group30["009a_land_cover_small"]
     end
     prefix02 --> groupsBox
     suffix01["099_update_geometry"]
     groupsBox --> suffix01
 ```
 
-29 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before the prefix runs: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`, `pg_trgm`.
+30 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before the prefix runs: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`, `pg_trgm`.
 <!-- CARTO_DAG_END -->
 
 ## See also

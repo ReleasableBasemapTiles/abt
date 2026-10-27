@@ -11,7 +11,7 @@ header (see docs/schema/carto-sql.md):
     -- Sources:       osm.osm_water_polygon
     --                aux_data.osm_ocean
 
-This hook parses that header (30 of the 33 scripts have one; the exceptions
+This hook parses that header (31 of the 34 scripts have one; the exceptions
 are the sequential prefix/suffix scripts 000_/001_/099_, which build no
 layer of their own) plus each script's own `CREATE MATERIALIZED VIEW
 export.*` statements, cross-references them against rbt-schema/export/*.json
@@ -50,7 +50,7 @@ THEMES: list[tuple[str, list[str]]] = [
         "005a_water_polygon", "005b_water_line", "006_geonames_hydrographic", "033_culvert",
     ]),
     ("Terrain, landcover & parks", [
-        "008_glacier", "009_land_cover", "010_park", "029_physical_labels",
+        "008_glacier", "009_land_cover", "009a_land_cover_small", "010_park", "029_physical_labels",
     ]),
     ("Boundaries & places", [
         "026_places", "027_admin",

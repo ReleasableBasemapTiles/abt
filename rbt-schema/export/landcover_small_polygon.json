@@ -1,0 +1,27 @@
+{
+    "layer_id": "landcover_small_polygon",
+    "description": "Small-scale land cover (z0-z7) from Overture's small-scale land cover band (ESA WorldCover). Classes: forest, grass, crop, barren, shrub, ice.",
+    "geometry_type": "polygon",
+    "attributes": [
+        {"name": "subclass", "type": "string", "description": "forest, grass, crop, barren, shrub or ice"},
+        {"name": "z_level",  "type": "int",    "description": "Zoom level this generalization is for (4-7); z0-z3 show level 4"}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 0,
+        "maximum_zoom": 7,
+        "additional_flags": "--simplify-only-low-zooms --detect-shared-borders --no-tiny-polygon-reduction-at-maximum-zoom",
+        "filter": {
+            "*": [
+                "any",
+                ["all", ["<=", "$zoom", 4], ["==", "z_level", 4]],
+                ["all", ["==", "$zoom", 5],  ["==", "z_level", 5]],
+                ["all", ["==", "$zoom", 6],  ["==", "z_level", 6]],
+                ["all", ["==", "$zoom", 7],  ["==", "z_level", 7]]
+            ]
+        }
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO -nlt PROMOTE_TO_MULTI"
+    }
+}

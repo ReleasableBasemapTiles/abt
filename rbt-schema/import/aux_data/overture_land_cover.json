@@ -1,0 +1,23 @@
+{
+    "folder_name": "overture_land_cover",
+    "type": "overture",
+    "zipped": false,
+    "overture_params": {
+        "theme": "base",
+        "type": "land_cover",
+        "release": "2026-10-21.0",
+        "where": "(subtype = 'urban' AND cartography.min_zoom = 8) OR cartography.max_zoom <= 7",
+        "columns": [
+            "subtype",
+            "cartography.min_zoom AS min_zoom",
+            "cartography.max_zoom AS max_zoom"
+        ]
+    },
+    "aux_load": [
+        {
+            "aux_file_name": "overture_land_cover.fgb",
+            "aux_layer_name": "overture_land_cover",
+            "aux_load_options": "-nlt MULTIPOLYGON -a_srs EPSG:4326 -lco GEOMETRY_NAME=geometry -overwrite"
+        }
+    ]
+}

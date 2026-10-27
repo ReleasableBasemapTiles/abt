@@ -32,8 +32,9 @@ loads like any FlatGeobuf. A whole type can be over 100 GB per release
 
 The release used is written to `<folder_name>.fgb.release`. A rerun skips an
 extraction already on disk, but fails if `release` pins a different one, so
-delete the `.fgb` to switch releases. Used today by `overture_urban.json`
-(urban land cover for the z4–z6 built-up areas). The building layer is
+delete the `.fgb` to switch releases. Used today by `overture_land_cover.json`:
+one extraction feeds both the z4–z6 built-up areas (urban, detailed band)
+and `landcover_small_polygon` (the small-scale band). The building layer is
 separate: see [Overture Buildings](../pipeline/overture.md).
 
 Each `aux_load` entry becomes one `ogr2ogr` import into
