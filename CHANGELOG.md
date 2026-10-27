@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Disable GDAL's PG layer metadata to stop a parallel aux import race
 - Stop empty name:en from suppressing point island labels
 - Show large intermittent lakes from z5
+- Label the White Sea basin and delay coastal lagoon labels
+- Label Lake Powell and Lake Mead mid-lake
 
 ## [2.1.0] - 2026-09-29
 
