@@ -75,6 +75,9 @@ usgs_hydro AS (
     )
     AND u.bgn_type = 'Official'
     AND NULLIF(u.feature_name, '') IS NOT NULL
+    -- GNIS records an unknown primary location as 0/0, which put those names on
+    -- Null Island. No US feature lies within 2° of 0/0 (same box as 021_aeroway).
+    AND NOT ST_Contains(ST_MakeEnvelope(-2, -2, 2, 2, 4326), u.geometry)
 ),
 ne_label_override AS (
     -- Natural Earth label points are the centre of each polygon's maximum

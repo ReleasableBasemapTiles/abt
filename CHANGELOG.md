@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Stamp the data version into the bundle metadata
+- Add barrier_point and barrier_line layers
+- Show cables and rail from z8/z7 and airport labels from z7
+
+### Changed
+
+- Add aria2 to the conda environment
+
+### Fixed
+
+- Check ogr2ogr's PROJ, not DuckDB's, before non-3857 builds
+- Refuse a pyproj older than PROJ 9.8 as the PROJ check's reference
+- Leave changelog_url empty instead of TBD
+- Drop USGS names with unknown location from Null Island
+- Disable GDAL's PG layer metadata to stop a parallel aux import race
+- Stop empty name:en from suppressing point island labels
+
 ## [2.1.0] - 2026-09-29
 
 ### Added
@@ -168,6 +189,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed abt_ prefix from metadata.py
 
+[unreleased]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.1.0..HEAD
 [2.1.0]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.0.0..v2.1.0
 [2.0.0]: https://github.com/ReleasableBasemapTiles/abt/releases/tag/v2.0.0
 

@@ -85,7 +85,7 @@ python abt-tools.py export \
   -z 13
 ```
 
-For each of the ~58 layers defined in `rbt-schema/export/*.json`: `export.<layer>` → `flatgeobuf/<layer>.fgb` (via `ogr2ogr`) → `mbtiles/<layer>.mbtiles` (via `tippecanoe`, up to zoom 13). Both steps skip if their output file already exists — a partial re-run only redoes missing layers.
+For each of the ~60 layers defined in `rbt-schema/export/*.json`: `export.<layer>` → `flatgeobuf/<layer>.fgb` (via `ogr2ogr`) → `mbtiles/<layer>.mbtiles` (via `tippecanoe`, up to zoom 13). Both steps skip if their output file already exists — a partial re-run only redoes missing layers.
 
 !!! warning "Disk budget"
     This is the most disk-hungry step at global scale (`flatgeobuf/` and `mbtiles/` each hold a full planet's worth of geometry per layer) — budget against the 2+ TB NVMe in [Performance & Sizing](../install/performance.md).

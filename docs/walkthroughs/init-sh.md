@@ -100,7 +100,7 @@ Before any multi-hour work starts, `init.sh` checks (and exits immediately on fa
 - If `--overture` was passed: `duckdb`, `aws`, and `ogr2ogr` are on `PATH` (`ogr2ogr` is what `shard.sh` now uses to reproject non-3857 targets -- see [Overture Buildings](../pipeline/overture.md)).
 - If `--contours` was passed: `sqlite3` is on `PATH`, plus the per-file CRS-tag checks described above.
 - If `--from export` was passed: `ogrinfo` is on `PATH`, plus the `.fgb` existence/readability checks described above.
-- Whenever the projection list has a code other than `3857`, as the default list does: `check_proj_agreement.py` confirms every reachable PROJ engine (pyproj, DuckDB, PostGIS) agrees on that code's coordinates, regardless of `--from`/`--overture` -- see [Overture Buildings](../pipeline/overture.md#proj-version-agreement).
+- Whenever the projection list has a code other than `3857`, as the default list does: `check_proj_agreement.py` confirms that the reachable engines that reproject (the GDAL behind `ogr2ogr`, and PostGIS) agree with pyproj on that code's coordinates; DuckDB's result is only reported. This runs regardless of `--from`/`--overture` -- see [Overture Buildings](../pipeline/overture.md#proj-version-agreement).
 
 ## Re-running
 
