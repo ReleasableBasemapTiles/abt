@@ -97,14 +97,33 @@ ne_label_override AS (
         (1159115379, ST_SetSRID(ST_MakePoint(-75.0, 15.0), 4326)),         -- Caribbean Sea
         (1159115461, ST_SetSRID(ST_MakePoint(50.8, 42.0), 4326)),          -- Caspian Sea
         (1159115597, ST_SetSRID(ST_MakePoint(51.5, 27.0), 4326)),          -- Persian Gulf
+        -- The White Sea's widest water is the funnel at its mouth and its
+        -- PointOnSurface sits against the Karelian coast; label the basin.
+        (1159116395, ST_SetSRID(ST_MakePoint(38.4, 65.7), 4326)),          -- White Sea
+        -- Long canyon reservoirs: the widest water is a bay at one end
+        -- (Wahweap, Boulder Basin), so label the middle of the lake instead.
+        (1159123979, ST_SetSRID(ST_MakePoint(-110.81, 37.33), 4326)),      -- Lake Powell
+        (1159123963, ST_SetSRID(ST_MakePoint(-114.40, 36.15), 4326)),      -- Lake Mead
         (1159116479, NULL::geometry),                                      -- Golfo de California
         (1159119119, NULL),                                                -- Gulf of Ob
-        (1159116395, NULL),                                                -- White Sea
         (1159119141, NULL),                                                -- Yenisey Gulf
         (1159116815, NULL),                                                -- Río de la Plata
         (1159113185, NULL),                                                -- Lake Tanganyika
         (1159113081, NULL)                                                 -- Georgian Bay
     ) AS o(ne_id, geometry)
+),
+ne_min_label_override AS (
+    -- Natural Earth gives some coastal lagoons (featurecla 'Alkaline Lake') a
+    -- min_label of 3.7-4, so they were labelled from z4 alongside seas and the
+    -- Great Lakes. Delay them to where the lagoon reads as one. NE splits the
+    -- Vistula Lagoon into a Polish and a Russian polygon, labelled separately.
+    SELECT ne_id, min_label
+    FROM (VALUES
+        (1159126643::bigint, 5.0::double precision),  -- Syvash
+        (1159126435, 5.0),                             -- Laguna Madre (Tamaulipas)
+        (1159126693, 6.0),                             -- Zalew Wislany
+        (1159126681, 6.0)                              -- Kaliningradskiy Zaliv
+    ) AS m(ne_id, min_label)
 ),
 ne_water AS (
     -- Natural Earth marine polygons — curated major water bodies (oceans, seas, gulfs, bays, major lakes). 
@@ -156,7 +175,7 @@ ne_lakes AS (
         NULL::character varying   AS name_rank,
         NULL::character varying   AS display,
         l.scalerank::integer      AS scalerank,
-        l.min_label,
+        COALESCE(m.min_label, l.min_label) AS min_label,
         -- Same rule as ne_water; no clip needed, the northernmost lake is at 75°N.
         CASE
             WHEN o.geometry IS NOT NULL THEN o.geometry
@@ -165,6 +184,7 @@ ne_lakes AS (
         END                       AS geometry
     FROM aux_data.ne_10m_lakes l
     LEFT JOIN ne_label_override o ON o.ne_id = l.ne_id::bigint
+    LEFT JOIN ne_min_label_override m ON m.ne_id = l.ne_id::bigint
     WHERE NULLIF(l.name, '') IS NOT NULL
       AND lower(l.featurecla) IN ('lake','intermittent lake','reservoir','alkaline lake')
       AND l.scalerank IS NOT NULL
