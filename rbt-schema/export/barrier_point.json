@@ -1,0 +1,19 @@
+{
+    "layer_id": "barrier_point",
+    "description": "OSM barrier nodes: gates, bollards, toll booths, border control, stiles, cattle grids, turnstiles",
+    "geometry_type": "point",
+    "attributes": [
+        {"name": "subclass", "type": "string", "description": "OSM barrier=* value"},
+        {"name": "name",     "type": "string", "description": ""}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 13,
+        "maximum_zoom": 13,
+        "additional_flags": "--drop-rate=1",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

@@ -102,6 +102,7 @@ groups:
   - [029_physical_labels.sql]
   - [030_pier.sql]
   - [033_culvert.sql]
+  - [034_barrier.sql]
 
 suffix:
   - 099_update_geometry.sql

@@ -52,4 +52,14 @@
       type: hstore_tags
     mapping:
       barrier:
-      - __any__
+      - bollard
+      - city_wall
+      - ditch
+      - fence
+      - gate
+      - guard_rail
+      - handrail
+      - hedge
+      - jersey_barrier
+      - retaining_wall
+      - wall

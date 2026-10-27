@@ -12,7 +12,7 @@ for the field reference and how to add a new one, or
 [Database Schema](database.md) for how each view is actually built, traced
 back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 
-59 layers total (58 enabled, 1 disabled).
+61 layers total (60 enabled, 1 disabled).
 
 | Layer ID | Geometry | Min Zoom | Max Zoom | Attributes | Tippecanoe flags | Status |
 |---|---|---|---|---|---|---|
@@ -24,6 +24,8 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `adm2_line` | linestring | 11 | 13 | 5 | `--simplify-only-low-zooms -pS` | enabled |
 | `airport_label` | point | 8 | 13 | 11 | `--drop-rate=1` | enabled |
 | `airport_polygon` | polygon | 11 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `barrier_line` | linestring | 13 | 13 | 2 | `--simplify-only-low-zooms` | enabled |
+| `barrier_point` | point | 13 | 13 | 2 | `--drop-rate=1` | enabled |
 | `building_polygon` | polygon | 11 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | **disabled** (`.skip`) |
 | `builtup_polygon` | polygon | 4 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
 | `cemetery_label` | point | 9 | 13 | 7 | `--drop-rate=1` | enabled |
