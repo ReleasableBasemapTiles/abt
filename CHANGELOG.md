@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refuse a pyproj older than PROJ 9.8 as the PROJ check's reference
 - Leave changelog_url empty instead of TBD
 - Drop USGS names with unknown location from Null Island
+- Disable GDAL's PG layer metadata to stop a parallel aux import race
 
 ## [2.1.0] - 2026-09-29
 
