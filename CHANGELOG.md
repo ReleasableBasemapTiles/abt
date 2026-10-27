@@ -13,10 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stamp the data version into the bundle metadata
 - Add barrier_point and barrier_line layers
 - Show cables and rail from z8/z7 and airport labels from z7
+- One lifecycle scheme for road, rail, power and runway lines
 
 ### Changed
 
 - Add aria2 to the conda environment
+- Check the tag keys lifecycle_type() reads
 
 ### Fixed
 
