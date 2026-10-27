@@ -32,7 +32,9 @@
 --
 -- CAPITAL CODES (capital, with the derived text column capital_role):
 --    2 (primary)   : National capital, the one the State Department symbolizes
---                    as THE capital. Also the value for OSM capital=yes/2.
+--                    as THE capital. Also the value for OSM capital=yes/2,
+--                    unless the override list below names another city (it
+--                    follows the agreed list for countries with several).
 --    1 (secondary) : Additional national capital of a country with several
 --                    (executive, legislative, judicial). Chosen by osm_id in
 --                    the override list below, never read from OSM, so it
@@ -91,6 +93,9 @@ SELECT
             WHEN ne.rank_max = 13                                        THEN 2
             WHEN g.desig_cd = 'PPLC'                                     THEN 2
             WHEN o.capital = 'yes'                                       THEN 2
+            -- Primary capitals set by osm_id above (La Paz, Rangoon, Colombo,
+            -- Bujumbura) have no capital=yes or PPLC to earn rank 2 by.
+            WHEN cap.capital = 2                                         THEN 2
             WHEN o.name_en ILIKE 'Brussels'                              THEN 2
             WHEN o.capital::text = '3'
                 AND ne.rank_max >= 11                                    THEN 3
@@ -128,22 +133,31 @@ CROSS JOIN LATERAL (
     SELECT
         CASE
             WHEN o.name_en = 'Taipei'               THEN NULL  -- DOS Bulletin 37: Taipei must not be symbolized as capital of a sovereign state
-            -- DOS-directed primary capital override: Bujumbura remains primary per US State Dept
-            WHEN o.osm_id = 60715062               THEN 2   -- Bujumbura (Burundi)
+            -- Countries with two or more capitals follow the agreed list of primary and
+            -- secondary capitals (Oct 2026). Where OSM's capital=yes points elsewhere,
+            -- the primary is set here by osm_id.
+            WHEN o.osm_id IN (
+                   60715062,   -- Bujumbura (Burundi): US State Dept still treats it as primary
+                  266478791,   -- La Paz (Bolivia): seat of government
+                   26576175,   -- Rangoon/Yangon (Burma): official capital
+                   50794342    -- Colombo (Sri Lanka): executive, judicial and commercial capital
+            )                                       THEN 2
             -- Secondary national capitals (de facto, seat of government, legislative, judicial).
             -- Code 1 is never produced from an OSM capital= value, so it can't collide with one.
+            -- Checked before capital=yes: Nay Pyi Taw, Sri Jayewardenepura Kotte, Sucre,
+            -- Cape Town, Bloemfontein and Gitega all carry capital=yes in OSM.
             WHEN o.osm_id IN (
-                  235857686,   -- The Hague (Netherlands)
-                  266478791,   -- La Paz (Bolivia)
+                 1776467369,   -- Cotonou (Benin)
+                  313764484,   -- Sucre (Bolivia)
+                  315390382,   -- Nay Pyi Taw (Burma)
+                  301351574,   -- Gitega (Burundi)
+                 4415037938,   -- Lobamba (Eswatini)
                  1046100133,   -- Abidjan (Côte d'Ivoire)
                  2872238032,   -- Putrajaya (Malaysia)
-                   26576175,   -- Yangon (Myanmar)
-                  313764484,   -- Sucre (Bolivia)
+                  235857686,   -- The Hague (Netherlands)
                    32675806,   -- Cape Town (South Africa)
                    26938845,   -- Bloemfontein (South Africa)
-                  301351574,   -- Gitega (Burundi)
-                   50794342,   -- Colombo (Sri Lanka)
-                 4415037938    -- Lobamba (Eswatini)
+                 3275779630    -- Sri Jayewardenepura Kotte (Sri Lanka)
             )                                       THEN 1
             WHEN o.capital = 'yes'                  THEN 2
             WHEN o.capital IN ('2','3','5','6')     THEN o.capital::int
