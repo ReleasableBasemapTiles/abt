@@ -8,10 +8,12 @@
 
 
 -- -----------------------------------------------------------------------------
--- Small-scale (z0–z7) land cover from Overture's small-scale land cover band
+-- Small-scale (z0–z9) land cover from Overture's small-scale land cover band
 -- (cartography.max_zoom <= 7, derived from ESA WorldCover). It replaces the
 -- MODIS layer an earlier schema used at these zooms; the OSM-based
--- landcover_polygon takes over at larger scales, as set in the style.
+-- landcover_polygon (z4 up) takes over at larger scales. The two overlap at
+-- z4–z9 so a style can fade one into the other, and this layer can stay as a
+-- faint underlay where OSM has no land cover.
 --
 -- The band is already smooth, so edges are left alone (tippecanoe simplifies
 -- them with --detect-shared-borders, which keeps neighbouring classes'
@@ -20,7 +22,9 @@
 -- zoom level z (4–7) keeps the polygons at least 3 pixels across at that zoom,
 -- (3 * zres(z))² in Web Mercator area (= screen pixels at any latitude), and
 -- fills non-city holes under the same size so a dropped island takes its
--- surrounding class rather than leaving a gap. z0–z3 show the z4 level.
+-- surrounding class rather than leaving a gap. z0–z3 show the z4 level, and
+-- z8–z9 the z7 level: the band has no detail beyond z7, so more levels would
+-- only add rows.
 --
 -- urban is not a class here: builtup_polygon (007) draws cities, from
 -- generalized Overture urban areas at z4–z6 and OSM land use from z7. The

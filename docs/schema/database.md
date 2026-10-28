@@ -223,7 +223,7 @@ flowchart LR
 | `export.glacier_polygon` | `008_glacier.sql` | `aux_data.ne_10m_antarctic_ice_shelves_polys`<br/>`aux_data.ne_10m_glaciated_areas`<br/>`osm.osm_landcover_polygon`<br/>`aux_data.osm_icesheet` | `landcover.glacier_ne`<br/>`landcover.glacier_osm` | polygon | 0–13 | Yes |
 | `export.landcover_polygon` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | polygon | 4–13 | Yes |
 | `export.landcover_label` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | point | 4–13 | Yes |
-| `export.landcover_small_polygon` | `009a_land_cover_small.sql` | `aux_data.overture_land_cover` | `landcover.small_leveled`<br/>`landcover.small_src`<br/>`landcover.small_urban` | polygon | 0–7 | Yes |
+| `export.landcover_small_polygon` | `009a_land_cover_small.sql` | `aux_data.overture_land_cover` | `landcover.small_leveled`<br/>`landcover.small_src`<br/>`landcover.small_urban` | polygon | 0–9 | Yes |
 | `export.park_polygon` | `010_park.sql` | `osm.osm_park_polygon`<br/>`osm.osm_landuse_polygon` | — | polygon | 9–13 | Yes |
 | `export.physical_labels` | `029_physical_labels.sql` | `aux_data.ne_physical_centerlines` (static — see carto_sql/static_data/) | — | linestring | 3–13 | Yes |
 
