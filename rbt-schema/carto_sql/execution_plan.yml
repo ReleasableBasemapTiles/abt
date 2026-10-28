@@ -104,6 +104,7 @@ groups:
   - [033_culvert.sql]
   - [034_barrier.sql]
   - [009a_land_cover_small.sql]
+  - [035_bathymetry.sql]
 
 suffix:
   - 099_update_geometry.sql

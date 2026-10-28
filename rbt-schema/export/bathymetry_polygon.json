@@ -1,0 +1,19 @@
+{
+    "layer_id": "bathymetry_polygon",
+    "description": "Ocean depth bands from Natural Earth 1:10m bathymetry, 200 m to below 10000 m. The bands don't overlap; the 0–200 m shelf is left to ocean_polygon.",
+    "geometry_type": "polygon",
+    "attributes": [
+        {"name": "depth",     "type": "int", "description": "Top of the band in metres below sea level: 200, 1000, 2000, … 10000"},
+        {"name": "depth_max", "type": "int", "description": "Bottom of the band in metres below sea level; null for the deepest (10000 m) band"}
+    ],
+    "source_attribution": "Natural Earth",
+    "tippecanoe_options": {
+        "minimum_zoom": 0,
+        "maximum_zoom": 8,
+        "additional_flags": "--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO -nlt PROMOTE_TO_MULTI"
+    }
+}

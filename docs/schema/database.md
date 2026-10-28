@@ -21,7 +21,7 @@ schema supports.
 | Schema | Loaded by | Contents |
 |---|---|---|
 | `osm` | `import` (imposm3) | 26 distinct OSM source tables referenced below |
-| `aux_data` | `import` (ogr2ogr) | 27 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
+| `aux_data` | `import` (ogr2ogr) | 38 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
 | `water` | `carto` (SQL transforms) | Intermediate staging tables/views for the `water`-owned layer(s) below |
 | `transportation` | `carto` (SQL transforms) | Intermediate staging tables/views for the `transportation`-owned layer(s) below |
 | `landuse` | `carto` (SQL transforms) | Intermediate staging tables/views for the `landuse`-owned layer(s) below |
@@ -30,7 +30,7 @@ schema supports.
 | `aeroway` | `carto` (SQL transforms) | Intermediate staging tables/views for the `aeroway`-owned layer(s) below |
 | `dam` | `carto` (SQL transforms) | Intermediate staging tables/views for the `dam`-owned layer(s) below |
 | `poi` | `carto` (SQL transforms) | Intermediate staging tables/views for the `poi`-owned layer(s) below |
-| `export` | `carto` (SQL transforms) | 63 materialized views, 61 of which are tiled — see [Layer Registry](layers.md) |
+| `export` | `carto` (SQL transforms) | 64 materialized views, 62 of which are tiled — see [Layer Registry](layers.md) |
 
 ```mermaid
 flowchart LR
@@ -76,6 +76,17 @@ flowchart LR
         aux_data_nga_geonames_hydrographic["aux_data.nga_geonames_hydrographic"]
         aux_data_usgs_domestic_names["aux_data.usgs_domestic_names"]
         aux_data_ne_10m_geography_marine_polys["aux_data.ne_10m_geography_marine_polys"]
+        aux_data_ne_10m_bathymetry_k_200["aux_data.ne_10m_bathymetry_k_200"]
+        aux_data_ne_10m_bathymetry_j_1000["aux_data.ne_10m_bathymetry_j_1000"]
+        aux_data_ne_10m_bathymetry_i_2000["aux_data.ne_10m_bathymetry_i_2000"]
+        aux_data_ne_10m_bathymetry_h_3000["aux_data.ne_10m_bathymetry_h_3000"]
+        aux_data_ne_10m_bathymetry_g_4000["aux_data.ne_10m_bathymetry_g_4000"]
+        aux_data_ne_10m_bathymetry_f_5000["aux_data.ne_10m_bathymetry_f_5000"]
+        aux_data_ne_10m_bathymetry_e_6000["aux_data.ne_10m_bathymetry_e_6000"]
+        aux_data_ne_10m_bathymetry_d_7000["aux_data.ne_10m_bathymetry_d_7000"]
+        aux_data_ne_10m_bathymetry_c_8000["aux_data.ne_10m_bathymetry_c_8000"]
+        aux_data_ne_10m_bathymetry_b_9000["aux_data.ne_10m_bathymetry_b_9000"]
+        aux_data_ne_10m_bathymetry_a_10000["aux_data.ne_10m_bathymetry_a_10000"]
     end
     script_005a_water_polygon["Water — Polygons<br/>(005a_water_polygon.sql)"]
     osm_osm_water_polygon --> script_005a_water_polygon
@@ -115,6 +126,22 @@ flowchart LR
     osm_osm_water_point --> script_033_culvert
     export_culvert_point["export.culvert_point"]
     script_033_culvert --> export_culvert_point
+    script_035_bathymetry["Bathymetry<br/>(035_bathymetry.sql)"]
+    aux_data_ne_10m_bathymetry_k_200 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_j_1000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_i_2000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_h_3000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_g_4000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_f_5000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_e_6000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_d_7000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_c_8000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_b_9000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_a_10000 --> script_035_bathymetry
+    inter_water_bathymetry_depth["water.bathymetry_depth"]
+    script_035_bathymetry --> inter_water_bathymetry_depth
+    export_bathymetry_polygon["export.bathymetry_polygon"]
+    script_035_bathymetry --> export_bathymetry_polygon
 ```
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
@@ -125,6 +152,7 @@ flowchart LR
 | `export.water_line` | `005b_water_line.sql` | `osm.osm_waterway_relation`<br/>`osm.osm_waterway_linestring` | `water.waterway_relation_union` | linestring | 6–13 | Yes |
 | `export.hydrographic_label` | `006_geonames_hydrographic.sql` | `aux_data.nga_geonames_hydrographic` (global coverage minus US)<br/>`aux_data.usgs_domestic_names` (US coverage)<br/>`aux_data.ne_10m_geography_marine_polys` (curated major water bodies) | — | point | 0–13 | Yes |
 | `export.culvert_point` | `033_culvert.sql` | `osm.osm_water_point` | — | point | 9–13 | Yes |
+| `export.bathymetry_polygon` | `035_bathymetry.sql` | `aux_data.ne_10m_bathymetry_k_200`<br/>`aux_data.ne_10m_bathymetry_j_1000`<br/>`aux_data.ne_10m_bathymetry_i_2000`<br/>`aux_data.ne_10m_bathymetry_h_3000`<br/>`aux_data.ne_10m_bathymetry_g_4000`<br/>`aux_data.ne_10m_bathymetry_f_5000`<br/>`aux_data.ne_10m_bathymetry_e_6000`<br/>`aux_data.ne_10m_bathymetry_d_7000`<br/>`aux_data.ne_10m_bathymetry_c_8000`<br/>`aux_data.ne_10m_bathymetry_b_9000`<br/>`aux_data.ne_10m_bathymetry_a_10000` | `water.bathymetry_depth` | polygon | 0–8 | Yes |
 
 ## Terrain, landcover & parks
 
