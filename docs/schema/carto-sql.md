@@ -55,7 +55,7 @@ COMMIT;
 ## `execution_plan.yml`
 
 Declares which of the remaining scripts can run concurrently against
-Postgres — 29 groups today, all independent except one real dependency.
+Postgres — 32 groups today, all independent except one real dependency.
 `abt-tools.py carto` uses it only when `-n/--carto-concurrency` is above 1.
 Without the file, or at `-n 1` (the default below 12 vCPUs), it runs every
 script in strict filename order. Groups start in the order listed, so the
@@ -162,7 +162,7 @@ flowchart TD
     setupSchemas --> prefix01
     prefix02["001_set_schema"]
     prefix01 --> prefix02
-    subgraph groupsBox ["31 independent groups -- concurrent, up to --carto-concurrency at a time"]
+    subgraph groupsBox ["32 independent groups -- concurrent, up to --carto-concurrency at a time"]
         group01["009_land_cover (weight 2)"]
         group02["005a_water_polygon then 005b_water_line (weight 2)"]
         group03["003_road"]
@@ -194,13 +194,14 @@ flowchart TD
         group29["033_culvert"]
         group30["034_barrier"]
         group31["009a_land_cover_small"]
+        group32["035_bathymetry"]
     end
     prefix02 --> groupsBox
     suffix01["099_update_geometry"]
     groupsBox --> suffix01
 ```
 
-31 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before the prefix runs: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`, `pg_trgm`.
+32 independent groups (from `execution_plan.yml`) run concurrently, up to `-n/--carto-concurrency` at a time, between a 2-script sequential prefix and a 1-script sequential suffix. Custom schemas/extensions are created once up front, before the prefix runs: `water`, `transportation`, `landuse`, `landcover`, `infrastructure`, `aeroway`, `dam`, `poi`, `dblink`, `pg_trgm`.
 <!-- CARTO_DAG_END -->
 
 ## See also

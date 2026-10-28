@@ -1,6 +1,6 @@
 # Auxiliary Data
 
-`import/aux_data/` holds 24 JSON configs, each describing one non-OSM
+`import/aux_data/` holds 25 JSON configs, each describing one non-OSM
 dataset: where to get it, its format, and which layer(s) inside it to load
 into Postgres. Parsed by `AuxDataLayer` (`abtv2-tools/abt/aux_data_model.py`).
 
