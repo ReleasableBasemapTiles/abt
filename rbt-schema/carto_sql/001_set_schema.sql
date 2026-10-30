@@ -51,6 +51,13 @@ $func$;
 -- osm_key / osm_value: the imposm mapping key and value (the class and
 -- subclass columns); base_key: the feature's own key ('highway', 'railway',
 -- 'power', 'aeroway').
+--
+-- The hstore lookups are written tags OPERATOR(public.->) key, not tags -> key.
+-- PostgreSQL 17+ plans CREATE MATERIALIZED VIEW with search_path locked to
+-- pg_catalog, pg_temp, and these bodies are inlined at plan time, so a bare ->
+-- fails with "operator does not exist: public.hstore -> text" (hstore lives
+-- in public; see setup_ubuntu.sh). A SET search_path clause would also fix it
+-- but stops PostgreSQL inlining the function, making it a call per row.
 CREATE OR REPLACE FUNCTION public.lifecycle_type(osm_key text, osm_value text, tags hstore, base_key text)
 RETURNS text
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE
@@ -64,11 +71,11 @@ SELECT COALESCE(
          WHEN lower(trim(osm_value)) = ANY (public.lifecycle_states()) THEN lower(trim(osm_value))
     END,
     (SELECT u.s FROM unnest(public.lifecycle_states()) WITH ORDINALITY AS u(s, o)
-     WHERE NULLIF(trim(tags -> (u.s || ':' || base_key)), '') IS NOT NULL
+     WHERE NULLIF(trim(tags OPERATOR(public.->) (u.s || ':' || base_key)), '') IS NOT NULL
      ORDER BY u.o LIMIT 1),
     (SELECT u.s FROM unnest(ARRAY['disused', 'abandoned', 'destroyed', 'demolished', 'razed', 'removed'])
                      WITH ORDINALITY AS u(s, o)
-     WHERE lower(trim(tags -> u.s)) NOT IN ('', 'no')
+     WHERE lower(trim(tags OPERATOR(public.->) u.s)) NOT IN ('', 'no')
      ORDER BY u.o LIMIT 1),
     'intact'
 );
@@ -90,8 +97,8 @@ SELECT CASE
         THEN lower(trim(osm_value))
     WHEN lower(trim(osm_value)) = 'ruins' OR lower(trim(osm_value)) = ANY (public.lifecycle_states())
         THEN COALESCE(
-            NULLIF(NULLIF(lower(trim(tags -> lower(trim(osm_value)))), ''), 'yes'),
-            NULLIF(NULLIF(lower(trim(tags -> (lower(trim(osm_value)) || ':' || base_key))), ''), 'yes'),
+            NULLIF(NULLIF(lower(trim(tags OPERATOR(public.->) lower(trim(osm_value)))), ''), 'yes'),
+            NULLIF(NULLIF(lower(trim(tags OPERATOR(public.->) (lower(trim(osm_value)) || ':' || base_key))), ''), 'yes'),
             fallback
         )
     ELSE osm_value
