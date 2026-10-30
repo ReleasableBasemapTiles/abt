@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+
+# ./land_cover_extract.sh /path/to/data_dir [jobs]
+#
+# Builds the Overture land cover extract that import/aux_data/
+# overture_land_cover.json downloads: the small-scale band (009a) and the
+# detailed urban areas (007) of one base/land_cover release. This script is
+# the only place the pipeline's data touches Overture: its zip is hosted,
+# the way the old project hosted its MODIS land cover, and builds download
+# that like any other aux source. It reads and writes only data_dir, never
+# a build.
+#
+# Why a one-off script: base/land_cover is 128 parquet files, ~109 GB per
+# release, and the rows we keep (the z0-z7 band plus the detailed urban
+# areas, ~4% of rows) are spread through every row group, so any reader
+# fetches nearly all of the geometry anyway. Streaming it with DuckDB's
+# ranged reads ran at ~7 MB/s (hours); `aws s3 sync` of the same files
+# saturates the link, and the query on local files takes minutes.
+#
+# Writes, in data_dir:
+#   overture_land_cover.fgb            the extract
+#   overture_land_cover.fgb.release    the release it came from
+#   overture_land_cover_<release>.zip  the two above, ready to host
+#
+# To move to a new release, set OVERTURE_RELEASE, host the new zip, and
+# point the aux config's url at it.
+#
+# Env:
+#   OVERTURE_RELEASE  release to extract (default below, the one the aux
+#                     config's hosted zip was built from).
+#   KEEP_PARQUET=1    keep the downloaded parquet (data_dir/overture-land-
+#                     cover-<release>/) instead of deleting it after a good
+#                     extract.
+#
+# Needs: aws (CLI), python3 with the duckdb module.
+
+set -euo pipefail
+
+DATA_DIR="${1:?usage: $0 /path/to/data_dir [jobs]}"
+JOBS="${2:-32}"
+PYTHON="${PYTHON:-python3}"
+RELEASE="${OVERTURE_RELEASE:-2026-10-21.0}"
+
+# What 007 and 009a read: the detailed (z8+) urban band, and the whole
+# small-scale (z0-z7) band. The column names are the ones the SQL uses.
+WHERE="(subtype = 'urban' AND cartography.min_zoom = 8) OR cartography.max_zoom <= 7"
+COLUMNS="subtype, cartography.min_zoom AS min_zoom, cartography.max_zoom AS max_zoom"
+
+PARQUET_DIR="$DATA_DIR/overture-land-cover-$RELEASE"
+OUT="$DATA_DIR/overture_land_cover.fgb"
+ZIP="$DATA_DIR/overture_land_cover_$RELEASE.zip"
+echo "release: $RELEASE"
+mkdir -p "$PARQUET_DIR"
+
+# aws s3 sync defaults to 10 concurrent requests. A throwaway config file
+# raises that without touching the operator's own ~/.aws/config.
+AWS_CONFIG_FILE="$(mktemp)"
+export AWS_CONFIG_FILE
+trap 'rm -f "$AWS_CONFIG_FILE"' EXIT
+printf '[default]\ns3 =\n  max_concurrent_requests = %s\n  multipart_chunksize = 64MB\n' "$JOBS" > "$AWS_CONFIG_FILE"
+
+echo "downloading -> $PARQUET_DIR"
+aws s3 sync --no-sign-request --only-show-errors \
+  "s3://overturemaps-us-west-2/release/$RELEASE/theme=base/type=land_cover/" \
+  "$PARQUET_DIR/"
+
+echo "extracting -> $OUT"
+"$PYTHON" - "$PARQUET_DIR" "$OUT" "$WHERE" "$COLUMNS" <<'EOF'
+import os, sys, time
+from pathlib import Path
+import duckdb
+
+parquet_dir, out, where, columns = Path(sys.argv[1]), Path(sys.argv[2]), sys.argv[3], sys.argv[4]
+lit = lambda s: "'" + str(s).replace("'", "''") + "'"
+# GDAL's FlatGeobuf driver treats a name not ending in .fgb as a directory,
+# so the staging file keeps the final name, one directory down.
+staging = out.parent / ".partial" / out.name
+staging.parent.mkdir(parents=True, exist_ok=True)
+staging.unlink(missing_ok=True)
+
+sql = (f"COPY (SELECT {columns}, geometry\n"
+       f"FROM read_parquet({lit(parquet_dir / '*.parquet')})\n"
+       f"WHERE {where})\n"
+       f"TO {lit(staging)} WITH (FORMAT GDAL, DRIVER 'FlatGeobuf')")
+print(sql, flush=True)
+con = duckdb.connect()
+con.execute("INSTALL spatial")
+con.execute("LOAD spatial")
+try:
+    # Newer DuckDB warns about latitude/longitude order without this; older
+    # versions reject the setting.
+    con.execute("SET geometry_always_xy = true")
+except Exception as e:
+    print(f"skipping geometry_always_xy: {e}")
+t = time.time()
+con.execute(sql)
+con.close()
+os.replace(staging, out)
+print(f"done in {time.time() - t:.0f}s, {out.stat().st_size / 1e9:.2f} GB")
+EOF
+echo "$RELEASE" > "$OUT.release"
+
+echo "zipping -> $ZIP"
+"$PYTHON" - "$ZIP" "$OUT" "$OUT.release" <<'EOF'
+import sys, zipfile
+from pathlib import Path
+with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED, allowZip64=True) as z:
+    for f in sys.argv[2:]:
+        z.write(f, Path(f).name)
+EOF
+ls -l "$OUT" "$ZIP"
+
+if [[ "${KEEP_PARQUET:-0}" != "1" ]]; then
+  rm -rf "$PARQUET_DIR"
+  echo "removed $PARQUET_DIR"
+fi
