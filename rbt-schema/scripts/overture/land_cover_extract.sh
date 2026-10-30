@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-# ./land_cover_extract.sh /path/to/data_dir [working_dir] [jobs]
+# ./land_cover_extract.sh /path/to/data_dir [jobs]
 #
 # One-off extraction of the Overture land cover slice that
 # import/aux_data/overture_land_cover.json describes, run outside the
-# pipeline. It is meant to be hosted, the way the old project hosted its
-# MODIS land cover, so builds download a few GB instead of reading the whole
-# release.
+# pipeline. The zip it writes is meant to be hosted, the way the old project
+# hosted its MODIS land cover, so builds download a few GB instead of reading
+# the whole release. It reads and writes only data_dir, never a build.
 #
 # Why not let `download -d aux` read it from S3: base/land_cover is 128
 # parquet files, ~109 GB per release, and the rows we keep (the z0-z7 band
@@ -19,9 +19,6 @@
 #   overture_land_cover.fgb            the extract (same rows and columns the
 #   overture_land_cover.fgb.release    pipeline's Overture download writes)
 #   overture_land_cover_<release>.zip  the two above, ready to host
-# With working_dir, also copies the .fgb and .release into
-# <working_dir>/aux_downloads/, where `download -d aux` finds them and skips
-# its own extraction (it checks the release matches the config's pin).
 #
 # Env:
 #   KEEP_PARQUET=1  keep the downloaded parquet (data_dir/overture-land-cover-
@@ -33,9 +30,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$SCRIPT_DIR/../../import/aux_data/overture_land_cover.json"
 
-DATA_DIR="${1:?usage: $0 /path/to/data_dir [working_dir] [jobs]}"
-WORKING_DIR="${2:-}"
-JOBS="${3:-32}"
+DATA_DIR="${1:?usage: $0 /path/to/data_dir [jobs]}"
+JOBS="${2:-32}"
 PYTHON="${PYTHON:-python3}"
 
 # The release, filter and columns come from the aux config, so the hosted
@@ -105,12 +101,6 @@ with zipfile.ZipFile(sys.argv[1], "w", zipfile.ZIP_DEFLATED, allowZip64=True) as
         z.write(f, Path(f).name)
 EOF
 ls -l "$OUT" "$ZIP"
-
-if [[ -n "$WORKING_DIR" ]]; then
-  mkdir -p "$WORKING_DIR/aux_downloads"
-  cp "$OUT" "$OUT.release" "$WORKING_DIR/aux_downloads/"
-  echo "copied into $WORKING_DIR/aux_downloads/"
-fi
 
 if [[ "${KEEP_PARQUET:-0}" != "1" ]]; then
   rm -rf "$PARQUET_DIR"

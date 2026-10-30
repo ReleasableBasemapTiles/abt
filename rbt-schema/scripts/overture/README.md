@@ -201,7 +201,7 @@ TIPPECANOE_MAX_THREADS=32 ./tile.sh /path/to/data_dir
 `import/aux_data/overture_land_cover.json` describes, once, outside the
 pipeline:
 ```bash
-./land_cover_extract.sh /path/to/data_dir [working_dir] [jobs]
+./land_cover_extract.sh /path/to/data_dir [jobs]
 # -> data_dir/overture_land_cover.fgb (+ .release)
 #    data_dir/overture_land_cover_<release>.zip, to host
 ```
@@ -213,8 +213,7 @@ build. This script downloads the parquet with `aws s3 sync` instead, which
 saturates the link, and runs the same filter locally. The release, filter and
 columns come from the aux config, so the output matches.
 
-Pass a `working_dir` to copy the extract into `<working_dir>/aux_downloads/`:
-`download -d aux` then finds it, checks its release against the config's pin,
-and skips its own extraction. Hosting the zip, the way the old project hosted
-its MODIS land cover, lets the aux config download it like any other source.
+The script only touches `data_dir`. Hosting the zip, the way the old project
+hosted its MODIS land cover, lets the aux config download it like any other
+source.
 The parquet (~109 GB) is deleted after a good extract unless `KEEP_PARQUET=1`.
