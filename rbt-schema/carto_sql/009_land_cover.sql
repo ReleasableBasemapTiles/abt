@@ -119,7 +119,7 @@ classified AS (
     FROM leafcycle
     WHERE subclass IN (
         -- Coastal / large landscape features (z4+)
-        'bare_rock', 'beach', 'dune', 'dune_system', 'glacier', 'sand', 'scree', 'shoal',
+        'bare_rock', 'beach', 'dune', 'dune_system', 'glacier', 'sand', 'scree', 'shingle', 'shoal',
         -- Wetlands (z6+)
         'bog', 'fen', 'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh',
         'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow',
@@ -265,28 +265,28 @@ INSERT INTO landcover.dissolve_jobs VALUES
 (9,  'landcover.z9_simplified',
      $$subclass IN ('wood', 'forest')$$,
      $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'glacier',
-                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree',
+                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree', 'shingle',
                     'shoal', 'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow')$$),
 (8,  'landcover.z8_simplified',
      $$subclass IN ('wood', 'forest')$$,
      $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'glacier',
-                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree',
+                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree', 'shingle',
                     'shoal', 'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow')$$),
 (7,  'landcover.z7_simplified',
      $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'forest', 'glacier',
-                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree',
+                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree', 'shingle',
                     'shoal', 'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow', 'wood')$$,
      NULL),
 (6,  'landcover.z6_simplified',
      $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'glacier',
-                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree',
+                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree', 'shingle',
                     'shoal', 'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow')$$,
      NULL),
 (5,  'landcover.z5_simplified',
-     $$subclass IN ('bare_rock', 'beach', 'dune', 'dune_system', 'glacier', 'sand', 'scree', 'shoal')$$,
+     $$subclass IN ('bare_rock', 'beach', 'dune', 'dune_system', 'glacier', 'sand', 'scree', 'shingle', 'shoal')$$,
      NULL),
 (4,  'landcover.z4_simplified',
-     $$subclass IN ('bare_rock', 'beach', 'dune', 'dune_system', 'glacier', 'sand', 'scree', 'shoal')$$,
+     $$subclass IN ('bare_rock', 'beach', 'dune', 'dune_system', 'glacier', 'sand', 'scree', 'shingle', 'shoal')$$,
      NULL);
 COMMIT;
 
