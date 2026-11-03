@@ -4,6 +4,7 @@
 -- Intermediates: landcover.small_leveled,
 --                landcover.small_src, landcover.small_urban (transient)
 -- Sources:       aux_data.overture_land_cover
+-- Depends on:    007_builtup_area.sql (landuse.builtuparea_overture)
 -- =============================================================================
 
 
@@ -28,10 +29,16 @@
 --
 -- urban is not a class here: builtup_polygon (007) draws cities, from
 -- generalized Overture urban areas at z4–z6 and OSM land use from z7. The
--- holes the small-scale urban polygons leave are kept at every level,
--- whatever their size, so no forest or crop is ever drawn over a city. Where
--- built-up doesn't cover a whole city (OSM land use at z7 can be patchy),
--- the background shows instead.
+-- band's own urban holes don't match that built-up. The band comes from
+-- WorldCover, where leafy suburbs (>=10% canopy) are tree cover, so its
+-- forest ran under the z4–z6 built-up fill and showed through wherever a
+-- style draws built-up translucent. So the polygons are clipped by 007's
+-- generalized urban areas, and both kinds of hole are kept at every level,
+-- whatever their size: the clipped ones, so the land cover stops at the
+-- built-up edge, and the band's own urban ones, so no forest or crop is
+-- drawn over a city built-up leaves out. Where built-up doesn't cover a
+-- whole city (OSM land use at z7 can be patchy), the background shows
+-- instead.
 -- -----------------------------------------------------------------------------
 
 BEGIN;
@@ -42,15 +49,30 @@ BEGIN;
 DROP TABLE IF EXISTS landcover.small_src, landcover.small_urban,
     landcover.small_leveled CASCADE;
 
--- Polygons, with Overture's snow named `ice` as in the older MODIS layer.
+-- Polygons, with Overture's snow named `ice` as in the older MODIS layer,
+-- minus the generalized built-up areas they overlap.
 CREATE TABLE landcover.small_src AS
-SELECT CASE subtype WHEN 'snow' THEN 'ice' ELSE subtype END        AS subclass,
+WITH band AS (
+    SELECT CASE subtype WHEN 'snow' THEN 'ice' ELSE subtype END    AS subclass,
+           d.geom                                                    AS geometry
+    FROM aux_data.overture_land_cover,
+         LATERAL ST_Dump(ST_MakeValid(geometry)) d
+    WHERE max_zoom <= 7
+      AND subtype <> 'urban'
+      AND ST_GeometryType(d.geom) = 'ST_Polygon'
+)
+SELECT b.subclass,
        d.geom::geometry(Polygon, 4326)                               AS geometry
-FROM aux_data.overture_land_cover,
-     LATERAL ST_Dump(ST_MakeValid(geometry)) d
-WHERE max_zoom <= 7
-  AND subtype <> 'urban'
-  AND ST_GeometryType(d.geom) = 'ST_Polygon';
+FROM band b
+LEFT JOIN LATERAL (
+    SELECT ST_Union(u.geometry) AS geometry
+    FROM landuse.builtuparea_overture u
+    WHERE u.geometry && b.geometry
+      AND ST_Intersects(u.geometry, b.geometry)
+) c ON true,
+LATERAL ST_Dump(CASE WHEN c.geometry IS NULL THEN b.geometry
+                     ELSE ST_Difference(b.geometry, c.geometry) END) d
+WHERE ST_GeometryType(d.geom) = 'ST_Polygon';
 
 CREATE TABLE landcover.small_urban AS
 SELECT geometry
@@ -86,6 +108,11 @@ SELECT
                   -- a city: always stays a hole, whatever its size
                   EXISTS (
                       SELECT 1 FROM landcover.small_urban u
+                      WHERE u.geometry && r.geom
+                        AND ST_Intersects(u.geometry, ST_PointOnSurface(r.geom))
+                  )
+                  OR EXISTS (
+                      SELECT 1 FROM landuse.builtuparea_overture u
                       WHERE u.geometry && r.geom
                         AND ST_Intersects(u.geometry, ST_PointOnSurface(r.geom))
                   )

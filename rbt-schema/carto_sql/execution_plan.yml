@@ -78,7 +78,9 @@ groups:
   - [003_road.sql]
   - [017_utility_point.sql]
   - [023_military.sql]
-  - [007_builtup_area.sql]
+  # 009a clips its land cover by landuse.builtuparea_overture, which 007
+  # creates.
+  - [007_builtup_area.sql, 009a_land_cover_small.sql]
   - [004_railway.sql]
   - [032_poi.sql]
   - [006_geonames_hydrographic.sql]
@@ -103,7 +105,6 @@ groups:
   - [030_pier.sql]
   - [033_culvert.sql]
   - [034_barrier.sql]
-  - [009a_land_cover_small.sql]
   - [035_bathymetry.sql]
 
 suffix:
