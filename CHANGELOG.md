@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Label Lake Powell and Lake Mead mid-lake
 - Align multi-capital countries with the agreed capitals list
 - Keep natural=shingle in landcover_polygon
+- Qualify the hstore operator in lifecycle functions for postgres 17
 
 ## [2.1.0] - 2026-09-29
 
