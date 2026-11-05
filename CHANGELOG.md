@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tile small-scale land cover to z9 for a fade into OSM land cover
 - Build the hosted Overture land cover extract with a standalone script
 - Clip small-scale land cover by generalized built-up areas
+- Add every land cover class to landcover_polygon from z7
 
 ### Changed
 
