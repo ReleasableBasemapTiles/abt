@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - One lifecycle scheme for road, rail, power and runway lines
 - Label cities and towns with BGN conventional names
 - Mark secondary national capitals with capital=1 and capital_role
+- Add generalized Overture urban areas to builtup_polygon at z4-z6
+- Add Overture small-scale land cover layer
+- Add bathymetry_polygon depth bands from Natural Earth
+- Tile small-scale land cover to z9 for a fade into OSM land cover
+- Build the hosted Overture land cover extract with a standalone script
+- Clip small-scale land cover by generalized built-up areas
 
 ### Changed
 
