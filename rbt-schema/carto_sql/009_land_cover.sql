@@ -125,10 +125,10 @@ classified AS (
         'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow',
         -- Forest / wood (z7+)
         'forest', 'wood',
-        -- Grassland / scrub / heath (z10+)
+        -- Grassland / scrub / heath (z7+)
         'fell', 'flowerbed', 'grass', 'grassland', 'heath', 'meadow',
         'reef', 'scrub', 'tundra', 'village_green',
-        -- Agriculture (z10+)
+        -- Agriculture (z7+)
         'allotments', 'farm', 'farmland', 'orchard', 'paddy', 'rice', 'plant_nursery', 'vineyard'
     )
       -- Drop features too small to ever appear at z13 (some exemptions)
@@ -249,6 +249,11 @@ CREATE TABLE landcover.dissolve_jobs (
     passthrough_pred text
 );
 
+-- Every class is in every level from z7 up, as in OpenMapTiles: z7 dissolves
+-- them all, z8-z9 dissolve forest and pass the rest through. Farmland, grass
+-- and scrub used to start at z10, which left nothing for a style to fade
+-- small-scale land cover into at z7-z9. Below z7 only the coastal/bare
+-- classes (z4+) and wetlands (z6+) are kept.
 INSERT INTO landcover.dissolve_jobs VALUES
 (13, 'landcover.z13_source',
      $$vertex_count < 300 AND subclass IN ('wood', 'forest')$$,
@@ -264,18 +269,12 @@ INSERT INTO landcover.dissolve_jobs VALUES
      $$(vertex_count >= 300 AND subclass IN ('wood', 'forest')) OR subclass NOT IN ('wood', 'forest')$$),
 (9,  'landcover.z9_simplified',
      $$subclass IN ('wood', 'forest')$$,
-     $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'glacier',
-                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree', 'shingle',
-                    'shoal', 'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow')$$),
+     $$subclass NOT IN ('wood', 'forest')$$),
 (8,  'landcover.z8_simplified',
      $$subclass IN ('wood', 'forest')$$,
-     $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'glacier',
-                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree', 'shingle',
-                    'shoal', 'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow')$$),
+     $$subclass NOT IN ('wood', 'forest')$$),
 (7,  'landcover.z7_simplified',
-     $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'forest', 'glacier',
-                    'mangrove', 'marsh', 'reedbed', 'salt_flat', 'saltmarsh', 'sand', 'scree', 'shingle',
-                    'shoal', 'string_bog', 'swamp', 'tidalflat', 'unknown_wetland', 'wet_meadow', 'wood')$$,
+     $$true$$,
      NULL),
 (6,  'landcover.z6_simplified',
      $$subclass IN ('bare_rock', 'beach', 'bog', 'dune', 'dune_system', 'fen', 'glacier',
