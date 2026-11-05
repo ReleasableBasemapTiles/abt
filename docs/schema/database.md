@@ -21,7 +21,7 @@ schema supports.
 | Schema | Loaded by | Contents |
 |---|---|---|
 | `osm` | `import` (imposm3) | 26 distinct OSM source tables referenced below |
-| `aux_data` | `import` (ogr2ogr) | 26 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
+| `aux_data` | `import` (ogr2ogr) | 38 distinct auxiliary source tables referenced below (Natural Earth, NGA GeoNames, OurAirports, FieldMaps, USGS, DoS LSIB, DISDI/MIRTA, OSM coastline/ocean extracts, and any bundled `static_data/` file) — see [Auxiliary Data](aux-data.md) |
 | `water` | `carto` (SQL transforms) | Intermediate staging tables/views for the `water`-owned layer(s) below |
 | `transportation` | `carto` (SQL transforms) | Intermediate staging tables/views for the `transportation`-owned layer(s) below |
 | `landuse` | `carto` (SQL transforms) | Intermediate staging tables/views for the `landuse`-owned layer(s) below |
@@ -30,7 +30,7 @@ schema supports.
 | `aeroway` | `carto` (SQL transforms) | Intermediate staging tables/views for the `aeroway`-owned layer(s) below |
 | `dam` | `carto` (SQL transforms) | Intermediate staging tables/views for the `dam`-owned layer(s) below |
 | `poi` | `carto` (SQL transforms) | Intermediate staging tables/views for the `poi`-owned layer(s) below |
-| `export` | `carto` (SQL transforms) | 60 materialized views, 58 of which are tiled — see [Layer Registry](layers.md) |
+| `export` | `carto` (SQL transforms) | 64 materialized views, 62 of which are tiled — see [Layer Registry](layers.md) |
 
 ```mermaid
 flowchart LR
@@ -76,6 +76,17 @@ flowchart LR
         aux_data_nga_geonames_hydrographic["aux_data.nga_geonames_hydrographic"]
         aux_data_usgs_domestic_names["aux_data.usgs_domestic_names"]
         aux_data_ne_10m_geography_marine_polys["aux_data.ne_10m_geography_marine_polys"]
+        aux_data_ne_10m_bathymetry_k_200["aux_data.ne_10m_bathymetry_k_200"]
+        aux_data_ne_10m_bathymetry_j_1000["aux_data.ne_10m_bathymetry_j_1000"]
+        aux_data_ne_10m_bathymetry_i_2000["aux_data.ne_10m_bathymetry_i_2000"]
+        aux_data_ne_10m_bathymetry_h_3000["aux_data.ne_10m_bathymetry_h_3000"]
+        aux_data_ne_10m_bathymetry_g_4000["aux_data.ne_10m_bathymetry_g_4000"]
+        aux_data_ne_10m_bathymetry_f_5000["aux_data.ne_10m_bathymetry_f_5000"]
+        aux_data_ne_10m_bathymetry_e_6000["aux_data.ne_10m_bathymetry_e_6000"]
+        aux_data_ne_10m_bathymetry_d_7000["aux_data.ne_10m_bathymetry_d_7000"]
+        aux_data_ne_10m_bathymetry_c_8000["aux_data.ne_10m_bathymetry_c_8000"]
+        aux_data_ne_10m_bathymetry_b_9000["aux_data.ne_10m_bathymetry_b_9000"]
+        aux_data_ne_10m_bathymetry_a_10000["aux_data.ne_10m_bathymetry_a_10000"]
     end
     script_005a_water_polygon["Water — Polygons<br/>(005a_water_polygon.sql)"]
     osm_osm_water_polygon --> script_005a_water_polygon
@@ -115,6 +126,22 @@ flowchart LR
     osm_osm_water_point --> script_033_culvert
     export_culvert_point["export.culvert_point"]
     script_033_culvert --> export_culvert_point
+    script_035_bathymetry["Bathymetry<br/>(035_bathymetry.sql)"]
+    aux_data_ne_10m_bathymetry_k_200 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_j_1000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_i_2000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_h_3000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_g_4000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_f_5000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_e_6000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_d_7000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_c_8000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_b_9000 --> script_035_bathymetry
+    aux_data_ne_10m_bathymetry_a_10000 --> script_035_bathymetry
+    inter_water_bathymetry_depth["water.bathymetry_depth"]
+    script_035_bathymetry --> inter_water_bathymetry_depth
+    export_bathymetry_polygon["export.bathymetry_polygon"]
+    script_035_bathymetry --> export_bathymetry_polygon
 ```
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
@@ -125,6 +152,7 @@ flowchart LR
 | `export.water_line` | `005b_water_line.sql` | `osm.osm_waterway_relation`<br/>`osm.osm_waterway_linestring` | `water.waterway_relation_union` | linestring | 6–13 | Yes |
 | `export.hydrographic_label` | `006_geonames_hydrographic.sql` | `aux_data.nga_geonames_hydrographic` (global coverage minus US)<br/>`aux_data.usgs_domestic_names` (US coverage)<br/>`aux_data.ne_10m_geography_marine_polys` (curated major water bodies) | — | point | 0–13 | Yes |
 | `export.culvert_point` | `033_culvert.sql` | `osm.osm_water_point` | — | point | 9–13 | Yes |
+| `export.bathymetry_polygon` | `035_bathymetry.sql` | `aux_data.ne_10m_bathymetry_k_200`<br/>`aux_data.ne_10m_bathymetry_j_1000`<br/>`aux_data.ne_10m_bathymetry_i_2000`<br/>`aux_data.ne_10m_bathymetry_h_3000`<br/>`aux_data.ne_10m_bathymetry_g_4000`<br/>`aux_data.ne_10m_bathymetry_f_5000`<br/>`aux_data.ne_10m_bathymetry_e_6000`<br/>`aux_data.ne_10m_bathymetry_d_7000`<br/>`aux_data.ne_10m_bathymetry_c_8000`<br/>`aux_data.ne_10m_bathymetry_b_9000`<br/>`aux_data.ne_10m_bathymetry_a_10000` | `water.bathymetry_depth` | polygon | 0–8 | Yes |
 
 ## Terrain, landcover & parks
 
@@ -139,6 +167,7 @@ flowchart LR
         aux_data_ne_10m_antarctic_ice_shelves_polys["aux_data.ne_10m_antarctic_ice_shelves_polys"]
         aux_data_ne_10m_glaciated_areas["aux_data.ne_10m_glaciated_areas"]
         aux_data_osm_icesheet["aux_data.osm_icesheet"]
+        aux_data_overture_land_cover["aux_data.overture_land_cover"]
         aux_data_ne_physical_centerlines["aux_data.ne_physical_centerlines"]
     end
     script_008_glacier["Glacier<br/>(008_glacier.sql)"]
@@ -168,6 +197,16 @@ flowchart LR
     script_009_land_cover --> export_landcover_polygon
     export_landcover_label["export.landcover_label"]
     script_009_land_cover --> export_landcover_label
+    script_009a_land_cover_small["Small-Scale Land Cover<br/>(009a_land_cover_small.sql)"]
+    aux_data_overture_land_cover --> script_009a_land_cover_small
+    inter_landcover_small_leveled["landcover.small_leveled"]
+    script_009a_land_cover_small --> inter_landcover_small_leveled
+    inter_landcover_small_src["landcover.small_src"]
+    script_009a_land_cover_small --> inter_landcover_small_src
+    inter_landcover_small_urban["landcover.small_urban"]
+    script_009a_land_cover_small --> inter_landcover_small_urban
+    export_landcover_small_polygon["export.landcover_small_polygon"]
+    script_009a_land_cover_small --> export_landcover_small_polygon
     script_010_park["Park<br/>(010_park.sql)"]
     osm_osm_park_polygon --> script_010_park
     osm_osm_landuse_polygon --> script_010_park
@@ -184,6 +223,7 @@ flowchart LR
 | `export.glacier_polygon` | `008_glacier.sql` | `aux_data.ne_10m_antarctic_ice_shelves_polys`<br/>`aux_data.ne_10m_glaciated_areas`<br/>`osm.osm_landcover_polygon`<br/>`aux_data.osm_icesheet` | `landcover.glacier_ne`<br/>`landcover.glacier_osm` | polygon | 0–13 | Yes |
 | `export.landcover_polygon` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | polygon | 4–13 | Yes |
 | `export.landcover_label` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | point | 4–13 | Yes |
+| `export.landcover_small_polygon` | `009a_land_cover_small.sql` | `aux_data.overture_land_cover` | `landcover.small_leveled`<br/>`landcover.small_src`<br/>`landcover.small_urban` | polygon | 0–9 | Yes |
 | `export.park_polygon` | `010_park.sql` | `osm.osm_park_polygon`<br/>`osm.osm_landuse_polygon` | — | polygon | 9–13 | Yes |
 | `export.physical_labels` | `029_physical_labels.sql` | `aux_data.ne_physical_centerlines` (static — see carto_sql/static_data/) | — | linestring | 3–13 | Yes |
 
@@ -315,7 +355,7 @@ flowchart LR
 | `export.road_line` | `003_road.sql` | `osm.osm_highway_linestring`<br/>`aux_data.fieldmaps_adm0_polygon` | `transportation.usa_boundary` | linestring | 6–13 | Yes |
 | `export.road_polygon` | `003_road.sql` | `osm.osm_highway_linestring`<br/>`aux_data.fieldmaps_adm0_polygon` | `transportation.usa_boundary` | polygon | 12–13 | Yes |
 | `export.yard_label` | `004_railway.sql` | `osm.osm_railway_linestring`<br/>`osm.osm_transportation_polygon`<br/>`osm.osm_transportation_point` | `transportation.railway_normalized` | point | 10–13 | Yes |
-| `export.rail_line` | `004_railway.sql` | `osm.osm_railway_linestring`<br/>`osm.osm_transportation_polygon`<br/>`osm.osm_transportation_point` | `transportation.railway_normalized` | linestring | 8–13 | Yes |
+| `export.rail_line` | `004_railway.sql` | `osm.osm_railway_linestring`<br/>`osm.osm_transportation_polygon`<br/>`osm.osm_transportation_point` | `transportation.railway_normalized` | linestring | 7–13 | Yes |
 | `export.transportation_station_polygon` | `004_railway.sql` | `osm.osm_railway_linestring`<br/>`osm.osm_transportation_polygon`<br/>`osm.osm_transportation_point` | `transportation.railway_normalized` | polygon | 11–13 | Yes |
 | `export.transportation_station_label` | `004_railway.sql` | `osm.osm_railway_linestring`<br/>`osm.osm_transportation_polygon`<br/>`osm.osm_transportation_point` | `transportation.railway_normalized` | point | 11–13 | Yes |
 | `export.ferry_line` | `028_ferry.sql` | `osm.osm_shipway_linestring` | — | linestring | 8–13 | Yes |
@@ -377,7 +417,7 @@ flowchart LR
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
 |---|---|---|---|---|---|---|
 | `export.airport_polygon` | `021_aeroway.sql` | `osm.osm_aeroway_polygon`<br/>`osm.osm_aeroway_linestring`<br/>`aux_data.ourairports_airports`<br/>`aux_data.ourairports_runways` | `aeroway.runway_surface_mapping`<br/>`aeroway.aerodrome_polygon`<br/>`aeroway.osm_runway_line`<br/>`aeroway.aerodrome_runway`<br/>`aeroway.airports_runways`<br/>`aeroway.ourairports_osm_join`<br/>`aeroway.airports_runways_osm` | polygon | 11–13 | Yes |
-| `export.airport_label` | `021_aeroway.sql` | `osm.osm_aeroway_polygon`<br/>`osm.osm_aeroway_linestring`<br/>`aux_data.ourairports_airports`<br/>`aux_data.ourairports_runways` | `aeroway.runway_surface_mapping`<br/>`aeroway.aerodrome_polygon`<br/>`aeroway.osm_runway_line`<br/>`aeroway.aerodrome_runway`<br/>`aeroway.airports_runways`<br/>`aeroway.ourairports_osm_join`<br/>`aeroway.airports_runways_osm` | point | 8–13 | Yes |
+| `export.airport_label` | `021_aeroway.sql` | `osm.osm_aeroway_polygon`<br/>`osm.osm_aeroway_linestring`<br/>`aux_data.ourairports_airports`<br/>`aux_data.ourairports_runways` | `aeroway.runway_surface_mapping`<br/>`aeroway.aerodrome_polygon`<br/>`aeroway.osm_runway_line`<br/>`aeroway.aerodrome_runway`<br/>`aeroway.airports_runways`<br/>`aeroway.ourairports_osm_join`<br/>`aeroway.airports_runways_osm` | point | 7–13 | Yes |
 | `export.heliport_point` | `021_aeroway.sql` | `osm.osm_aeroway_polygon`<br/>`osm.osm_aeroway_linestring`<br/>`aux_data.ourairports_airports`<br/>`aux_data.ourairports_runways` | `aeroway.runway_surface_mapping`<br/>`aeroway.aerodrome_polygon`<br/>`aeroway.osm_runway_line`<br/>`aeroway.aerodrome_runway`<br/>`aeroway.airports_runways`<br/>`aeroway.ourairports_osm_join`<br/>`aeroway.airports_runways_osm` | point | 9–13 | Yes |
 | `export.runway_line` | `021_aeroway.sql` | `osm.osm_aeroway_polygon`<br/>`osm.osm_aeroway_linestring`<br/>`aux_data.ourairports_airports`<br/>`aux_data.ourairports_runways` | `aeroway.runway_surface_mapping`<br/>`aeroway.aerodrome_polygon`<br/>`aeroway.osm_runway_line`<br/>`aeroway.aerodrome_runway`<br/>`aeroway.airports_runways`<br/>`aeroway.ourairports_osm_join`<br/>`aeroway.airports_runways_osm` | linestring | 11–13 | Yes |
 | `export.port_polygon` | `012_port.sql` | `osm.osm_builtup_area` | `infrastructure.port_surface_enhanced` | polygon | 9–13 | Yes |
@@ -392,10 +432,20 @@ flowchart LR
         osm_osm_landuse_polygon["osm.osm_landuse_polygon"]
         osm_osm_park_polygon["osm.osm_park_polygon"]
     end
+    subgraph src_aux ["aux_data"]
+        aux_data_overture_land_cover["aux_data.overture_land_cover"]
+    end
     script_007_builtup_area["Built-up Area<br/>(007_builtup_area.sql)"]
     osm_osm_builtup_area --> script_007_builtup_area
+    aux_data_overture_land_cover --> script_007_builtup_area
     inter_landuse_builtuparea_osm["landuse.builtuparea_osm"]
     script_007_builtup_area --> inter_landuse_builtuparea_osm
+    inter_landuse_builtuparea_overture["landuse.builtuparea_overture"]
+    script_007_builtup_area --> inter_landuse_builtuparea_overture
+    inter_landuse_bua_ov_opened["landuse.bua_ov_opened"]
+    script_007_builtup_area --> inter_landuse_bua_ov_opened
+    inter_landuse_bua_ov_final["landuse.bua_ov_final"]
+    script_007_builtup_area --> inter_landuse_bua_ov_final
     export_builtup_polygon["export.builtup_polygon"]
     script_007_builtup_area --> export_builtup_polygon
     script_024_cemetery["Cemetery<br/>(024_cemetery.sql)"]
@@ -421,7 +471,7 @@ flowchart LR
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
 |---|---|---|---|---|---|---|
-| `export.builtup_polygon` | `007_builtup_area.sql` | `osm.osm_builtup_area` | `landuse.builtuparea_osm` | polygon | 7–13 | Yes |
+| `export.builtup_polygon` | `007_builtup_area.sql` | `osm.osm_builtup_area`<br/>`aux_data.overture_land_cover` | `landuse.builtuparea_osm`<br/>`landuse.builtuparea_overture`<br/>`landuse.bua_ov_opened`<br/>`landuse.bua_ov_final` | polygon | 4–13 | Yes |
 | `export.cemetery_polygon` | `024_cemetery.sql` | `osm.osm_landuse_polygon` | `landuse.tmp_cemetery_ranked` | polygon | 9–13 | Yes |
 | `export.cemetery_label` | `024_cemetery.sql` | `osm.osm_landuse_polygon` | `landuse.tmp_cemetery_ranked` | point | 9–13 | Yes |
 | `export.stadium_polygon` | `025_sports.sql` | `osm.osm_builtup_area`<br/>`osm.osm_park_polygon` | — | polygon | 9–13 | Yes |
@@ -530,7 +580,7 @@ flowchart LR
 | `export.grain_polygon` | `015_grain_storage.sql` | `osm.osm_utility_polygon`<br/>`osm.osm_utility_point` | `infrastructure.grain_srf`<br/>`infrastructure.grain_point`<br/>`infrastructure.grain_srf_pnt` | polygon | 9–13 | Yes |
 | `export.grain_point` | `015_grain_storage.sql` | `osm.osm_utility_polygon`<br/>`osm.osm_utility_point` | `infrastructure.grain_srf`<br/>`infrastructure.grain_point`<br/>`infrastructure.grain_srf_pnt` | point | 9–13 | Yes |
 | `export.utility_point` | `017_utility_point.sql` | `osm.osm_utility_point`<br/>`osm.osm_building_polygon`<br/>`aux_data.ne_10m_land` | — | point | 9–13 | Yes |
-| `export.powerline_line` | `018_powerline.sql` | `osm.osm_utility_linestring` | — | linestring | 9–13 | Yes |
+| `export.powerline_line` | `018_powerline.sql` | `osm.osm_utility_linestring` | — | linestring | 8–13 | Yes |
 | `export.power_station_polygon` | `019_power_station.sql` | `osm.osm_utility_polygon` | `infrastructure.power_station` | polygon | 9–13 | Yes |
 | `export.power_station_label` | `019_power_station.sql` | `osm.osm_utility_polygon` | `infrastructure.power_station` | point | 9–13 | Yes |
 | `export.pumping_station_polygon` | `020_pumping_station.sql` | `osm.osm_utility_polygon` | `infrastructure.pumping_station` | polygon | 9–13 | Yes |

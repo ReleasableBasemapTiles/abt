@@ -194,3 +194,28 @@ reader pool (and so its descriptor use) directly instead:
 ```bash
 TIPPECANOE_MAX_THREADS=32 ./tile.sh /path/to/data_dir
 ```
+
+# Overture land cover extract
+
+`land_cover_extract.sh` builds the extract that
+`import/aux_data/overture_land_cover.json` downloads: Overture's small-scale
+land cover band and its detailed urban areas, from one `base/land_cover`
+release. It runs once per release, outside the pipeline, and its zip is
+hosted for builds to download like any other aux source. The pipeline itself
+never reads Overture land cover.
+```bash
+./land_cover_extract.sh /path/to/data_dir [jobs]
+# -> data_dir/overture_land_cover.fgb (+ .release)
+#    data_dir/overture_land_cover_<release>.zip, to host
+```
+
+The release defaults to the one the hosted zip was built from; set
+`OVERTURE_RELEASE` to extract another, then host its zip and update the aux
+config's `url`. The rows kept (~4% of the ~109 GB release) are spread
+through every parquet row group, so streaming them from S3 means fetching
+nearly all of it at DuckDB's ~7 MB/s: hours. The script downloads the
+parquet with `aws s3 sync` instead, which saturates the link, and runs the
+filter locally in minutes.
+
+The script only touches `data_dir`. The parquet (~109 GB) is deleted after a
+good extract unless `KEEP_PARQUET=1`.

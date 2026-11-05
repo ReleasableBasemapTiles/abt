@@ -15,6 +15,7 @@ metadata = {
         "<a href='https://fieldmaps.io'>FieldMaps</a> "
         "<a href='https://www.naturalearthdata.com'>Natural Earth</a> "
         "<a href='https://overturemaps.org'>Overture Maps Foundation</a> "
+        "<a href='https://esa-worldcover.org'>ESA WorldCover</a> "
         "<a href='https://www.usgs.gov'>USGS</a> "
         "<a href='https://www.nga.mil'>National Geospatial-Intelligence Agency</a> "
         "<a href='https://ourairports.com'>OurAirports</a>"
@@ -38,6 +39,11 @@ metadata = {
             "name": "Overture Maps Foundation",
             "license": "ODbL 1.0",
             "url": "https://overturemaps.org/resources/license/"
+        },
+        {
+            "name": "ESA WorldCover (via Overture Maps Foundation land cover)",
+            "license": "CC BY 4.0",
+            "url": "https://docs.overturemaps.org/attribution/"
         },
         {
             "name": "Natural Earth",

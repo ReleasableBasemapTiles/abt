@@ -1,0 +1,63 @@
+{
+    "folder_name": "ne_bathymetry",
+    "url": "https://naciscdn.org/naturalearth/10m/physical/ne_10m_bathymetry_all.zip",
+    "type": "shp",
+    "zipped": true,
+    "aux_load": [
+        {
+            "aux_file_name": "ne_10m_bathymetry_A_10000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_a_10000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_B_9000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_b_9000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_C_8000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_c_8000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_D_7000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_d_7000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_E_6000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_e_6000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_F_5000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_f_5000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_G_4000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_g_4000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_H_3000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_h_3000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_I_2000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_i_2000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_J_1000.shp",
+            "aux_layer_name": "ne_10m_bathymetry_j_1000",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        },
+        {
+            "aux_file_name": "ne_10m_bathymetry_K_200.shp",
+            "aux_layer_name": "ne_10m_bathymetry_k_200",
+            "aux_load_options": "-nlt MULTIPOLYGON"
+        }
+    ]
+}

@@ -27,6 +27,7 @@ the same dict `bundler` writes into the final `.mbtiles`.
 | `fieldmaps_adm2_lines` | [https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_lines.gpkg.zip](https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_lines.gpkg.zip) | gpkg | `aux_data.fieldmaps_adm2_lines` |
 | `fieldmaps_adm2_points` | [https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_points.gpkg.zip](https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_points.gpkg.zip) | gpkg | `aux_data.fieldmaps_adm2_points` |
 | `fieldmaps_adm2_polygons` | [https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_polygons.gpkg.zip](https://data.fieldmaps.io/edge-matched/humanitarian/intl/adm2_polygons.gpkg.zip) | gpkg | `aux_data.fieldmaps_adm2_polygons` |
+| `ne_bathymetry` | [https://naciscdn.org/naturalearth/10m/physical/ne_10m_bathymetry_all.zip](https://naciscdn.org/naturalearth/10m/physical/ne_10m_bathymetry_all.zip) | shp | `aux_data.ne_10m_bathymetry_a_10000`, `aux_data.ne_10m_bathymetry_b_9000`, `aux_data.ne_10m_bathymetry_c_8000`, `aux_data.ne_10m_bathymetry_d_7000`, `aux_data.ne_10m_bathymetry_e_6000`, `aux_data.ne_10m_bathymetry_f_5000`, `aux_data.ne_10m_bathymetry_g_4000`, `aux_data.ne_10m_bathymetry_h_3000`, `aux_data.ne_10m_bathymetry_i_2000`, `aux_data.ne_10m_bathymetry_j_1000`, `aux_data.ne_10m_bathymetry_k_200` |
 | `ne_physical_centerlines` | `static_data/ne_physical_centerlines.fgb.zip` (bundled in-repo) | fgb | `aux_data.ne_physical_centerlines` |
 | `natural_earth_10m` | [https://naciscdn.org/naturalearth/packages/natural_earth_vector.gpkg.zip](https://naciscdn.org/naturalearth/packages/natural_earth_vector.gpkg.zip) | gpkg | `aux_data.ne_10m_admin_0_countries`, `aux_data.ne_10m_glaciated_areas`, `aux_data.ne_10m_geography_regions_polys`, `aux_data.ne_10m_antarctic_ice_shelves_polys`, `aux_data.ne_10m_geography_marine_polys`, `aux_data.ne_10m_land`, `aux_data.ne_10m_populated_places`, `aux_data.ne_50m_lakes`, `aux_data.ne_50m_ocean`, `aux_data.ne_10m_lakes` |
 | `nga_geonames_administrative_regions` | [https://geonames.nga.mil/geonames/GNSData/fc_files/Administrative_Regions.zip](https://geonames.nga.mil/geonames/GNSData/fc_files/Administrative_Regions.zip) | txt | `aux_data.nga_geonames_administrative_regions` |
@@ -38,6 +39,7 @@ the same dict `bundler` writes into the final `.mbtiles`.
 | `osm_ocean_simplified` | [https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip](https://osmdata.openstreetmap.de/download/simplified-water-polygons-split-3857.zip) | shp | `aux_data.osm_ocean_simplified` |
 | `ourairports_airports` | [https://davidmegginson.github.io/ourairports-data/airports.csv](https://davidmegginson.github.io/ourairports-data/airports.csv) | csv | `aux_data.ourairports_airports` |
 | `ourairports_runways` | [https://davidmegginson.github.io/ourairports-data/runways.csv](https://davidmegginson.github.io/ourairports-data/runways.csv) | csv | `aux_data.ourairports_runways` |
+| `overture_land_cover` | [https://huggingface.co/datasets/myerste/rbt-overture-small-scale-landcover/resolve/main/overture_land_cover_2026-10-21.0.zip](https://huggingface.co/datasets/myerste/rbt-overture-small-scale-landcover/resolve/main/overture_land_cover_2026-10-21.0.zip) | fgb | `aux_data.overture_land_cover` |
 | `usgs_domestic_names` | [https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_National_Text.zip](https://prd-tnm.s3.amazonaws.com/StagedProducts/GeographicNames/DomesticNames/DomesticNames_National_Text.zip) | txt | `aux_data.usgs_domestic_names` |
 
 OSM data itself (the other input alongside these auxiliary sources) is loaded via [imposm mappings](../schema/osm-mappings.md), not an `aux_data/*.json` config, and isn't listed above.
@@ -51,11 +53,12 @@ Per `tile-metadata/metadata.py`, **Releasable Basemap Tiles (RBT)** combines the
 | [OpenStreetMap](https://www.openstreetmap.org/copyright) | ODbL 1.0 |
 | [FieldMaps](https://fieldmaps.io/data/) | ODbL 1.0 |
 | [Overture Maps Foundation](https://overturemaps.org/resources/license/) | ODbL 1.0 |
+| [ESA WorldCover (via Overture Maps Foundation land cover)](https://docs.overturemaps.org/attribution/) | CC BY 4.0 |
 | [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) | Public Domain |
 | [OurAirports](https://ourairports.com/about.html) | Public Domain |
 
 Attribution string embedded in the bundled `.mbtiles`:
 
-> <a href='https://www.agc.army.mil'>Army Geospatial Center</a> <a href='https://www.openstreetmap.org/copyright'>© OpenStreetMap contributors</a> <a href='https://fieldmaps.io'>FieldMaps</a> <a href='https://www.naturalearthdata.com'>Natural Earth</a> <a href='https://overturemaps.org'>Overture Maps Foundation</a> <a href='https://www.usgs.gov'>USGS</a> <a href='https://www.nga.mil'>National Geospatial-Intelligence Agency</a> <a href='https://ourairports.com'>OurAirports</a>
+> <a href='https://www.agc.army.mil'>Army Geospatial Center</a> <a href='https://www.openstreetmap.org/copyright'>© OpenStreetMap contributors</a> <a href='https://fieldmaps.io'>FieldMaps</a> <a href='https://www.naturalearthdata.com'>Natural Earth</a> <a href='https://overturemaps.org'>Overture Maps Foundation</a> <a href='https://esa-worldcover.org'>ESA WorldCover</a> <a href='https://www.usgs.gov'>USGS</a> <a href='https://www.nga.mil'>National Geospatial-Intelligence Agency</a> <a href='https://ourairports.com'>OurAirports</a>
 
 Tags: `Army`, `Basemap`, `Tiles`, `Vector`, `Schema`, `Geospatial`, `OpenStreetMap`, `FieldMaps`, `Natural Earth`, `USGS`, `Overture Maps`, `NGA`, `OurAirports`
