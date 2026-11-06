@@ -26,13 +26,18 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
--- water.bathymetry_depth — one dissolved polygon per Natural Earth depth
+-- water.bathymetry_depth — everything at least each Natural Earth depth deep
 --
 -- Each Natural Earth file covers everything deeper than its depth, so the
 -- files overlap: the 3000 m polygon lies inside the 2000 m one, and so on.
--- (Not exactly: a deeper file pokes outside the next shallower one by up to
--- 0.04% of its area, measured on release 4.1.0. The bands below ignore that
--- slop.) Some source polygons are invalid, hence ST_MakeValid.
+-- Not exactly, though: a deeper file pokes outside the next shallower one by
+-- up to 0.04% of its area (release 4.1.0). Subtracting only the next deeper
+-- depth then let a band overlap the band two below it in thin strips along
+-- the contours, which drew as lines once a style blurred the fill. So each
+-- depth here is the union of its own file and every deeper one, built from
+-- the deepest up: every depth then lies exactly inside the shallower ones,
+-- and the bands below can't overlap. Some source polygons are invalid, hence
+-- ST_MakeValid.
 --
 -- The 0 m file (L_0) is not loaded. Its outer edge is Natural Earth's 1:10m
 -- coastline, up to ~1 km off the OSM coastline ocean_polygon uses, so the
@@ -43,24 +48,37 @@ COMMIT;
 BEGIN;
 DROP TABLE IF EXISTS water.bathymetry_depth CASCADE;
 CREATE TABLE water.bathymetry_depth AS
-SELECT
-    depth,
-    ST_Union(ST_MakeValid(geometry))::geometry(Geometry, 4326) AS geometry
-FROM (
-    SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_k_200
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_j_1000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_i_2000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_h_3000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_g_4000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_f_5000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_e_6000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_d_7000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_c_8000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_b_9000
-    UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_a_10000
-) src
-WHERE geometry IS NOT NULL
-GROUP BY depth;
+WITH RECURSIVE per_depth AS (
+    SELECT
+        depth,
+        ST_Union(ST_MakeValid(geometry))                            AS geometry,
+        row_number() OVER (ORDER BY depth DESC)                     AS rn
+    FROM (
+        SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_k_200
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_j_1000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_i_2000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_h_3000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_g_4000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_f_5000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_e_6000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_d_7000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_c_8000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_b_9000
+        UNION ALL SELECT depth, geometry FROM aux_data.ne_10m_bathymetry_a_10000
+    ) src
+    WHERE geometry IS NOT NULL
+    GROUP BY depth
+),
+-- Deepest first: each depth is its own polygon plus the one below it.
+cumulative AS (
+    SELECT rn, depth, geometry FROM per_depth WHERE rn = 1
+    UNION ALL
+    SELECT p.rn, p.depth, ST_Union(p.geometry, c.geometry)
+    FROM cumulative c
+    JOIN per_depth p ON p.rn = c.rn + 1
+)
+SELECT depth, geometry::geometry(Geometry, 4326) AS geometry
+FROM cumulative;
 COMMIT;
 
 
