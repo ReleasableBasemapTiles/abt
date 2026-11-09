@@ -50,7 +50,9 @@ AND (
 AND (
     cable_submarine_category IS NULL
     OR cable_submarine_category != 'ferry'
-);
+)
+-- Lines that aren't built yet stay out of the tiles (see 001_set_schema.sql).
+AND lifecycle_type NOT IN ('proposed', 'planned');
 
 CREATE INDEX idx_powerline_geometry ON export.powerline_line USING gist(geometry);
 CREATE INDEX idx_powerline_osm_id   ON export.powerline_line USING btree(osm_id);

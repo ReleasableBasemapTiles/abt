@@ -23,6 +23,8 @@ COMMIT;
 -- rail_line, powerline_line, runway_line):
 --   * lifecycle_type is the OSM lifecycle state: one of lifecycle_states(), or
 --     'intact'. railway=ruins counts as 'abandoned'.
+--   * 'proposed' and 'planned' are detected only so the line layers can drop
+--     them; they never reach the tiles. Keep them in lifecycle_states().
 --   * subclass is what the feature is (primary, rail, line, runway), never a
 --     lifecycle word; lifecycle_subject() resolves it.
 -- OSM records a lifecycle in three ways, all detected, in this order:

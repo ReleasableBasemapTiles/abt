@@ -175,7 +175,9 @@ SELECT
 FROM osm.osm_railway_linestring r
 LEFT JOIN transportation.railway_normalized n ON r.osm_id = n.osm_id
 WHERE NOT r.is_area
-  AND COALESCE(n.lifecycle_type, 'intact') != 'abandoned';
+  -- abandoned: too many features to tile without cluttering the map.
+  -- proposed/planned: not built yet, so not part of the basemap.
+  AND COALESCE(n.lifecycle_type, 'intact') NOT IN ('abandoned', 'proposed', 'planned');
 
 CREATE INDEX idx_railway_geometry ON export.rail_line USING gist(geometry);
 CREATE UNIQUE INDEX idx_railway_osm_id ON export.rail_line USING btree(osm_id);
