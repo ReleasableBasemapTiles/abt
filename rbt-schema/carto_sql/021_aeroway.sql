@@ -810,7 +810,9 @@ SELECT
     NULLIF(name,     '')                                                AS name,
     NULLIF(operator, '')                                                AS operator,
     geometry
-FROM osm.osm_aeroway_linestring;
+FROM osm.osm_aeroway_linestring
+-- Runways that aren't built yet stay out of the tiles (see 001_set_schema.sql).
+WHERE public.lifecycle_type(class, subclass, tags, 'aeroway') NOT IN ('proposed', 'planned');
 
 CREATE INDEX idx_runway_curve_geometry ON export.runway_line USING gist(geometry);
 CREATE INDEX idx_runway_curve_subclass ON export.runway_line USING btree(subclass);

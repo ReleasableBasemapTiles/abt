@@ -203,6 +203,10 @@ enriched AS (
     LEFT JOIN highway_fieldmap hf   ON h.id = hf.id
     LEFT JOIN highway_routes hr     ON h.osm_id = hr.osm_id
     WHERE NOT h.is_area
+      -- Roads that don't exist yet stay out of the tiles. lifecycle_type() still
+      -- has to recognise 'proposed'/'planned' (see 001_set_schema.sql), or a
+      -- highway=proposed way would fall through as an intact road.
+      AND public.lifecycle_type(h.class, h.subclass, h.tags, 'highway') NOT IN ('proposed', 'planned')
 ),
 base AS (
     -- Second layer: expressions that reference computed columns
