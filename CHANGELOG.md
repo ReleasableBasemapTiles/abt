@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Align multi-capital countries with the agreed capitals list
 - Keep natural=shingle in landcover_polygon
 - Qualify the hstore operator in lifecycle functions for postgres 17
+- Stop bathymetry depth bands overlapping along contours
+- Leave proposed and planned lines out of the road, rail, powerline and runway tiles
 
 ## [2.1.0] - 2026-09-29
 
