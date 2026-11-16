@@ -12,7 +12,7 @@ for the field reference and how to add a new one, or
 [Database Schema](database.md) for how each view is actually built, traced
 back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 
-63 layers total (62 enabled, 1 disabled).
+65 layers total (64 enabled, 1 disabled).
 
 | Layer ID | Geometry | Min Zoom | Max Zoom | Attributes | Tippecanoe flags | Status |
 |---|---|---|---|---|---|---|
@@ -38,6 +38,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `energy_label` | point | 9 | 13 | 9 | `--drop-rate=1` | enabled |
 | `energy_polygon` | polygon | 9 | 13 | 5 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `ferry_line` | linestring | 8 | 13 | 1 | `--simplify-only-low-zooms` | enabled |
+| `glacier_label` | point | 0 | 13 | 4 | `--drop-rate=1` | enabled |
 | `glacier_polygon` | polygon | 0 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
 | `grain_point` | point | 9 | 13 | 3 | `--drop-rate=1` | enabled |
 | `grain_polygon` | polygon | 9 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
@@ -50,6 +51,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `lock_label` | point | 9 | 13 | 1 | `--drop-rate=1` | enabled |
 | `lock_line` | linestring | 9 | 13 | 2 | `--simplify-only-low-zooms` | enabled |
 | `ocean_polygon` | polygon | 0 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit` | enabled |
+| `park_label` | point | 9 | 13 | 5 | `--drop-rate=1` | enabled |
 | `park_polygon` | polygon | 9 | 13 | 4 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `physical_labels` | linestring | 3 | 13 | 5 | `--drop-rate=1` | enabled |
 | `pier_line` | linestring | 12 | 13 | 4 | `--simplify-only-low-zooms` | enabled |

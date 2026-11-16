@@ -1,0 +1,21 @@
+{
+    "layer_id": "glacier_label",
+    "description": "One label point per named glacier or ice shelf, on its largest part.",
+    "geometry_type": "point",
+    "attributes": [
+        {"name": "min_label", "type": "int",    "description": "Lowest zoom at which to label the glacier: where its area is 32 px across."},
+        {"name": "area",      "type": "float",  "description": "Web Mercator area in m² (clipped at 85.0511° for polar ice)."},
+        {"name": "name",      "type": "string", "description": ""},
+        {"name": "source",    "type": "string", "description": "ne (Natural Earth) or osm."}
+    ],
+    "source_attribution": "",
+    "tippecanoe_options": {
+        "minimum_zoom": 0,
+        "maximum_zoom": 13,
+        "additional_flags": "--drop-rate=1",
+        "filter": {}
+    },
+    "ogr_export_options": {
+        "additional_flags": "-lco SPATIAL_INDEX=NO"
+    }
+}

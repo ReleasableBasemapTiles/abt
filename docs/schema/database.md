@@ -30,7 +30,7 @@ schema supports.
 | `aeroway` | `carto` (SQL transforms) | Intermediate staging tables/views for the `aeroway`-owned layer(s) below |
 | `dam` | `carto` (SQL transforms) | Intermediate staging tables/views for the `dam`-owned layer(s) below |
 | `poi` | `carto` (SQL transforms) | Intermediate staging tables/views for the `poi`-owned layer(s) below |
-| `export` | `carto` (SQL transforms) | 64 materialized views, 62 of which are tiled — see [Layer Registry](layers.md) |
+| `export` | `carto` (SQL transforms) | 66 materialized views, 64 of which are tiled — see [Layer Registry](layers.md) |
 
 ```mermaid
 flowchart LR
@@ -181,6 +181,8 @@ flowchart LR
     script_008_glacier --> inter_landcover_glacier_osm
     export_glacier_polygon["export.glacier_polygon"]
     script_008_glacier --> export_glacier_polygon
+    export_glacier_label["export.glacier_label"]
+    script_008_glacier --> export_glacier_label
     script_009_land_cover["Land Cover<br/>(009_land_cover.sql)"]
     osm_osm_landcover_polygon --> script_009_land_cover
     inter_landcover_preprocessed["landcover.preprocessed"]
@@ -212,6 +214,8 @@ flowchart LR
     osm_osm_landuse_polygon --> script_010_park
     export_park_polygon["export.park_polygon"]
     script_010_park --> export_park_polygon
+    export_park_label["export.park_label"]
+    script_010_park --> export_park_label
     script_029_physical_labels["Physical Labels<br/>(029_physical_labels.sql)"]
     aux_data_ne_physical_centerlines -->|"static — see carto_sql/static_data/"| script_029_physical_labels
     export_physical_labels["export.physical_labels"]
@@ -221,10 +225,12 @@ flowchart LR
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
 |---|---|---|---|---|---|---|
 | `export.glacier_polygon` | `008_glacier.sql` | `aux_data.ne_10m_antarctic_ice_shelves_polys`<br/>`aux_data.ne_10m_glaciated_areas`<br/>`osm.osm_landcover_polygon`<br/>`aux_data.osm_icesheet` | `landcover.glacier_ne`<br/>`landcover.glacier_osm` | polygon | 0–13 | Yes |
+| `export.glacier_label` | `008_glacier.sql` | `aux_data.ne_10m_antarctic_ice_shelves_polys`<br/>`aux_data.ne_10m_glaciated_areas`<br/>`osm.osm_landcover_polygon`<br/>`aux_data.osm_icesheet` | `landcover.glacier_ne`<br/>`landcover.glacier_osm` | point | 0–13 | Yes |
 | `export.landcover_polygon` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | polygon | 4–13 | Yes |
 | `export.landcover_label` | `009_land_cover.sql` | `osm.osm_landcover_polygon` | `landcover.preprocessed`<br/>`landcover.leveled`<br/>`landcover.z13_source`<br/>`landcover.z4_simplified`<br/>`landcover.dissolve_src` | point | 4–13 | Yes |
 | `export.landcover_small_polygon` | `009a_land_cover_small.sql` | `aux_data.overture_land_cover` | `landcover.small_leveled`<br/>`landcover.small_src`<br/>`landcover.small_urban` | polygon | 0–9 | Yes |
 | `export.park_polygon` | `010_park.sql` | `osm.osm_park_polygon`<br/>`osm.osm_landuse_polygon` | — | polygon | 9–13 | Yes |
+| `export.park_label` | `010_park.sql` | `osm.osm_park_polygon`<br/>`osm.osm_landuse_polygon` | — | point | 9–13 | Yes |
 | `export.physical_labels` | `029_physical_labels.sql` | `aux_data.ne_physical_centerlines` (static — see carto_sql/static_data/) | — | linestring | 3–13 | Yes |
 
 ## Boundaries & places
