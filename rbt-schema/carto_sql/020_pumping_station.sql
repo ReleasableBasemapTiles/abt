@@ -65,7 +65,8 @@ SELECT
     substance,
     pumping_station,
     area,
-    ST_PointOnSurface(geometry)::geometry(Point, 4326)                  AS geometry
+    MinLabel(area)                                                      AS min_label,
+    LabelPoint(geometry)::geometry(Point, 4326)                         AS geometry
 FROM infrastructure.pumping_station;
 
 CREATE INDEX idx_pumping_station_label_geometry ON export.pumping_station_label USING gist(geometry);

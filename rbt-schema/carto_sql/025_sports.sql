@@ -40,7 +40,8 @@ SELECT
     class,
     subclass,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
-    ST_PointOnSurface(geometry)::geometry(Point, 4326)                  AS geometry
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                     AS min_label,
+    LabelPoint(geometry)::geometry(Point, 4326)                         AS geometry
 FROM export.stadium_polygon;
 
 CREATE INDEX idx_stadium_labels_geometry ON export.stadium_label USING gist(geometry);

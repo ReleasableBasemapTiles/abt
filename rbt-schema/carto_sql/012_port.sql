@@ -119,13 +119,16 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
--- export.port_label — label points for port polygons
+-- export.port_label — one label point per port, on its largest part
+-- (see "Label points" in 001_set_schema.sql). It used to have a point per
+-- part, with v1.0 rank/contained/area_part for styles to thin them; a port
+-- inside a larger one now gets its own label from its own min_label.
 -- -----------------------------------------------------------------------------
 
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.port_label CASCADE;
 CREATE MATERIALIZED VIEW export.port_label AS
-SELECT
+SELECT DISTINCT ON (osm_id)
     osm_id,
     name,
     class,
@@ -136,16 +139,14 @@ SELECT
     access,
     port_type,
     area,
-    area_part,
-    NULLIF(rank, 0)                                                     AS rank,
-    overlap,
-    NULLIF(contained, 0)                                                AS contained,
+    MinLabel(area)                                                      AS min_label,
     ST_PointOnSurface(geometry)::geometry(Point, 4326)                  AS geometry
-FROM infrastructure.port_surface_enhanced;
+FROM infrastructure.port_surface_enhanced
+-- The rows are the ports' parts: keep each port's largest.
+ORDER BY osm_id, area_part DESC, fid;
 
 CREATE INDEX idx_port_label_geometry ON export.port_label USING gist(geometry);
 CREATE INDEX idx_port_label_osm_id   ON export.port_label USING btree(osm_id);
 CREATE INDEX idx_port_label_subclass ON export.port_label USING btree(subclass);
-CREATE INDEX idx_port_label_rank     ON export.port_label USING btree(rank);
 CREATE INDEX idx_port_label_name     ON export.port_label USING btree(name) WHERE name IS NOT NULL;
 COMMIT;

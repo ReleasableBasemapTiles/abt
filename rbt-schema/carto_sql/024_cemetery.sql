@@ -79,11 +79,12 @@ WHERE NOT EXISTS (
 CREATE INDEX idx_cemetery_geometry ON export.cemetery_polygon USING gist(geometry);
 
 -- -----------------------------------------------------------------------------
--- Step 3: Create cemetery_label view (label points)
+-- Step 3: Create cemetery_label view — one label point per cemetery, on its
+-- largest part (see "Label points" in 001_set_schema.sql). It used to have a
+-- point per part, with v1.0 rank/contained/area_part for styles to thin them.
 -- -----------------------------------------------------------------------------
 CREATE MATERIALIZED VIEW export.cemetery_label AS
-SELECT
-    fid,
+SELECT DISTINCT ON (osm_id)
     osm_id,
     name,
     class,
@@ -92,10 +93,11 @@ SELECT
     denomination,
     cemetery,
     area,
-    area_part,
-    rank,
-    contained,
+    MinLabel(area)                                                      AS min_label,
     ST_PointOnSurface(geometry)::geometry(Point, 4326)                  AS geometry
-FROM export.cemetery_polygon;
+FROM export.cemetery_polygon
+-- The rows are the cemeteries' parts: keep each cemetery's largest. (rank
+-- can't pick it: it ranks parts by name across all cemeteries.)
+ORDER BY osm_id, area_part DESC, fid;
 
 CREATE INDEX idx_cemetery_label_geometry ON export.cemetery_label USING gist(geometry);

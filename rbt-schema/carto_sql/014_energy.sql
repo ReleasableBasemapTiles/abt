@@ -160,7 +160,8 @@ SELECT
     NULL::text                                                          AS mineshaft_type,
     NULL::boolean                                                       AS disused,
     area,
-    ST_PointOnSurface(geometry)::geometry(Point, 4326)                  AS geometry
+    MinLabel(area)                                                      AS min_label,
+    LabelPoint(geometry)::geometry(Point, 4326)                         AS geometry
 FROM infrastructure.energy_field
 WHERE name IS NOT NULL
    OR ref IS NOT NULL
@@ -179,6 +180,7 @@ SELECT
     NULLIF(mineshaft_type, '')                                          AS mineshaft_type,
     CASE WHEN disused THEN true ELSE NULL END                           AS disused,
     NULL::real                                                          AS area,
+    0                                                                   AS min_label,
     geometry
 FROM osm.osm_utility_point
 WHERE subclass = 'mineshaft';

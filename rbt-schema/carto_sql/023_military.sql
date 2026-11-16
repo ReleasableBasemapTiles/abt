@@ -33,6 +33,8 @@ SELECT
     NULLIF(tags -> 'airmark', '')                                       AS airmark,
     NULLIF(tags -> 'radar', '')                                         AS radar,
     NULLIF(tags -> 'description', '')                                   AS description,
+    NULL::real                                                          AS area,
+    0                                                                   AS min_label,
     geometry
 FROM osm.osm_utility_point
 WHERE tower_type = 'radar'
@@ -58,7 +60,9 @@ SELECT
     NULLIF(tags -> 'airmark', '')                                       AS airmark,
     NULLIF(tags -> 'radar', '')                                         AS radar,
     NULLIF(tags -> 'description', '')                                   AS description,
-    ST_PointOnSurface(geometry)::geometry(Point, 4326)                  AS geometry
+    ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                     AS min_label,
+    LabelPoint(geometry)::geometry(Point, 4326)                         AS geometry
 FROM osm.osm_building_polygon
 WHERE tower_type = 'radar';
 
@@ -103,7 +107,8 @@ SELECT
     operstatus,
     sitename,
     state,
-    ST_PointOnSurface(geometry)                                         AS geometry
+    MinLabel(area)                                                      AS min_label,
+    LabelPoint(geometry)                                                AS geometry
 FROM export.us_military_installations_polygon
 
 UNION ALL
@@ -118,6 +123,7 @@ SELECT
     NULL::text                                                           AS operstatus,
     'US Naval Base Guantanamo Bay'::text                                 AS sitename,
     NULL::text                                                           AS state,
+    MinLabel(116500000)                                                  AS min_label,
     ST_SetSRID(ST_MakePoint(-75.16, 19.9175), 4326)                     AS geometry;
 
 CREATE INDEX idx_us_mil_inst_labels_geometry ON export.us_military_installations_label USING gist(geometry);

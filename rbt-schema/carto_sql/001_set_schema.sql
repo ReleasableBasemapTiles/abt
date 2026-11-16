@@ -19,6 +19,77 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
+-- Label points — one rule for every point label layer made from polygons:
+--   * one point per feature, on its largest part (LabelPoint). The point used
+--     to go on whichever part ST_PointOnSurface picked, or, for ports and
+--     cemeteries, one point per part, which styles thinned with the v1.0
+--     rank/contained/area_part fields.
+--   * area: the feature's Web Mercator area in m², which is its area on
+--     screen at any latitude.
+--   * min_label: the lowest zoom at which that area is 32 px across
+--     (MinLabel), so a style filter is just zoom >= min_label.
+-- Their PostGIS calls are schema-qualified for the reason given at
+-- lifecycle_type below: PostgreSQL 17+ runs function bodies with search_path
+-- locked to pg_catalog while it builds a materialized view.
+-- -----------------------------------------------------------------------------
+
+BEGIN;
+-- Web Mercator area in m². Polygons reaching past Web Mercator's latitude
+-- limit (Antarctic ice reaches 90°S) are clipped to it first, since the poles
+-- have no Mercator y.
+CREATE OR REPLACE FUNCTION public.MercatorArea(g public.geometry)
+RETURNS double precision
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE
+AS $func$
+SELECT CASE
+    WHEN g IS NULL THEN NULL
+    WHEN public.ST_YMax(g) > 85.0511 OR public.ST_YMin(g) < -85.0511
+        THEN public.ST_Area(public.ST_Transform(public.ST_Intersection(
+                 g, public.ST_MakeEnvelope(-180, -85.0511, 180, 85.0511, 4326)), 3857))
+    ELSE public.ST_Area(public.ST_Transform(g, 3857))
+END;
+$func$;
+
+-- The largest polygon part of a (multi)polygon in EPSG:4326, by Web Mercator
+-- area. NULL if it has no polygon part.
+CREATE OR REPLACE FUNCTION public.LargestPart(g public.geometry)
+RETURNS public.geometry
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE
+AS $func$
+SELECT d.geom
+FROM public.ST_Dump(public.ST_CollectionExtract(g, 3)) AS d
+ORDER BY public.MercatorArea(d.geom) DESC NULLS LAST
+LIMIT 1;
+$func$;
+
+-- Where a feature's label goes: a point inside its largest part. A point
+-- geometry is returned unchanged.
+CREATE OR REPLACE FUNCTION public.LabelPoint(g public.geometry)
+RETURNS public.geometry
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE
+AS $func$
+SELECT public.ST_PointOnSurface(COALESCE(public.LargestPart(g), g));
+$func$;
+
+-- The lowest zoom at which a feature of this Web Mercator area is 32 px
+-- across on 512 px tiles: sqrt(area) / ZRes(z + 1) >= 32, where ZRes(z + 1)
+-- is the m/px of a 512 px tile at zoom z. A 1 km² feature labels from z12.
+-- 0 for no area (a feature mapped as a point) and for anything that big at
+-- z0. There's no upper cap: tiles stop at z13, but styles overzoom them, so
+-- a feature that reaches 32 px only at z15 labels from z15.
+CREATE OR REPLACE FUNCTION public.MinLabel(area double precision)
+RETURNS integer
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE
+AS $func$
+SELECT CASE
+    WHEN area IS NULL OR area <= 0 THEN 0
+    ELSE GREATEST(0, ceil(ln(32 * 40075016.6855785 / (512 * sqrt(area))) / ln(2)))::integer
+END;
+$func$;
+COMMIT;
+
+
+-- -----------------------------------------------------------------------------
 -- Lifecycle — one scheme for every line layer that has one (road_line,
 -- rail_line, powerline_line, runway_line):
 --   * lifecycle_type is the OSM lifecycle state: one of lifecycle_states(), or

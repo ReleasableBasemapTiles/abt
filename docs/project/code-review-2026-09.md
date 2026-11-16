@@ -113,7 +113,7 @@ These need a decision rather than a fix, or change the output in ways the mainta
 ### SQL that changes the output
 
 - `021_aeroway.sql:535-630`: the runway-count fan-out moves airports between categories. `:511-521` matches airports by name alone, worldwide. `:353` and `:377` take area and length in Web Mercator, which overstates length by sec(latitude).
-- `024_cemetery.sql:40`: `RANK()` partitions by `name` where it should partition by `osm_id`, as `012` does; `contained` is always 0.
+- `024_cemetery.sql:40`: `RANK()` partitions by `name` where it should partition by `osm_id`, as `012` does; `contained` is always 0. *No longer reaches the tiles:* since the label points standard, `cemetery_label` takes each cemetery's largest part by `osm_id`, and no cemetery layer exports `rank` or `contained`.
 - `020_pumping_station.sql:27`: `class != 'power'` pulls every utility polygon into pumping stations.
 - `003_road.sql:184`: `[A-Z]{2} ` marks NH, SH and similar road refs as US routes. `:71-92`: route-relation members mix node, way and relation ids, because the mapping has no `member_type`. `:134`: a `demolished` branch that can't match.
 - `006_geonames_hydrographic.sql:131-144` deduplicates labels by name alone, and `:148` renames Lake Ontario to "Lake America"; confirm that's intended.

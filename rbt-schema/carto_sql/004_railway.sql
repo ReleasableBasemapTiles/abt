@@ -86,7 +86,9 @@ SELECT
         ELSE NULLIF(TRIM(yard_size), '')
     END                                                             AS yard_size,
     NULLIF(TRIM(yard_purpose), '')                                  AS yard_purpose,
-    ST_PointOnSurface(geometry)::geometry(Point, 4326)              AS geometry
+    ST_Area(ST_Transform(geometry, 3857))::real                     AS area,
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                 AS min_label,
+    LabelPoint(geometry)::geometry(Point, 4326)                     AS geometry
 FROM osm.osm_transportation_polygon
 WHERE subclass = 'yard' OR LOWER(service) = 'yard'
 
@@ -110,6 +112,8 @@ SELECT
         ELSE NULLIF(TRIM(yard_size), '')
     END                                                             AS yard_size,
     NULLIF(TRIM(yard_purpose), '')                                  AS yard_purpose,
+    NULL::real                                                      AS area,
+    0                                                               AS min_label,
     geometry
 FROM osm.osm_transportation_point
 WHERE subclass = 'yard' OR LOWER(service) = 'yard';
@@ -232,7 +236,8 @@ SELECT
     NULLIF(station, '')                                             AS station,
     NULLIF(service, '')                                             AS service,
     ST_Area(ST_Transform(geometry, 3857))::real                     AS area,
-    ST_PointOnSurface(geometry)::geometry(Point, 4326)              AS geometry
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                 AS min_label,
+    LabelPoint(geometry)::geometry(Point, 4326)                     AS geometry
 FROM osm.osm_transportation_polygon
 WHERE subclass IN ('station', 'bus_station', 'ferry_terminal', 'rest_area', 'services', 'platform');
 

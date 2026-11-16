@@ -77,7 +77,8 @@ SELECT
     generator_output,
     generator_plant,
     area,
-    ST_PointOnSurface(geometry)::geometry(Point, 4326)                  AS geometry
+    MinLabel(area)                                                      AS min_label,
+    LabelPoint(geometry)::geometry(Point, 4326)                         AS geometry
 FROM infrastructure.power_station;
 
 CREATE INDEX idx_power_station_label_geometry ON export.power_station_label USING gist(geometry);

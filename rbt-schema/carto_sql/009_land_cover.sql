@@ -527,7 +527,9 @@ SELECT
         WHEN area >= power(zres(11), 2) THEN 11
         ELSE 12
     END                                                             AS z_level,
-    ST_PointOnSurface(
+    -- preprocessed is in EPSG:3857, so area is already Web Mercator.
+    MinLabel(area)                                                  AS min_label,
+    LabelPoint(
         ST_Transform(geometry, 4326)
     )::geometry(Point, 4326)                                        AS geometry
 FROM landcover.preprocessed
