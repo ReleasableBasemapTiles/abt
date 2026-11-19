@@ -12,7 +12,7 @@
         {"name": "osm_aerodrome_area", "type": "float",  "description": ""},
         {"name": "rank",               "type": "string", "description": ""},
         {"name": "runway_length_ft",   "type": "string", "description": ""},
-        {"name": "runway_surface",     "type": "string", "description": ""},
+        {"name": "runway_surface",     "type": "string", "description": "Surface class of the airport's longest open runway: hard, soft, water or unknown, grouped as the TM DPS runway rules do"},
         {"name": "type",               "type": "string", "description": ""}
     ],
     "source_attribution": "",

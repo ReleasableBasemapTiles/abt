@@ -341,6 +341,50 @@ COMMIT;
 
 
 -- -----------------------------------------------------------------------------
+-- aeroway.runway_surface_class() — hard / soft / water / unknown for a surface
+-- -----------------------------------------------------------------------------
+-- export.airport_label publishes runway_surface as this class, not as a
+-- material. Styles label runways by class: the TM DPS Portrayal Catalog
+-- (Runway GB055, rule PL-00428) annotates soft and unknown surfaces and leaves
+-- hard ones unlabeled. The mapping table above doesn't cover every raw value,
+-- and unmatched values used to reach the tiles as-is, so styles had to list
+-- every raw value (Eartth, Murram, Turf/Sand, ...) and keep up with each data
+-- build. Four fixed values are all the styles need.
+--
+-- Input is the standardized code where the mapping found one, else the raw
+-- value. Codes are classed as DPS does: its soft list (BIT, CLA, COM, COR,
+-- GRE, GRS, GVL, ICE, LAT, MAC, MEM, MIX, PSP, SAN, SNO) plus Wood, which
+-- ZI019_ASU also lists; TURF and UNPAVED are ours. Unmatched raw values are
+-- classed by keyword. Soft is tested first, because 'unpaved' contains
+-- 'paved', and asphalt or concrete values never get here (the pattern rows
+-- map them). \m and \M are PostgreSQL's word boundaries; \b is not.
+BEGIN;
+CREATE OR REPLACE FUNCTION aeroway.runway_surface_class(surface text)
+RETURNS text
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE
+AS $func$
+SELECT CASE
+    WHEN s = '' OR s IN ('U', 'UNK', 'UNKNOWN')                         THEN 'unknown'
+    WHEN s IN ('ASP', 'CON', 'PER', 'BRI', 'ALUM-DECK')                 THEN 'hard'
+    WHEN s IN ('BIT', 'CLA', 'COM', 'COR', 'GRE', 'GRS', 'GVL', 'ICE', 'LAT', 'MAC',
+               'MEM', 'MIX', 'PSP', 'SAN', 'SNO', 'TURF', 'UNPAVED', 'WOOD') THEN 'soft'
+    WHEN s = 'WAT' OR l ~ 'water'                                       THEN 'water'
+    WHEN l ~ ('gras|turf|torf|\msod\M|dirt|e[ae]r+t+h|soil|loam|\mmud|clay|sand|gravel'
+              '|grvl|\mgvl\M|\mgrs\M|coral|laterit|murram|maicillo|saibro|pi[cç]a+r+a'
+              '|shale|stone|pebble|snow|\mice\M|salt|dry lake|steel|marston|\mmats?\M'
+              '|metal|\mpsp\M|\mtar|bitum|chip ?seal|macadam|unpaved|unsealed|compact'
+              '|graded|terrain|treated|aggregate|membrane|wood'
+              '|\m(lat|cla|cor|gre|san|sno|bit|mac|mem|mix|com)\M')       THEN 'soft'
+    WHEN l ~ 'asph|asfalt|concrete|\mconc|cement|paved|brick|alum|\mdeck\M|\mper\M' THEN 'hard'
+    ELSE 'unknown'
+END
+FROM (SELECT upper(trim(COALESCE(surface, ''))) AS s,
+             lower(trim(COALESCE(surface, ''))) AS l) x;
+$func$;
+COMMIT;
+
+
+-- -----------------------------------------------------------------------------
 -- aeroway.aerodrome_polygon — OSM aerodrome boundary polygons with area
 -- -----------------------------------------------------------------------------
 
@@ -701,7 +745,8 @@ airports AS (
 )
 SELECT
     airport_id, ident,
-    runway_length_ft, runway_width_ft, runway_surface,
+    runway_length_ft, runway_width_ft,
+    aeroway.runway_surface_class(runway_surface) AS runway_surface,
     runway_lighted, runway_closed,
     runway_le_ident, runway_le_heading,
     runway_he_ident, runway_he_heading,
