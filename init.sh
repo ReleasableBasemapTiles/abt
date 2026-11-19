@@ -33,7 +33,9 @@ usage() {
 Usage: init.sh [options]
 
 Runs download, import and carto once, then export, bundler and an S3 upload
-for each projection, the projections in parallel.
+for each projection, the projections in parallel. Only one init.sh can run
+per run directory (ABT_RUN_DIR) at a time; a second exits before starting
+any work.
 See docs/walkthroughs/init-sh.md.
 
 Options:
@@ -403,6 +405,43 @@ if [[ "${#NON_3857_PROJECTIONS[@]}" -gt 0 ]]; then
     echo "[preflight] checking PROJ agreement across engines for ${NON_3857_PROJECTIONS[*]}"
     "$PYTHON" "$OVERTURE_SCRIPTS/check_proj_agreement.py" "${NON_3857_PROJECTIONS[@]}"
 fi
+
+# One init.sh at a time per run directory. Two runs sharing $WORKSPACE
+# download to the same files and write the same flatgeobuf/, mbtiles/ and
+# bundled/ (and each other projection's <dir>-<srs>, which is named after
+# it), and no stage below notices. Taken here, after the checks above and
+# before the first thing that starts real work (the Overture launch below).
+#
+# The lock is in the run directory, not the data root, because that is what
+# a run is certain to write. With ABT_RUN_DIR set, nothing has to exist at
+# $ABT_WORKSPACE_DIR, and two runs given one ABT_RUN_DIR collide whatever
+# their data roots are. It does not cover the database: two runs with
+# different run directories and the same PG_DB still collide.
+#
+# Same shape as rbt-schema/scripts/overture/lock.sh: fail at once rather than
+# wait, name the holder, and let the kernel release the lock however this
+# process ends. Descriptor 8, since the Overture scripts take their own lock
+# on 9. Every command init.sh starts below inherits the descriptor,
+# deliberately: if init.sh is killed outright, a stage (abt-tools.py), an
+# Overture script or an upload it left running still holds the lock. The
+# tools a stage starts do not, because Python closes inherited descriptors
+# in its children: an imposm or tippecanoe orphaned by a killed stage keeps
+# writing with the lock released.
+command -v flock >/dev/null 2>&1 || { echo "ERROR: flock (util-linux) is required to lock $WORKSPACE but was not found on PATH" >&2; exit 1; }
+INIT_LOCK="$WORKSPACE/.init.lock"
+mkdir -p "$WORKSPACE" || { echo "ERROR: cannot create the run directory $WORKSPACE (set ABT_RUN_DIR, or ABT_WORKSPACE_DIR for the default)" >&2; exit 1; }
+# <> (read-write, no truncate), as in lock.sh: a failed acquire still has to
+# read the holder's PID out of the file.
+exec 8<>"$INIT_LOCK"
+if ! flock -n 8; then
+    lock_holder="$(cat "$INIT_LOCK" 2>/dev/null || true)"
+    echo "ERROR: another init.sh run is using $WORKSPACE (PID ${lock_holder:-unknown} holds $INIT_LOCK)." >&2
+    echo "       Wait for it to finish, or stop it. If that PID has gone, something it started is still running:" >&2
+    echo "       pgrep -af 'abt-tools.py|fetch.sh|shard.sh|tile.sh|duckdb|tippecanoe|aws s3'" >&2
+    exit 1
+fi
+truncate -s 0 "$INIT_LOCK"
+echo "$$" >&8
 
 # Waits for each given "label:pid" background job and reports its outcome.
 # Always waits for every one of them -- even after an earlier failure --

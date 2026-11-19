@@ -345,6 +345,14 @@ variables whose defaults match a `setup_ubuntu.sh` host, and `bash init.sh --hel
 Unless `--no-upload` is passed, the script stops immediately if `aws` or the AWS STS variables
 are missing.
 
+Only one `init.sh` runs per run directory at a time. After its preflight checks it takes a
+`flock` on `.init.lock` in the run directory (`ABT_RUN_DIR`, by default
+`$ABT_WORKSPACE_DIR/run-planet`), on descriptor 8 (the Overture scripts use 9), and a second run
+exits naming the first. The stage commands, the Overture scripts and the uploads inherit the
+descriptor, so the lock outlives a killed `init.sh` while any of them runs. The tools a stage
+starts don't inherit it (Python closes descriptors in its children), and the lock knows nothing
+about the database: two runs with different run directories and one `PG_DB` still collide.
+
 ## Overture buildings
 
 The scripts in `rbt-schema/scripts/overture/` build the buildings layer without Postgres:

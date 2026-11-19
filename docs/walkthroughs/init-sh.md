@@ -101,6 +101,27 @@ Before any multi-hour work starts, `init.sh` checks (and exits immediately on fa
 - If `--contours` was passed: `sqlite3` is on `PATH`, plus the per-file CRS-tag checks described above.
 - If `--from export` was passed: `ogrinfo` is on `PATH`, plus the `.fgb` existence/readability checks described above.
 - Whenever the projection list has a code other than `3857`, as the default list does: `check_proj_agreement.py` confirms that the reachable engines that reproject (the GDAL behind `ogr2ogr`, and PostGIS) agree with pyproj on that code's coordinates; DuckDB's result is only reported. This runs regardless of `--from`/`--overture` -- see [Overture Buildings](../pipeline/overture.md#proj-version-agreement).
+- Last, that no other `init.sh` is running on this run directory. See [One run at a time](#one-run-at-a-time).
+
+## One run at a time
+
+Two `init.sh` runs sharing a run directory would download to the same files and write the same `flatgeobuf/`, `mbtiles/` and `bundled/`, and no stage would notice. So once its checks pass, `init.sh` takes a `flock` on `.init.lock` in the run directory (`ABT_RUN_DIR`, by default `$ABT_WORKSPACE_DIR/run-planet`) and holds it until it exits. A second run on the same run directory stops there, before starting any work:
+
+```text
+ERROR: another init.sh run is using /rbt/run-planet (PID 12345 holds /rbt/run-planet/.init.lock).
+       Wait for it to finish, or stop it. If that PID has gone, something it started is still running:
+       pgrep -af 'abt-tools.py|fetch.sh|shard.sh|tile.sh|duckdb|tippecanoe|aws s3'
+```
+
+The kernel releases the lock when the last process holding it exits, however that happens, so there's no stale lock file to clear. The stage commands, the Overture scripts and the uploads that `init.sh` starts hold the lock too. If `init.sh` itself is killed with `kill -9`, whichever of those it left running keeps the run directory locked until it finishes or you stop it.
+
+The lock has three limits:
+
+- **It covers `init.sh` only.** Nothing stops an `abt-tools.py` command you run by hand against the same working directory or database.
+- **It doesn't cover the database.** Two runs with different run directories and the same `PG_DB` aren't stopped, and would import over each other. To run two builds on one host at once, give each its own `ABT_WORKSPACE_DIR`, which gives it its own run and Overture directories, and its own `PG_DB`.
+- **The tools a stage starts don't hold it.** If a stage is killed and leaves imposm, `ogr2ogr`, tippecanoe, `tile-join` or `aria2c` running, the lock is released while that tool is still writing. Check with `pgrep -af 'imposm|ogr2ogr|tippecanoe|tile-join|aria2c'` before you start again.
+
+It needs `flock` from util-linux, which Ubuntu always has.
 
 ## Re-running
 
@@ -110,7 +131,7 @@ A second full run (`--from download`) against a database that already holds an O
 
 `init.sh` installs `trap cleanup_overture EXIT INT TERM`. If `--overture` started a background fetch+tile pipeline and `init.sh` itself exits early for any reason — a normal Ctrl-C, or a `set -e` abort from a failure hours later at `[4/6]`–`[6/6]` — this trap kills that background pipeline's whole process group (not just the immediate subshell), so a failure doesn't leave an orphaned `fetch.sh` running to collide with a later re-run.
 
-This trap only covers `init.sh` exiting normally enough to run it — a `kill -9` on `init.sh` itself, or a host crash, still bypasses it. See the "Concurrency" section of [Overture Buildings](../pipeline/overture.md) for the `flock` that catches those remaining cases on the next run instead.
+This trap only covers `init.sh` exiting normally enough to run it — a `kill -9` on `init.sh` itself still bypasses it. The orphaned pipeline then still holds the [run directory's lock](#one-run-at-a-time), so the next `init.sh` stops at once and tells you how to find it. The Overture scripts also take their own `flock` on the Overture directory: see the "Concurrency" section of [Overture Buildings](../pipeline/overture.md).
 
 ## Example invocations
 

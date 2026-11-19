@@ -27,7 +27,8 @@ Every command except `vundler` creates the top-level folders below when it start
 │   ├── _tmp/                      bundler -z: the zoom-trimmed copies of its inputs, deleted after the join
 │   └── vundled/p12/               vundler: the Esri Compact Cache V2 tree, with a logs/ folder inside
 ├── tmp/                           export: scratch space for ogr2ogr and tippecanoe
-└── logs/<run_id>/                 every command except vundler: its logs and summary.json
+├── logs/<run_id>/                 every command except vundler: its logs and summary.json
+└── .init.lock                     init.sh only: the lock that keeps a second run off this directory
 ```
 
 `<key>` is the `-k/--osm-key` extract's name as Geofabrik publishes it, e.g. `norway-latest.osm.pbf`.
