@@ -232,10 +232,11 @@ EOF
   - `abt-tools.py` can't be imported by name, so tests load it with
     `importlib.util.spec_from_file_location`.
 - **Some known issues are unfixed on purpose.** They're waiting on a product decision: R5 and
-  R7–R10 in `docs/project/code-review-findings.md` (R1–R3 stand by design), and the
-  "Report only" section of `docs/project/code-review-2026-09.md`. One example is the connection
-  that each `PGConfig` query method except `table_sizes` leaks on every call (R5). Raise these
-  issues rather than fixing them in passing.
+  R7–R10 in `docs/project/code-review-findings.md` (R1–R3 stand by design), the
+  "Report only" section of `docs/project/code-review-2026-09.md`, and L4, L6, and L13 in
+  `docs/project/code-review-2026-11.md`. One example is the connection that each `PGConfig`
+  query method except `table_sizes` leaks on every call (R5). Raise these issues rather than
+  fixing them in passing.
 
 ## Rust (`abtv2-tools/vundler-rs/`)
 
