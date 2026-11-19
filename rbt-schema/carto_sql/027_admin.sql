@@ -11,6 +11,7 @@
 --                aux_data.ne_10m_admin_0_countries         (adm0 label enrichment)
 --                aux_data.nga_geonames_administrative_regions (adm0 label enrichment)
 --                aux_data.dos_lsib                         (LSIB attestation + QA geometry)
+-- Depends on:    025a_country_label_zoom.sql (aux_data.adm0_label_zoom: adm0 label zoom + rank)
 -- =============================================================================
 
 
@@ -528,6 +529,11 @@ SELECT
             )
     END                                                                  AS nga_short_name,
     ST_Area(ST_Transform(poly.geometry, 3857))::real                    AS area,
+    -- Zoom the label starts at, and its prominence (1 highest). Natural Earth's
+    -- hand-tuned values where it has the country, else from area; overrides and
+    -- the rules are in 025a_country_label_zoom.sql.
+    z.min_label,
+    z.label_rank,
     a.geometry                                                              AS geometry
 FROM aux_data.fieldmaps_adm0_points a
 LEFT JOIN aux_data.fieldmaps_adm0_polygon poly
@@ -538,8 +544,11 @@ LEFT JOIN aux_data.nga_geonames_administrative_regions g
     ON g.full_nm_nd = a.adm0_name1
    AND g.name_rank::text = '1'
    AND g.cc_ft = LEFT(a.adm0_id, 3)
+LEFT JOIN aux_data.adm0_label_zoom z
+    ON z.adm0_id = a.adm0_id
+-- On the NE code resolved in 025a, not on name: the name join matched 211 of 338 labels.
 LEFT JOIN aux_data.ne_10m_admin_0_countries n
-    ON n.name = a.adm0_name1
+    ON n.adm0_a3 = z.ne_adm0_a3
 LEFT JOIN aux_data.nga_country_abbrev nga
     ON nga.adm0_prefix = LEFT(a.adm0_id, 3)
    AND SUBSTRING(a.adm0_id, 4, 1) = '-'   -- exclude sub-entries like AUS_2, GBR_1

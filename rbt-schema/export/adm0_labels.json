@@ -34,6 +34,16 @@
             "name": "nga_short_name",
             "type": "string",
             "description": "NGA abbreviation with possession parenthetical for territories (e.g. Grnld. (DEN.), St. Barth. (FR.))"
+        },
+        {
+            "name": "min_label",
+            "type": "float",
+            "description": "Zoom the label starts at: Natural Earth MIN_LABEL, else the zoom where the country is 32 px across; hand overrides in aux_data.adm0_label_override"
+        },
+        {
+            "name": "label_rank",
+            "type": "int",
+            "description": "Label prominence, 1 (highest) to 10: Natural Earth LABELRANK, else derived from min_label"
         }
     ],
     "source_attribution": "",

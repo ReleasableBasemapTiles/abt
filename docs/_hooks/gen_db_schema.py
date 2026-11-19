@@ -39,7 +39,9 @@ EXPORT_DIR = REPO_ROOT / "rbt-schema" / "export"
 EXECUTION_PLAN_PATH = CARTO_SQL_DIR / "execution_plan.yml"
 
 # Scripts with no LAYER header: the sequential prefix/suffix, not a layer.
-NON_LAYER_SCRIPTS = {"000_update_aux_geom", "001_set_schema", "099_update_geometry"}
+NON_LAYER_SCRIPTS = {
+    "000_update_aux_geom", "001_set_schema", "025a_country_label_zoom", "099_update_geometry",
+}
 
 # Every layer-building script, grouped into the same nine themes the
 # reference page uses. Deliberately exhaustive -- on_pre_build() raises if

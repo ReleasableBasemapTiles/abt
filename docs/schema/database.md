@@ -243,9 +243,9 @@ flowchart LR
     subgraph src_aux ["aux_data"]
         aux_data_nga_geonames_populated_places["aux_data.nga_geonames_populated_places"]
         aux_data_ne_10m_populated_places["aux_data.ne_10m_populated_places"]
+        aux_data_fieldmaps_adm0_polygon["aux_data.fieldmaps_adm0_polygon"]
         aux_data_fieldmaps_adm0_lines["aux_data.fieldmaps_adm0_lines"]
         aux_data_fieldmaps_adm0_points["aux_data.fieldmaps_adm0_points"]
-        aux_data_fieldmaps_adm0_polygon["aux_data.fieldmaps_adm0_polygon"]
         aux_data_fieldmaps_adm1_lines["aux_data.fieldmaps_adm1_lines"]
         aux_data_fieldmaps_adm1_points["aux_data.fieldmaps_adm1_points"]
         aux_data_fieldmaps_adm2_lines["aux_data.fieldmaps_adm2_lines"]
@@ -258,6 +258,7 @@ flowchart LR
     osm_osm_city_point --> script_026_places
     aux_data_nga_geonames_populated_places --> script_026_places
     aux_data_ne_10m_populated_places --> script_026_places
+    aux_data_fieldmaps_adm0_polygon --> script_026_places
     export_place_labels["export.place_labels"]
     script_026_places --> export_place_labels
     script_027_admin["Admin Boundaries and Labels<br/>(027_admin.sql)"]
@@ -287,7 +288,7 @@ flowchart LR
 
 | Export view | Built by | Sources | Intermediates | Geometry | Zoom | Tiled |
 |---|---|---|---|---|---|---|
-| `export.place_labels` | `026_places.sql` | `osm.osm_city_point`<br/>`aux_data.nga_geonames_populated_places`<br/>`aux_data.ne_10m_populated_places` | — | point | 3–13 | Yes |
+| `export.place_labels` | `026_places.sql` | `osm.osm_city_point`<br/>`aux_data.nga_geonames_populated_places`<br/>`aux_data.ne_10m_populated_places`<br/>`aux_data.fieldmaps_adm0_polygon` | — | point | 3–13 | Yes |
 | `export.adm0_line` | `027_admin.sql` | `aux_data.fieldmaps_adm0_lines` (adm0 boundary lines)<br/>`aux_data.fieldmaps_adm0_points` (adm0 label points — edge-matched)<br/>`aux_data.fieldmaps_adm0_polygon` (adm0 polygons — area calc only)<br/>`aux_data.fieldmaps_adm1_lines` (adm1 boundary lines)<br/>`aux_data.fieldmaps_adm1_points` (adm1 label points — edge-matched)<br/>`aux_data.fieldmaps_adm2_lines` (adm2 boundary lines)<br/>`aux_data.fieldmaps_adm2_points` (adm2 label points — edge-matched)<br/>`aux_data.ne_10m_admin_0_countries` (adm0 label enrichment)<br/>`aux_data.nga_geonames_administrative_regions` (adm0 label enrichment)<br/>`aux_data.dos_lsib` (LSIB attestation + QA geometry) | — | linestring | 0–13 | Yes |
 | `export.adm0_label` | `027_admin.sql` | `aux_data.fieldmaps_adm0_lines` (adm0 boundary lines)<br/>`aux_data.fieldmaps_adm0_points` (adm0 label points — edge-matched)<br/>`aux_data.fieldmaps_adm0_polygon` (adm0 polygons — area calc only)<br/>`aux_data.fieldmaps_adm1_lines` (adm1 boundary lines)<br/>`aux_data.fieldmaps_adm1_points` (adm1 label points — edge-matched)<br/>`aux_data.fieldmaps_adm2_lines` (adm2 boundary lines)<br/>`aux_data.fieldmaps_adm2_points` (adm2 label points — edge-matched)<br/>`aux_data.ne_10m_admin_0_countries` (adm0 label enrichment)<br/>`aux_data.nga_geonames_administrative_regions` (adm0 label enrichment)<br/>`aux_data.dos_lsib` (LSIB attestation + QA geometry) | — | point | 0–13 | Yes |
 | `export.adm1_line` | `027_admin.sql` | `aux_data.fieldmaps_adm0_lines` (adm0 boundary lines)<br/>`aux_data.fieldmaps_adm0_points` (adm0 label points — edge-matched)<br/>`aux_data.fieldmaps_adm0_polygon` (adm0 polygons — area calc only)<br/>`aux_data.fieldmaps_adm1_lines` (adm1 boundary lines)<br/>`aux_data.fieldmaps_adm1_points` (adm1 label points — edge-matched)<br/>`aux_data.fieldmaps_adm2_lines` (adm2 boundary lines)<br/>`aux_data.fieldmaps_adm2_points` (adm2 label points — edge-matched)<br/>`aux_data.ne_10m_admin_0_countries` (adm0 label enrichment)<br/>`aux_data.nga_geonames_administrative_regions` (adm0 label enrichment)<br/>`aux_data.dos_lsib` (LSIB attestation + QA geometry) | — | linestring | 3–13 | Yes |

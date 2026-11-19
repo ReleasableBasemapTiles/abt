@@ -5,6 +5,8 @@
 -- Sources:       osm.osm_city_point
 --                aux_data.nga_geonames_populated_places
 --                aux_data.ne_10m_populated_places
+--                aux_data.fieldmaps_adm0_polygon
+-- Depends on:    025a_country_label_zoom.sql (aux_data.adm0_label_zoom: country label zoom)
 --
 --
 -- METHODOLOGY (Data Sources in Priority Order):
@@ -44,6 +46,12 @@
 --    none (NULL)   : Not a capital.
 --    capital_role is 'primary' for 2, 'secondary' for 1, and NULL otherwise.
 --    It is derived from capital so the two can't disagree.
+--
+-- MIN_LABEL:
+--    The zoom a label may start at. National capitals (capital 1 or 2) take
+--    their country label's min_label, so a capital never shows before its
+--    country: Hamilton waits for Bermuda (z4) instead of showing from z3 with
+--    every other rank-2 city. Everything else is 0, so rank alone decides.
 
 -- -----------------------------------------------------------------------------
 -- Source table indexes (idempotent — safe to rerun)
@@ -133,6 +141,7 @@ SELECT
             ELSE                12
         END
     )                                                                   AS rank,
+    COALESCE(ctry.min_label, 0)::real                                   AS min_label,
     o.geometry
 FROM osm.osm_city_point o
 -- The capital code is defined once, here, so capital_role in the SELECT list
@@ -173,6 +182,20 @@ CROSS JOIN LATERAL (
             WHEN o.capital = '4'                    THEN 3
         END                                                             AS capital
 ) cap
+LEFT JOIN LATERAL (
+    -- National capitals wait for their country's label (see min_label above).
+    -- Only capitals look up a country, so this runs about 250 times, not per place.
+    SELECT z.min_label
+    FROM aux_data.fieldmaps_adm0_polygon p
+    JOIN aux_data.adm0_label_zoom z ON z.adm0_id = p.adm0_id
+    WHERE cap.capital IN (1, 2)
+      AND ST_DWithin(p.geometry, o.geometry, 0.05)
+    -- Containing polygon first (distance 0), else the nearest within ~5 km for a
+    -- capital point that falls just offshore. Where disputed polygons overlap,
+    -- the earliest label zoom wins, so a capital is never held back by them.
+    ORDER BY ST_Distance(p.geometry, o.geometry), z.min_label
+    LIMIT 1
+) ctry ON true
 LEFT JOIN LATERAL (
     SELECT g.ufi
     FROM aux_data.nga_geonames_populated_places g
@@ -265,6 +288,7 @@ SELECT
         WHEN 'neighbourhood' THEN 11
         ELSE                      12
     END                                                                 AS rank,
+    COALESCE(ctry.min_label, 0)::real                                   AS min_label,
     o.geometry
 FROM osm.osm_city_point o
 -- No secondary-capital override list here: every listed osm_id is a city or
@@ -279,6 +303,20 @@ CROSS JOIN LATERAL (
             WHEN o.capital = '4'                    THEN 3
         END                                                             AS capital
 ) cap
+LEFT JOIN LATERAL (
+    -- National capitals wait for their country's label (see min_label above).
+    -- Only capitals look up a country, so this runs about 250 times, not per place.
+    SELECT z.min_label
+    FROM aux_data.fieldmaps_adm0_polygon p
+    JOIN aux_data.adm0_label_zoom z ON z.adm0_id = p.adm0_id
+    WHERE cap.capital IN (1, 2)
+      AND ST_DWithin(p.geometry, o.geometry, 0.05)
+    -- Containing polygon first (distance 0), else the nearest within ~5 km for a
+    -- capital point that falls just offshore. Where disputed polygons overlap,
+    -- the earliest label zoom wins, so a capital is never held back by them.
+    ORDER BY ST_Distance(p.geometry, o.geometry), z.min_label
+    LIMIT 1
+) ctry ON true
 WHERE o.place IN ('village', 'hamlet', 'suburb', 'neighbourhood')
 
 UNION ALL
@@ -314,6 +352,7 @@ SELECT
         WHEN island.area_m2 >= 1e7  THEN 6
         ELSE                             7
     END                                                                 AS rank,
+    0::real                                                             AS min_label,
     ST_PointOnSurface(
         ST_MakeValid(geometry)
     )::geometry(Point, 4326)                                            AS geometry
@@ -336,6 +375,7 @@ SELECT
     NULL::int                                                           AS capital,
     NULL::text                                                          AS capital_role,
     7                                                                   AS rank,
+    0::real                                                             AS min_label,
     geometry
 FROM osm.osm_island_point p
 WHERE NULLIF(name, '') IS NOT NULL
@@ -359,6 +399,7 @@ SELECT
     NULL::int                                                           AS capital,
     NULL::text                                                          AS capital_role,
     scalerank + 1                                                       AS rank,
+    0::real                                                             AS min_label,
     ST_PointOnSurface(
         ST_MakeValid(geometry)
     )::geometry(Point, 4326)                                            AS geometry

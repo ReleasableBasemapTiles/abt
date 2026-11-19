@@ -16,7 +16,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 
 | Layer ID | Geometry | Min Zoom | Max Zoom | Attributes | Tippecanoe flags | Status |
 |---|---|---|---|---|---|---|
-| `adm0_label` | point | 0 | 13 | 8 | `--drop-rate=1` | enabled |
+| `adm0_label` | point | 0 | 13 | 10 | `--drop-rate=1` | enabled |
 | `adm0_line` | linestring | 0 | 13 | 3 | `--simplify-only-low-zooms -pS` | enabled |
 | `adm1_label` | point | 3 | 13 | 2 | `--drop-rate=1` | enabled |
 | `adm1_line` | linestring | 3 | 13 | 4 | `--simplify-only-low-zooms -pS` | enabled |
@@ -57,7 +57,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `pier_line` | linestring | 12 | 13 | 4 | `--simplify-only-low-zooms` | enabled |
 | `pier_polygon` | polygon | 12 | 13 | 5 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `pipeline_line` | linestring | 9 | 13 | 2 | `--simplify-only-low-zooms` | enabled |
-| `place_labels` | point | 3 | 13 | 6 | `--drop-rate=1` | enabled |
+| `place_labels` | point | 3 | 13 | 7 | `--drop-rate=1` | enabled |
 | `poi_point` | point | 11 | 13 | 4 | `--drop-rate=1` | enabled |
 | `port_label` | point | 9 | 13 | 4 | `--drop-rate=1` | enabled |
 | `port_polygon` | polygon | 9 | 13 | 4 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |

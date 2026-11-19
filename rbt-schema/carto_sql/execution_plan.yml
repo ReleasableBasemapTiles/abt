@@ -98,8 +98,8 @@ groups:
   - [022_dam.sql]
   - [024_cemetery.sql]
   - [025_sports.sql]
-  - [026_places.sql]
-  - [027_admin.sql]
+  # 025a builds the country label zooms that both 026 and 027 read.
+  - [025a_country_label_zoom.sql, 026_places.sql, 027_admin.sql]
   - [028_ferry.sql]
   - [029_physical_labels.sql]
   - [030_pier.sql]

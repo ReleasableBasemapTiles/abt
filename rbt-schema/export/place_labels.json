@@ -25,7 +25,12 @@
             "description": "primary (capital=2) or secondary (capital=1) for national capitals; absent otherwise"
         },
         {"name": "name",    "type": "string", "description": ""},
-        {"name": "rank",    "type": "int",    "description": ""}
+        {"name": "rank",    "type": "int",    "description": ""},
+        {
+            "name": "min_label",
+            "type": "float",
+            "description": "Zoom the label may start at: a national capital's is its country label's min_label, so it never shows before its country; 0 for everything else"
+        }
     ],
     "source_attribution": "",
     "tippecanoe_options": {
