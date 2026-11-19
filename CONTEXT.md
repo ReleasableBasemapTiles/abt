@@ -99,7 +99,8 @@ except `vundler`'s. `docs/overview/working-directory.md` lists every file:
                        <name>_extracted.partial/ while extracting, then .<name>_extracted.complete
   flatgeobuf/          <layer_id>.fgb       (export, step 1; written in flatgeobuf/.partial/ first)
   mbtiles/             <layer_id>.mbtiles   (export, step 2; written in mbtiles/.partial/ first)
-  bundled/             joined.mbtiles, vundled/p12/, and _tmp/ (bundler -z only)
+  bundled/             joined.mbtiles (written in bundled/.partial/ first), vundled/p12/,
+                       and _tmp/ (bundler -z only)
   tmp/                 ogr_tmp/, tippecanoe_tmp/, per-layer temp dirs
   logs/<run_id>/       one per invocation (YYYY-MM-DD_HHMMSS): download/ import/ carto/ fgb/
                        mbtiles/, a *.log per task, and summary.json
@@ -344,14 +345,24 @@ variables whose defaults match a `setup_ubuntu.sh` host, and `bash init.sh --hel
 Unless `--no-upload` is passed, the script stops immediately if `aws` or the AWS STS variables
 are missing.
 
+Only one `init.sh` runs per run directory at a time. After its preflight checks it takes a
+`flock` on `.init.lock` in the run directory (`ABT_RUN_DIR`, by default
+`$ABT_WORKSPACE_DIR/run-planet`), on descriptor 8 (the Overture scripts use 9), and a second run
+exits naming the first. The stage commands, the Overture scripts and the uploads inherit the
+descriptor, so the lock outlives a killed `init.sh` while any of them runs. The tools a stage
+starts don't inherit it (Python closes descriptors in its children), and the lock knows nothing
+about the database: two runs with different run directories and one `PG_DB` still collide.
+
 ## Overture buildings
 
 The scripts in `rbt-schema/scripts/overture/` build the buildings layer without Postgres:
 
 1. `fetch.sh` finds the latest Overture release on S3 (or uses the one set in `OVERTURE_RELEASE`),
    syncs the GeoParquet files, and runs `shard.sh` once per projection.
-2. `tile.sh` runs tippecanoe on the shards.
+2. `tile.sh` runs tippecanoe on the shards, writing to `<data_dir>/.partial/`.
 3. `tag_crs.py` writes `crs` into each non-3857 output. It uses only the standard library.
+   Only then does `tile.sh` move the file to `<data_dir>/building_polygon_<srs>.mbtiles`, so a
+   killed run leaves nothing there for `init.sh`'s `overture_already_tiled` check to skip on.
 
 `lock.sh` takes an `flock` on the data dir so that two runs can't write to it at the same time.
 The pipeline needs `duckdb` and the AWS CLI. That's why `setup_ubuntu.sh` installs both, even
@@ -426,7 +437,10 @@ The tests, from narrowest to widest scope:
   Python package had no tests, and the Rust port had overwritten the oracle meant to check it.
   That review added both suites, fixed findings F1–F9, and left R1–R10 open. The September 2026
   review (`docs/project/code-review-2026-09.md`) fixed B0–B20 and S1–S4, closed R4 and R6, added
-  the root `tests/` suite, and added the Tests workflow, which runs every suite in CI.
+  the root `tests/` suite, and added the Tests workflow, which runs every suite in CI. The
+  November 2026 review (`docs/project/code-review-2026-11.md`) made the bundle, the Overture
+  tileset and `summary.json` appear only when complete, added the `init.sh` lock, and left 32
+  of its 43 findings as recommendations.
 
 ## Hosts and sizing
 
@@ -479,10 +493,24 @@ download and export; `init.sh` requires `AWS_SESSION_TOKEN` and only checks that
 Overture scripts have shellcheck findings, so CI skips them; and several SQL behaviors change the
 output.
 
+`docs/project/code-review-2026-11.md` lists 32 more recommendations (L, P and O numbers). Three
+of them wait on a decision and shouldn't be changed in passing: `init.sh`'s default upload bucket
+(L4), whether `import -f` should drop the `backup` schema imposm leaves (L6), and the licence
+entries missing from the tile metadata (L13).
+
 ### Known doc drift
 
-None known as of 2026-09-29. If you find prose that disagrees with the code and can't fix it in
-the same change, list it here.
+Two items are known as of 2026-11-19. If you find prose that disagrees with the code and can't
+fix it in the same change, list it here.
+
+- The `-- Sources:` header lines of `carto_sql/003`, `006`, `023`, `025`, and `026` don't match
+  the `osm.*` and `aux_data.*` tables those scripts read. `docs/schema/database.md` is generated
+  from the headers, so its source lists for those layers are wrong too (finding L19 in
+  `docs/project/code-review-2026-11.md`).
+- The comment above `ABT_REPO` in `setup_ubuntu.sh` says the repository is private. It's public,
+  and the default is still the deploy-key SSH alias `git@abt:…`, which a host without that alias
+  can't clone from. The README quick start clones over HTTPS and runs the script from the
+  checkout instead.
 
 ## Where to start
 

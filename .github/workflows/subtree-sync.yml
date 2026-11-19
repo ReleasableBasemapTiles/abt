@@ -44,6 +44,7 @@ jobs:
     if: github.event_name == 'pull_request'
     name: Check ${{ matrix.prefix }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -64,6 +65,7 @@ jobs:
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     name: Publish ${{ matrix.prefix }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # SUBTREE_SYNC_TOKEN is a secret of this environment, whose deployment
     # branches are limited to main, so a workflow edited on a PR branch
     # can't read it.

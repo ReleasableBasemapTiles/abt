@@ -106,6 +106,31 @@ def test_write_summary_creates_parent_directories(tmp_path):
     assert out_path.exists()
 
 
+def test_write_summary_keeps_the_previous_file_when_the_dump_fails(tmp_path, monkeypatch):
+    # A full disk or a kill mid-dump must not leave truncated JSON where
+    # init.sh and other readers expect a complete summary.
+    out_path = tmp_path / "summary.json"
+    RunReporter(run_id="earlier", command="cmd").write_summary(out_path)
+    earlier = out_path.read_text()
+
+    def dump_that_dies(obj, f, **kwargs):
+        f.write('{"run_id": ')
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr("abt.utils.run_reporter.json.dump", dump_that_dies)
+    with pytest.raises(OSError):
+        RunReporter(run_id="later", command="cmd").write_summary(out_path)
+
+    assert out_path.read_text() == earlier
+    assert json.loads(out_path.read_text())["run_id"] == "earlier"
+
+
+def test_write_summary_leaves_only_the_summary_behind(tmp_path):
+    out_path = tmp_path / "summary.json"
+    RunReporter(run_id="r1", command="cmd").write_summary(out_path)
+    assert [p.name for p in tmp_path.iterdir()] == ["summary.json"]
+
+
 def test_record_stores_a_rounded_duration_only_when_given(tmp_path):
     reporter = RunReporter(run_id="r1", command="cmd")
     reporter.record(stage="s1", task="timed", status=STATUS_SUCCESS, duration_s=1.23456)

@@ -24,9 +24,11 @@ Every command except `vundler` creates the top-level folders below when it start
 ├── bundled/
 │   ├── joined.mbtiles             bundler (or the name given to -o/--output-name)
 │   ├── joined_bundler.log         bundler: tile-join's output
+│   ├── _tmp/                      bundler -z: the zoom-trimmed copies of its inputs, deleted after the join
 │   └── vundled/p12/               vundler: the Esri Compact Cache V2 tree, with a logs/ folder inside
 ├── tmp/                           export: scratch space for ogr2ogr and tippecanoe
-└── logs/<run_id>/                 every command except vundler: its logs and summary.json
+├── logs/<run_id>/                 every command except vundler: its logs and summary.json
+└── .init.lock                     init.sh only: the lock that keeps a second run off this directory
 ```
 
 `<key>` is the `-k/--osm-key` extract's name as Geofabrik publishes it, e.g. `norway-latest.osm.pbf`.
@@ -41,6 +43,8 @@ Nothing is written straight to its final name, so a killed or failed run never l
 | An extraction | `<name>_extracted.partial/` beside it | once every member is extracted; the `.complete` marker follows |
 | A FlatGeobuf | `flatgeobuf/.partial/<layer_id>.fgb` | once `ogr2ogr` exits 0 |
 | An MBTiles | `mbtiles/.partial/<layer_id>.mbtiles` | once `tippecanoe` exits 0 and its metadata is set |
+| The bundle | `bundled/.partial/joined.mbtiles` | once `tile-join` exits 0 and its metadata is set |
+| A run summary | `logs/<run_id>/summary.json.tmp` | once the whole file is written |
 
 A working directory from before this staging can still hold truncated files. See [Troubleshooting](../reference/troubleshooting.md#download-and-import) for which ones to delete.
 
@@ -52,7 +56,7 @@ A working directory from before this staging can still hold truncated files. See
 | `import` | nothing. With `-d osm` or `-d all` it won't start while the `osm` schema has any table, unless `-f/--force`. | every source |
 | `carto` | nothing | every script |
 | `export` | an `.fgb` that exists; an `.mbtiles` that holds tiles | everything else |
-| `bundler` | nothing: it deletes and rebuilds its output | the join |
+| `bundler` | nothing | the join. The previous bundle stays in place until the new one is finished, then is replaced. |
 | `vundler` | nothing, but it writes into the existing tree without clearing it | every bundle this conversion covers; bundles only an earlier conversion wrote (at a higher `-z`, say) stay |
 
 To redo one download or one layer, delete its file and rerun the command. Delete `bundled/vundled/p12/` before rerunning `vundler` at a lower zoom. `bundler -z` without `-o` replaces `joined.mbtiles`, so give a zoom-capped bundle its own name, e.g. `-z 8 -o rbt_small.mbtiles`. `vundler` reads `bundled/joined.mbtiles` unless `-i/--input-path` names another file.

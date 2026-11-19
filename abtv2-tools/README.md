@@ -6,7 +6,7 @@ Modular pipeline for building vector tilesets from OpenStreetMap and other open 
 
 Entry point: `python abt-tools.py <command> [options]`
 
-This directory is one half of the monorepo: the generic pipeline runner, paired with the sibling [`rbt-schema/`](https://github.com/ReleasableBasemapTiles/abt/tree/main/rbt-schema) schema/config directory passed in as `--schema-dir`. See the workspace [`README.md`](https://github.com/ReleasableBasemapTiles/abt/blob/main/README.md) for the end-to-end pipeline overview, Ubuntu provisioning, and full worked walkthroughs (a small extract and a full planet build).
+This directory is one half of the monorepo: the generic pipeline runner, paired with the sibling [`rbt-schema/`](https://github.com/ReleasableBasemapTiles/abt/tree/main/rbt-schema) schema/config directory passed in as `--schema-dir`. The workspace [`README.md`](https://github.com/ReleasableBasemapTiles/abt/blob/main/README.md) has a quick start that builds a Norway tileset. The [Norway](https://ReleasableBasemapTiles.github.io/abt/walkthroughs/norway/) and [Planet](https://ReleasableBasemapTiles.github.io/abt/walkthroughs/planet/) walkthroughs explain each step, and [Ubuntu Setup](https://ReleasableBasemapTiles.github.io/abt/install/ubuntu/) covers provisioning a host.
 
 ## Documentation
 

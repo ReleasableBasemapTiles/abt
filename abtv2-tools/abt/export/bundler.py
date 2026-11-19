@@ -5,6 +5,7 @@ Runs the tile-join bundling step for a Bundler: joins all per-layer mbtiles
 into one package and writes BTIS/descriptive metadata into the result.
 """
 
+import os
 from pathlib import Path
 from typing import List
 import sqlite3
@@ -93,9 +94,16 @@ def export_bundled(bundle: Bundler) -> None:
     # center recomputed for that CRS) instead of tile-join's own.
     crs = resolve_crs_from_files(bundle.tile_list)
 
-    # Remove any stale output file so tile-join doesn't prompt to overwrite
-    if bundle.bundled_mbtiles_path.exists():
-        bundle.bundled_mbtiles_path.unlink()
+    # Build under .partial/ and move the result into place last. tile-join
+    # runs for hours on a planet bundle and the metadata edits below follow
+    # it, so writing to the final path meant deleting the last good bundle
+    # up front and, on any failure, leaving a partial or half-labelled file
+    # where vundler and the upload look for a finished one. A partial left
+    # by an interrupted run goes first: tile-join won't write over an
+    # existing output.
+    partial = bundle.bundled_mbtiles_partial
+    partial.parent.mkdir(parents=True, exist_ok=True)
+    partial.unlink(missing_ok=True)
 
     # When max_zoom is set (e.g. for an RBT Small package), pre-trim every
     # input to a zoom-capped copy using SQLite (fast indexed read), then
@@ -119,7 +127,7 @@ def export_bundled(bundle: Bundler) -> None:
             tile_files = trimmed_files
 
         run_subprocess(
-            cmd=bundle.build_tile_join_cmd(tile_files),
+            cmd=bundle.build_tile_join_cmd(tile_files, output=partial),
             layer="joined",
             process_stage="bundler",
             log_dir=bundle.bundled_dir,
@@ -134,8 +142,8 @@ def export_bundled(bundle: Bundler) -> None:
     # which can run into the megabytes -- and strategies) into the joined
     # output. None of it is useful in a shipped package, so it's stripped
     # unconditionally here rather than left for a manual cleanup pass.
-    delete_mbtiles_metadata(bundle.bundled_mbtiles_path, list(TIPPECANOE_BUILD_METADATA_KEYS))
-    strip_json_tilestats(bundle.bundled_mbtiles_path)
+    delete_mbtiles_metadata(partial, list(TIPPECANOE_BUILD_METADATA_KEYS))
+    strip_json_tilestats(partial)
 
     if crs is not None:
         # tile-join's own computed bounds/center (and
@@ -148,14 +156,14 @@ def export_bundled(bundle: Bundler) -> None:
         # Web Mercator math on real Web Mercator data) and are left alone.
         epsg_code = int(crs.split(":")[1])
         bounds, center = crs_area_of_use_bounds(epsg_code)
-        write_mbtiles_metadata(bundle.bundled_mbtiles_path, {
+        write_mbtiles_metadata(partial, {
             "bounds": ",".join(str(v) for v in bounds),
             "center": ",".join(str(v) for v in center),
             "crs": crs,
             "btp_schema_version": BTIS_SCHEMA_VERSION,
             "changelog_url": BTIS_CHANGELOG_URL,
         })
-        delete_mbtiles_metadata(bundle.bundled_mbtiles_path, list(OVERRIDE_ONLY_DROPPED_METADATA_KEYS))
+        delete_mbtiles_metadata(partial, list(OVERRIDE_ONLY_DROPPED_METADATA_KEYS))
     elif bundle.metadata and "center" in bundle.metadata:
         # No projection override, so tile-join's own bounds are legitimate
         # Web Mercator math and are left alone. Its computed *center*,
@@ -163,7 +171,7 @@ def export_bundled(bundle: Bundler) -> None:
         # land (e.g. a random z13 tile) -- not a meaningful default view for
         # a released package. When the schema declares one, it wins.
         declared_center = ",".join(str(v) for v in bundle.metadata["center"])
-        write_mbtiles_metadata(bundle.bundled_mbtiles_path, {"center": declared_center})
+        write_mbtiles_metadata(partial, {"center": declared_center})
 
     # tile-join has flags for only a few `metadata` rows (-n name,
     # -N description, -A attribution), not tags, license and the rest, so
@@ -175,4 +183,13 @@ def export_bundled(bundle: Bundler) -> None:
             k: v for k, v in bundle.metadata.items()
             if k not in TOOL_COMPUTED_METADATA_KEYS
         }
-        write_mbtiles_metadata(bundle.bundled_mbtiles_path, descriptive_metadata)
+        write_mbtiles_metadata(partial, descriptive_metadata)
+
+    # A run killed while it wrote the final path in place, as this function
+    # did before it staged, leaves <name>-journal there, and SQLite replays a
+    # journal into whichever database it next finds beside it: the finished
+    # bundle, once it is renamed. Whatever that journal belonged to is being
+    # replaced, so it goes first.
+    final = bundle.bundled_mbtiles_path
+    final.with_name(final.name + "-journal").unlink(missing_ok=True)
+    os.replace(partial, final)

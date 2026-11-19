@@ -9,6 +9,7 @@ run, everything collected is flushed to one consolidated JSON summary file.
 """
 
 import json
+import os
 import threading
 import datetime
 import time
@@ -125,8 +126,14 @@ class RunReporter:
             "stages": stages,
         }
         path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w") as f:
+        # Written beside the final file and renamed into place: opening
+        # `path` itself truncates it first, so a full disk or a kill mid-dump
+        # left truncated JSON where init.sh and other readers expect a whole
+        # summary. A rename within one directory is atomic.
+        partial = path.with_name(path.name + ".tmp")
+        with partial.open("w") as f:
             json.dump(summary, f, indent=2)
+        os.replace(partial, path)
         return summary
 
 

@@ -32,7 +32,11 @@ The shell checks need `shellcheck` (`brew install shellcheck` on macOS, `sudo ap
 shellcheck init.sh setup_ubuntu.sh .github/scripts/subtree-sync.sh
 ```
 
-To build these docs as well, `pip install -r requirements-docs.txt` into the same environment and run `mkdocs serve` (or `mkdocs build --strict`, as the Docs workflow does). Two tests in `test_overture_check_proj_agreement.py` also need `duckdb` or `ogr2ogr` on `PATH`, and skip themselves without it.
+To build these docs as well, `pip install -r requirements-docs.txt` into the same environment and run `mkdocs serve` (or `mkdocs build --strict`, as the Docs workflow does).
+
+The build rewrites five committed pages from code and schema: `reference/cli.md`, `schema/layers.md`, `overview/data-sources.md`, `schema/database.md`, and a block of `schema/carto-sql.md`. On a pull request the Docs workflow then runs `git diff --exit-code -- docs/` and fails if any of them changed, which means the pull request edited a source (a CLI help string, an `export/*.json`, a `carto_sql` header) without committing the page it generates. To fix it, run `mkdocs build --strict` and commit what changes under `docs/`. Build with Python 3.13 or newer: older versions ignore the `PYTHON_CPU_COUNT` the CLI reference is rendered with, so its worker defaults would follow your machine's core count. Build in an environment installed from `requirements-docs.txt` as well. It pins the Typer and rich versions that render `reference/cli.md`, because a release of either can word an option differently: Typer 0.29 showed a repeatable path as `<list[Path]>` where 0.27 showed `<path>`. To move to a newer release, change the pin and commit the regenerated page in the same pull request. The pins apply to the docs build only; `abtv2-tools/requirements-dev.txt` and `env.yaml` still accept any Typer from 0.12.
+
+Two tests in `test_overture_check_proj_agreement.py` also need `duckdb` or `ogr2ogr` on `PATH`, and skip themselves without it.
 
 ## `abtv2-tools/tests/`
 
@@ -42,15 +46,16 @@ point, and `test_overture_check_proj_agreement.py` tests
 `rbt-schema/scripts/overture/check_proj_agreement.py`:
 
 ```text
-test_aux_data_model.py          test_download_planet_mirrors.py        test_parallel.py
-test_carto_processing_model.py  test_export_bundler_model.py           test_schema.py
-test_cli_entry_point.py         test_export_bundler_trim.py            test_utils_fields.py
-test_cli_funcs_download.py      test_export_exporter.py                test_utils_pg_config.py
-test_cli_funcs_export_tiles.py  test_export_mbtiles_metadata.py        test_utils_rlimit.py
-test_cli_funcs_import_to_pg.py  test_export_tile_layer_model.py        test_utils_run_reporter.py
-test_cli_funcs_run_carto.py     test_importer_importer.py              test_utils_subprocess_tools.py
-test_cli_funcs_vundler.py       test_osm_data_model.py                 test_utils_zip_tools.py
-test_download_downloader.py     test_overture_check_proj_agreement.py  test_vundler_convert.py
+test_aux_data_model.py          test_download_planet_mirrors.py  test_overture_check_proj_agreement.py
+test_carto_processing_model.py  test_export_bundler_metadata.py  test_parallel.py
+test_cli_entry_point.py         test_export_bundler_model.py     test_schema.py
+test_cli_funcs_bundler.py       test_export_bundler_staging.py   test_utils_fields.py
+test_cli_funcs_download.py      test_export_bundler_trim.py      test_utils_pg_config.py
+test_cli_funcs_export_tiles.py  test_export_exporter.py          test_utils_rlimit.py
+test_cli_funcs_import_to_pg.py  test_export_mbtiles_metadata.py  test_utils_run_reporter.py
+test_cli_funcs_run_carto.py     test_export_tile_layer_model.py  test_utils_subprocess_tools.py
+test_cli_funcs_vundler.py       test_importer_importer.py        test_utils_zip_tools.py
+test_download_downloader.py     test_osm_data_model.py           test_vundler_convert.py
 ```
 
 Configuration lives in `abtv2-tools/pyproject.toml`:
@@ -77,10 +82,19 @@ pytest
 
 ## `tests/` (repository root)
 
-Checks that need both `abtv2-tools/` and `rbt-schema/`, so they live outside both [mirrored](mirrors.md) directories:
+The tests that belong to neither [mirrored](mirrors.md) directory. Two files check `abtv2-tools/` and `rbt-schema/` against each other:
 
 - `test_imposm_tags.py`, with `imposm_tag_filter.py`, its model of imposm's read-time tag filter: every OSM tag key that `carto_sql` reads, and every mapping filter key, survives imposm's read, so none is silently NULL.
 - `test_schema_guards.py`: every export `layer_id` names an `export.*` relation that `carto_sql` creates; no script that reads `abt.dissolve_shards` shards by a literal count; `execution_plan.yml` covers every `carto_sql` script, with weights only for scripts it lists; and group scripts create only the schemas and extensions the plan creates up front.
+
+The rest run one of the repository's shell scripts, or a function lifted out of one, in a temporary directory with stand-ins on `PATH` for the tools it calls, so none needs Postgres, tippecanoe or AWS:
+
+- `test_init_workspace_lock.py` runs the real `init.sh` with a stand-in for `python abt-tools.py`: a second run on the same run directory stops before it starts any stage, whatever its data root; a run whose `ABT_RUN_DIR` is elsewhere needs nothing at `ABT_WORKSPACE_DIR`; and a finished run records its PID and releases the lock for the next one.
+- `test_overture_tile_staging.py` runs `rbt-schema/scripts/overture/tile.sh` with a stand-in `tippecanoe`: a tiling run that fails, or whose output can't be tagged with its CRS, leaves no `building_polygon_<srs>.mbtiles` for a rerun to skip on and doesn't disturb one already in place, and a finished tileset isn't corrupted by a SQLite journal an earlier killed run left beside its name.
+- `test_setup_role_sql.py` checks the SQL `setup_ubuntu.sh` generates for the Postgres role: a role name or password containing a quote, `$$`, a backslash or shell syntax stays inside its literal.
+- `test_setup_log_file.py` checks how `setup_ubuntu.sh` prepares its run log: a new or existing log ends up readable by its owner only, and a `LOG_FILE` that isn't a regular file, such as `/dev/null`, keeps its mode.
+
+`flock` ships with Linux and not macOS, so on a host without it the first two put a stand-in on `PATH`; CI runs them against the real one.
 
 Run them from the repository root, with the same `requirements-dev.txt`:
 

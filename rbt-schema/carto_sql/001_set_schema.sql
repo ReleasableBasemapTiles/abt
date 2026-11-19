@@ -5,7 +5,7 @@
 
 
 -- -----------------------------------------------------------------------------
--- osm.ZRes — tile resolution in map units per pixel at zoom level z
+-- public.ZRes — tile resolution in map units per pixel at zoom level z
 -- -----------------------------------------------------------------------------
 
 BEGIN;

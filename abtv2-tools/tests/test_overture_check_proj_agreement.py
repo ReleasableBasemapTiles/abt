@@ -14,6 +14,7 @@ which has no rbt-schema/ next to it, the whole module is skipped.
 
 import importlib.util
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -284,7 +285,25 @@ def test_pyproj_proj_version_parses_major_minor(monkeypatch, version_str, expect
     assert (check_proj_agreement.pyproj_proj_version() >= check_proj_agreement.MIN_REFERENCE_PROJ) is True
 
 
-# --- real DuckDB integration (skipped if the binary isn't on PATH) --------
+# --- real DuckDB integration (skipped if the binary isn't on PATH, or its
+# spatial extension isn't installed) -----------------------------------------
+
+def _duckdb_spatial_loads() -> bool:
+    """Whether the local duckdb can LOAD its spatial extension.
+
+    duckdb_values only LOADs the extension, it never INSTALLs it (shard.sh
+    does that on a build host), so on a machine with a bare duckdb the engine
+    is unreachable and the script reports it as skipped. A duckdb from a
+    package manager is exactly that, and it made this test fail on a clean
+    checkout rather than skip.
+    """
+    try:
+        return subprocess.run(
+            ["duckdb", "-c", "LOAD spatial;"], capture_output=True, timeout=30,
+        ).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
 
 @pytest.mark.skipif(shutil.which("duckdb") is None, reason="duckdb not on PATH")
 def test_duckdb_values_matches_pyproj_for_epsg_3395():
@@ -296,6 +315,8 @@ def test_duckdb_values_matches_pyproj_for_epsg_3395():
     unlike 4087, it can't spuriously start failing (or silently start
     passing) purely because duckdb's bundled PROJ was upgraded.
     """
+    if not _duckdb_spatial_loads():
+        pytest.skip("duckdb's spatial extension isn't installed (duckdb -c 'INSTALL spatial')")
     reference = check_proj_agreement.pyproj_reference(3395)
     points, version, reason = check_proj_agreement.duckdb_values(3395)
     assert reason is None, reason

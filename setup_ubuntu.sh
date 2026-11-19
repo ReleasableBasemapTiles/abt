@@ -33,9 +33,25 @@ set -euo pipefail
 # the script's own exit code -- not tee's -- is what `set -e` and the caller
 # see. One log file per run by default; override LOG_FILE to reuse/append to
 # a fixed path instead.
+#
+# The log is created readable by its owner only, and an existing one is
+# tightened to that. It holds everything this script and the tools it runs
+# print: the role and database names, the paths, and whatever an error
+# message quotes. Under the usual 022 umask every local user could read it.
+
+# Only a regular file is tightened. LOG_FILE is the operator's to set, and
+# under sudo `chmod 600 /dev/null` would take /dev/null away from every other
+# user on the host, Postgres included.
+private_log() {
+    (umask 077 && : >> "$1") 2>/dev/null || true
+    if [[ -f "$1" ]]; then
+        chmod 600 "$1" 2>/dev/null || true
+    fi
+}
 
 LOG_FILE="${LOG_FILE:-$HOME/setup_ubuntu-$(date +%Y%m%d-%H%M%S).log}"
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+private_log "$LOG_FILE"
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "Logging full output to ${LOG_FILE}"
 
@@ -421,6 +437,34 @@ fi
 
 # --- 1a. Postgres sizing check ------------------------------------------------
 #
+# Prints the SQL that creates role $1 if it's missing, then sets its
+# attributes and its password ($2) either way. Run by section 4, as the
+# postgres superuser.
+#
+# Both values are the operator's, so they're quoted here rather than pasted
+# in. A ' in the old `PASSWORD '${PG_PASSWORD}'` ended the literal, and the
+# rest of the password ran as SQL. Doubling the quote character is all SQL
+# asks of an identifier or a literal once standard_conforming_strings is on,
+# which the first statement sees to. The role was also created inside a DO
+# block, whose dollar-quoted body a password containing $$ closed early, so
+# this uses \gexec for the "if it's missing" instead.
+#
+# Printed for psql's stdin, not handed to `psql -v`: sudo logs the command
+# line it runs and `ps` shows it, and the password belongs in neither.
+# tests/test_setup_role_sql.py calls this function on its own.
+pg_role_sql() {
+    local single="'" double='"' role_ident role_literal password_literal
+    role_ident="${double}${1//$double/$double$double}${double}"
+    role_literal="${single}${1//$single/$single$single}${single}"
+    password_literal="${single}${2//$single/$single$single}${single}"
+    cat <<SQL
+SET standard_conforming_strings = on;
+SELECT format('CREATE ROLE %I', ${role_literal}::text)
+WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = ${role_literal}) \gexec
+ALTER ROLE ${role_ident} WITH LOGIN SUPERUSER PASSWORD ${password_literal};
+SQL
+}
+
 # Postgres won't start (and a rerun can't recover it) if shared_buffers
 # doesn't fit, e.g. the planet tier's 96GB on a 32 GB host -- and under
 # vm.overcommit_memory=2 (section 2b) even a smaller overshoot fails. So
@@ -803,19 +847,8 @@ if [[ "$CONFIGURE_POSTGRES" == "true" ]]; then
 
     stage "Creating role '${PG_USER}' and database '${PG_DB}'"
 
-    # Unquoted heredoc so ${PG_USER}/${PG_PASSWORD} interpolate; \$\$ escapes
-    # Postgres's own dollar-quoting so bash doesn't try to expand it.
-    sudo -u postgres psql -p "$PG_PORT" -v ON_ERROR_STOP=1 -q <<SQL
-DO \$\$
-BEGIN
-    IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${PG_USER}') THEN
-        CREATE ROLE ${PG_USER} WITH LOGIN SUPERUSER PASSWORD '${PG_PASSWORD}';
-    ELSE
-        ALTER ROLE ${PG_USER} WITH LOGIN SUPERUSER PASSWORD '${PG_PASSWORD}';
-    END IF;
-END
-\$\$;
-SQL
+    # The SQL goes in on stdin, with both values quoted: see pg_role_sql.
+    pg_role_sql "$PG_USER" "$PG_PASSWORD" | sudo -u postgres psql -p "$PG_PORT" -v ON_ERROR_STOP=1 -q
 
     if ! sudo -u postgres psql -p "$PG_PORT" -tAc "SELECT 1 FROM pg_database WHERE datname = '${PG_DB}'" | grep -q 1; then
         sudo -u postgres createdb -p "$PG_PORT" -O "${PG_USER}" "${PG_DB}"
@@ -1232,6 +1265,16 @@ echo "duckdb:      $(duckdb --version 2>&1 || echo 'not available')"
 echo "abt-vundler: $(abt-vundler --version 2>&1 || echo 'not available')"
 
 stage "Setup complete"
+
+# The next steps below go to the terminal and into LOG_FILE, so they show
+# the password only when it's the default, which this script and the docs
+# already publish. One the operator chose is theirs to paste back in.
+if [[ "$PG_PASSWORD" == "rbt" ]]; then
+    SUMMARY_PGPASSWORD="rbt"
+else
+    SUMMARY_PGPASSWORD="<the PG_PASSWORD you ran this script with>"
+fi
+
 cat <<SUMMARY
 
 Full log saved to: ${LOG_FILE}
@@ -1252,7 +1295,7 @@ Next steps (see docs/walkthroughs/planet.md for the full planet walkthrough):
   export PGHOST=127.0.0.1
   export PGPORT=${PG_PORT}
   export PGUSER=${PG_USER}
-  export PGPASSWORD=${PG_PASSWORD}
+  export PGPASSWORD='${SUMMARY_PGPASSWORD}'
   export PGDATABASE=${PG_DB}
 
   # -n/--num-workers is optional -- it now defaults to a value scaled to

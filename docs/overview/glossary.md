@@ -14,6 +14,9 @@ Terms these docs and the code use, in alphabetical order.
 **Aux data**
 :   Every source that isn't OSM: Natural Earth, NGA GeoNames, OurAirports, FieldMaps boundaries, USGS names, LSIB, DISDI/MIRTA and others. Each has a JSON config in `rbt-schema/import/aux_data/`, `import` loads it into the `aux_data` Postgres schema with `ogr2ogr`, and `import -c/--clip-aux` clips it to the extract's bounding box. See [Auxiliary Data](../schema/aux-data.md).
 
+**BTIS**
+:   The Basemap Tile Package convention, NGA.IS.0081-1. A tileset built with a **projection override** isn't standard MBTiles, so `export` adds the convention's `crs` metadata row to each layer's tiles and `bundler` writes `crs`, `btp_schema_version` and `changelog_url` into the bundle, for downstream tools to detect. `init.sh` uploads such a bundle as `RBT.btis` instead of `RBT.mbtiles`.
+
 **Bulk-load profile**
 :   The Postgres settings `setup_ubuntu.sh` applies unless `PG_BULK_LOAD=false`: `wal_level=minimal`, `max_wal_senders=0` and `synchronous_commit=off`, so tables carto creates and fills in one transaction skip the WAL. It rules out replication and WAL archiving. See [Performance & Sizing](../install/performance.md#bulk-load-profile).
 
@@ -36,7 +39,7 @@ Terms these docs and the code use, in alphabetical order.
 :   `rbt-schema/carto_sql/execution_plan.yml`. It lists the scripts `carto` runs first (the **prefix**), the independent **groups** it may run concurrently, and the scripts it runs last (the **suffix**), with the schemas and extensions to create up front and optional `weights:` for heavy groups. Without it, or with `--carto-concurrency 1`, scripts run one at a time in filename order.
 
 **Export layer, `layer_id`**
-:   One tile layer, configured by one of the 58 `rbt-schema/export/*.json` files. Its `layer_id` names the `export.<layer_id>` view that carto builds, the layer inside the tiles, and the files `flatgeobuf/<layer_id>.fgb` and `mbtiles/<layer_id>.mbtiles`. See [Layer Registry](../schema/layers.md).
+:   One tile layer, configured by one of the 62 `rbt-schema/export/*.json` files. Its `layer_id` names the `export.<layer_id>` view that carto builds, the layer inside the tiles, and the files `flatgeobuf/<layer_id>.fgb` and `mbtiles/<layer_id>.mbtiles`. See [Layer Registry](../schema/layers.md).
 
 **FlatGeobuf (`.fgb`)**
 :   The file `export` writes from each `export.*` view with `ogr2ogr`, and then tiles with `tippecanoe`.
@@ -76,6 +79,9 @@ Terms these docs and the code use, in alphabetical order.
 
 **Run ID**
 :   The `YYYY-MM-DD_HHMMSS` time a command started, which names its `logs/<run_id>/` folder. See [Working Directory](working-directory.md#logs).
+
+**Run summary**
+:   `logs/<run_id>/summary.json`, which every command except `vundler` writes as it finishes: each stage's tasks with their status (`SUCCESS` or `FAILED`), duration, log file and error, and an `overall_status` of `SUCCESS`, `PARTIAL_FAILURE` or `FAILED`. A command exits non-zero unless that is `SUCCESS`. See [Working Directory](working-directory.md#summaryjson).
 
 **Schema directory**
 :   The `-s/--schema-dir` every command reads its configuration from, normally `rbt-schema/`: OSM mappings, aux-data sources, `carto_sql/`, export layer configs and tile metadata. Commands never write to it.

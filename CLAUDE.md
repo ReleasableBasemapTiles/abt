@@ -21,8 +21,9 @@ V2 bundle. The pipeline is a fixed sequence of CLI stages, `download` → `impor
   `execution_plan.yml`), per-layer tile configs (`export/`), and bundle metadata
   (`tile-metadata/metadata.py`). It has no pipeline code except the standalone
   `scripts/overture/`.
-- `tests/` at the root holds the checks that need both `abtv2-tools/` and `rbt-schema/`, so it
-  sits outside both mirrors.
+- `tests/` at the root holds the checks that need both `abtv2-tools/` and `rbt-schema/`, and the
+  tests that run `init.sh`, `setup_ubuntu.sh`'s role SQL and the Overture `tile.sh` against stub
+  tools. It sits outside both mirrors.
 - `docs/` is the MkDocs site. The scripts in `docs/_hooks/` regenerate several pages from code and
   schema at build time.
 - `init.sh` is the production orchestrator and `setup_ubuntu.sh` is the host bootstrap. See
@@ -42,8 +43,9 @@ pip install -r requirements-dev.txt     # or: conda env create -f env.yaml && co
 pytest                                  # a few seconds; one skip unless duckdb is on PATH
 pytest tests/test_carto_processing_model.py -k plan
 
-# Cross-component checks (layer names, shard counts, the carto plan, imposm tags), from the root
-pytest tests                            # under a second; same requirements-dev.txt
+# Cross-component checks (layer names, shard counts, the carto plan, imposm tags) and the
+# init.sh, setup_ubuntu.sh and Overture tile.sh tests, from the root
+pytest tests                            # a few seconds; same requirements-dev.txt
 
 # Shell checks, as CI runs them, from the repo root
 shellcheck init.sh setup_ubuntu.sh .github/scripts/subtree-sync.sh
@@ -53,9 +55,11 @@ bash init.sh --help                     # safe: prints usage and exits before do
 cargo test --manifest-path abtv2-tools/vundler-rs/Cargo.toml  # also builds target/debug/abt-vundler
 pytest abtv2-tools/vundler-rs/tests/test_golden.py            # Rust vs frozen Python oracle; skips if unbuilt
 
-# Docs, as CI builds them, from the repo root
+# Docs, as CI builds them, from the repo root. The build regenerates committed pages, and CI
+# fails a PR if that leaves a diff under docs/.
 pip install -r requirements-docs.txt -r abtv2-tools/requirements-dev.txt
 mkdocs build --strict
+git diff --exit-code -- docs/
 
 # What this branch would publish to each mirror (needs a full, non-shallow clone)
 bash .github/scripts/subtree-sync.sh check abtv2-tools origin/main
@@ -72,10 +76,13 @@ git config core.hooksPath .githooks     # optional: reject non-conventional comm
 - **Docs** runs `mkdocs build --strict` on every push to `main`, then publishes the site. On a PR
   it runs only if the PR touches one of these:
   - `docs/`, `mkdocs.yml`, `requirements-docs.txt`, or the workflow file itself
+  - `CONTRIBUTING.md`, whose commit rules `docs/project/contributing.md` includes by snippet
   - `abtv2-tools/`
   - one of `rbt-schema/{export,import/aux_data,tile-metadata,carto_sql}/`
 
-  On a PR it uploads the built site as the `docs-site` artifact.
+  On a PR it uploads the built site as the `docs-site` artifact, then fails if the build changed
+  anything under `docs/`: a generated page whose source the PR edited without committing the
+  regenerated page (see [Docs gotchas](#docs-gotchas)).
 - **Tests** runs on every push to `main`, and on a PR that touches `abtv2-tools/`,
   `rbt-schema/`, `tests/`, `init.sh`, `setup_ubuntu.sh`, `.github/scripts/`, or its workflow
   file. On Python 3.13 it runs `pytest` in `abtv2-tools/` and `pytest tests` at the root. It
@@ -225,10 +232,11 @@ EOF
   - `abt-tools.py` can't be imported by name, so tests load it with
     `importlib.util.spec_from_file_location`.
 - **Some known issues are unfixed on purpose.** They're waiting on a product decision: R5 and
-  R7–R10 in `docs/project/code-review-findings.md` (R1–R3 stand by design), and the
-  "Report only" section of `docs/project/code-review-2026-09.md`. One example is the connection
-  that each `PGConfig` query method except `table_sizes` leaks on every call (R5). Raise these
-  issues rather than fixing them in passing.
+  R7–R10 in `docs/project/code-review-findings.md` (R1–R3 stand by design), the
+  "Report only" section of `docs/project/code-review-2026-09.md`, and L4, L6, and L13 in
+  `docs/project/code-review-2026-11.md`. One example is the connection that each `PGConfig`
+  query method except `table_sizes` leaks on every call (R5). Raise these issues rather than
+  fixing them in passing.
 
 ## Rust (`abtv2-tools/vundler-rs/`)
 
@@ -241,7 +249,8 @@ EOF
 ## Docs gotchas
 
 - **Generated pages: edit the source, not the page.** Then commit the regenerated page together
-  with its source.
+  with its source. The Docs workflow fails a PR that leaves one stale; `mkdocs build --strict`
+  followed by `git diff --exit-code -- docs/` is the same check locally.
 
   | Generated page (under `docs/`) | Source |
   |---|---|
@@ -254,6 +263,11 @@ EOF
 - **The CLI reference is rendered for a 48 vCPU host.** `gen_cli_reference.py` sets
   `PYTHON_CPU_COUNT=48`, so `[default: N]` in `docs/reference/cli.md` doesn't follow your CPU
   count. Python 3.12 and older ignore the variable: build with 3.13, or don't commit that churn.
+- **The CLI reference is rendered by a pinned Typer.** `requirements-docs.txt` pins `typer` and
+  `rich` to exact versions, because a release of either can change how `docs/reference/cli.md`
+  reads and fail the stale-page check. Build the docs in an environment installed from that
+  file, or don't commit that churn. To bump a pin, regenerate and commit the page in the same PR.
+  The runtime requirement (`abtv2-tools/requirements-dev.txt`, `env.yaml`) stays unpinned.
 - **The strict build needs `unpkg.com`.** The mermaid2 plugin checks its script URL there. In a
   network-restricted sandbox, `mkdocs build --strict` aborts on that single warning, and the
   failure isn't caused by your change.

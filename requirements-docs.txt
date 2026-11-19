@@ -29,3 +29,20 @@ pymdown-extensions>=10.0
 # its env.yaml conda env) alongside this file. The other hooks only read
 # rbt-schema/*.json, */*.yml, and tile-metadata/metadata.py directly with
 # the standard library plus PyYAML (already required by requirements-dev.txt).
+#
+# Typer and rich are pinned to exact versions because docs/reference/cli.md is
+# a committed page and both shape its text: Typer decides how each option's
+# type reads, and renders the help through rich. Typer 0.29 showed a
+# repeatable path option as <list[Path]> where 0.27 showed <path>, and the
+# Docs workflow fails a pull request whose committed page differs from the one
+# it builds, so an unpinned release fails every such pull request until
+# someone regenerates the page.
+#
+# The pins cover the docs build only. abtv2-tools/requirements-dev.txt and
+# env.yaml still accept any Typer from 0.12; installing this file into the
+# same environment sets it to the version below.
+#
+# To move to a newer release, change the pin, run `mkdocs build --strict` on
+# Python 3.13, and commit what changes under docs/ in the same pull request.
+typer==0.29.2
+rich==15.0.0

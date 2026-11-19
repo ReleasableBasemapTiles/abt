@@ -1,7 +1,7 @@
 """Tests for the metadata export_bundled writes into the joined file: the BTIS
 rows on a reprojected bundle (changelog_url empty, not a placeholder), their
 absence on plain Web Mercator output, and the schema's descriptive metadata.
-tile-join is replaced by a copy of one input."""
+tile-join is replaced by a copy of one input to the command's --output."""
 
 import shutil
 import sqlite3
@@ -35,9 +35,11 @@ def _bundle_with_fake_tile_join(tmp_path: Path, monkeypatch, crs=None) -> Bundle
         metadata={"name": "Test", "version": "2026-10-08.0"},
     )
     bundle.bundled_dir.mkdir(parents=True, exist_ok=True)
+    # Like tile-join itself, the stand-in writes wherever --output points
+    # (bundled/.partial/, not the final path: see test_export_bundler_staging).
     monkeypatch.setattr(
         bundler_module, "run_subprocess",
-        lambda **kwargs: shutil.copy(src, bundle.bundled_mbtiles_path),
+        lambda **kwargs: shutil.copy(src, kwargs["cmd"][kwargs["cmd"].index("--output") + 1]),
     )
     return bundle
 

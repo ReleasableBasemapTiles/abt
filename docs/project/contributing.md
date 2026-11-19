@@ -1,23 +1,12 @@
 # Contributing
 
-Commit and pull-request titles must be [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) so [git-cliff](https://git-cliff.org/) can keep `CHANGELOG.md` up to date. The repository-root `CONTRIBUTING.md` is the source of truth for commit format, squash-merge guidance, and changelog automation.
+Commit and pull-request titles must be [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) so [git-cliff](https://git-cliff.org/) can keep `CHANGELOG.md` up to date. The repository-root [`CONTRIBUTING.md`](https://github.com/ReleasableBasemapTiles/abt/blob/main/CONTRIBUTING.md) is the source of truth for commit format, squash-merge guidance, and changelog automation: the four sections after this introduction are included from it, so edit them there.
 
-This page covers tests and local workflow. As of this writing, this repository has no Python linter or formatter config (no `ruff.toml`, `.flake8`, `mypy.ini`, or `.pre-commit-config.yaml`).
+The rest of this page covers tests and local workflow. As of this writing, this repository has no Python linter or formatter config (no `ruff.toml`, `.flake8`, `mypy.ini`, or `.pre-commit-config.yaml`).
 
 The code is a work of the United States Government, dedicated to the public domain under [CC0 1.0](https://github.com/ReleasableBasemapTiles/abt/blob/main/LICENSE). See [NOTICE](https://github.com/ReleasableBasemapTiles/abt/blob/main/NOTICE) for the MIT-licensed planet-mirror code adapted from openmaptiles-tools and for the source-data licenses that apply to generated tiles.
 
-## Conventional Commits
-
-Use `type(scope): short description`. Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. `scope` is optional (`init`, `overture`, `schema`, `bundler`, `vundler`, `docs`, `ci`, …).
-
-```text
-feat(init): add --from export flag for existing mbtiles
-fix(overture): raise open-file limit before invoking tippecanoe
-docs: add MkDocs documentation site
-chore(ci): add git-cliff changelog workflow
-```
-
-The **Lint PR** workflow rejects pull requests whose title or commits do not match. Prefer squash-merge so the PR title becomes the `main` commit that git-cliff publishes. Do not hand-edit `CHANGELOG.md`; the Changelog workflow regenerates it on pushes to `main` and on `v*` tags.
+--8<-- "CONTRIBUTING.md:commit-rules"
 
 ## Running tests before submitting a change
 
@@ -28,7 +17,7 @@ pip install -r requirements-dev.txt   # or: conda env create -f env.yaml && cond
 pytest
 ```
 
-The repository root's `tests/` holds the checks between `abtv2-tools/` and `rbt-schema/`; run them from the root with `pytest tests`.
+The repository root's `tests/` holds the checks between `abtv2-tools/` and `rbt-schema/`, and the tests of `init.sh`, `setup_ubuntu.sh` and the Overture `tile.sh`; run them from the root with `pytest tests`.
 
 See [Configuration](../install/configuration.md) for more on `env.yaml` vs. `requirements-dev.txt`, and [Testing](testing.md) for the full breakdown of what's covered.
 
@@ -36,7 +25,7 @@ See [Configuration](../install/configuration.md) for more on `env.yaml` vs. `req
 
 ## CI that exists today
 
-Pull requests are checked for Conventional Commit titles and commit messages (`Lint PR`), and for what they would publish to the standalone `abtv2-tools` and `rbt-schema` repositories (`Subtree sync`). Pushes to `main` also rebuild `CHANGELOG.md`, `--strict`-validate this documentation site, and publish both directories to those repositories (see [Upstream Mirrors](mirrors.md)). The **Tests** workflow runs both pytest suites, `cargo test` and the golden cross-check for `vundler-rs`, and `shellcheck` on `init.sh`, `setup_ubuntu.sh` and the subtree-sync script, on pushes to `main` and on pull requests that touch code, schema or tests. Since there's no Python formatter or linter config yet, match the existing code style by eye.
+Pull requests are checked for Conventional Commit titles and commit messages (`Lint PR`), and for what they would publish to the standalone `abtv2-tools` and `rbt-schema` repositories (`Subtree sync`). A pull request that touches the docs, `CONTRIBUTING.md`, `abtv2-tools/` or the schema files the docs are generated from also gets a `--strict` build of this site (`Docs`), which fails if the build changes a [generated page](testing.md#running-the-suites-locally) that the pull request didn't commit. Pushes to `main` rebuild `CHANGELOG.md`, build and publish this site, and publish both directories to those repositories (see [Upstream Mirrors](mirrors.md)). The **Tests** workflow runs both pytest suites, `cargo test` and the golden cross-check for `vundler-rs`, and `shellcheck` on `init.sh`, `setup_ubuntu.sh` and the subtree-sync script, on pushes to `main` and on pull requests that touch code, schema or tests. Since there's no Python formatter or linter config yet, match the existing code style by eye.
 
 ## Style conventions observed in the existing code
 

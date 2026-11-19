@@ -86,7 +86,7 @@ All configuration for `setup_ubuntu.sh` is via environment variables — every o
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `rbt` / `rbt` / `rbt` / `5432` | Pipeline's database/role. `init.sh` reads the same variables, and it has to pass the same `PG_PASSWORD`, which `PG_AUTH_HOST=scram-sha-256` checks. |
+| `PG_DB` / `PG_USER` / `PG_PASSWORD` / `PG_PORT` | `rbt` / `rbt` / `rbt` / `5432` | Pipeline's database/role. `init.sh` reads the same variables, and it has to pass the same `PG_PASSWORD`, which `PG_AUTH_HOST=scram-sha-256` checks. The password can hold any characters, quotes and `$` included. A rerun sets the role's password to `PG_PASSWORD` again. |
 | `PG_SERVICE_NAME` | `postgresql-rbt` | Name of the custom systemd unit wrapping `initdb`/`pg_ctl` (the script bypasses Debian's `postgresql-common` cluster tooling entirely). |
 | `PG_DATA_DIR` | `/var/lib/postgresql/<major>/main` | PostgreSQL data directory — override to point at a mounted NVMe device. |
 | `FORCE_REINIT_POSTGRES` | `false` | Set `true` to allow wiping a non-empty `PG_DATA_DIR` before running `initdb` fresh; left `false` so the script fails loudly instead of silently deleting existing data. |
