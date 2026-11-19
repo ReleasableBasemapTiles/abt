@@ -2,7 +2,7 @@
 version, the UTC-date default, malformed values), init_bundler stamping it
 over anything in tile-metadata/metadata.py, and the --data-version option and
 ABT_DATA_VERSION variable. The schema, Postgres and the join itself are
-replaced."""
+replaced. One test at the end covers how --additional-mbtiles reads in help."""
 
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
@@ -140,3 +140,16 @@ def test_malformed_option_is_rejected_before_anything_runs(invoke):
     result, calls = invoke("--data-version", "latest")
     assert result.exit_code != 0
     assert calls == []
+
+
+# --- help text --------------------------------------------------------------
+
+def test_help_shows_additional_mbtiles_as_taking_a_path():
+    # docs/reference/cli.md is generated from this record, and the Docs
+    # workflow fails a pull request whose committed page differs from it.
+    # Typer 0.29 began rendering a repeatable option's type as <list[Path]>
+    # where 0.27 rendered <path>, so the page depended on the Typer installed.
+    command = typer.main.get_command(bundler_cli.app)
+    ctx = command.make_context("bundler", [], resilient_parsing=True)
+    option = next(p for p in command.params if p.name == "additional_mbtiles")
+    assert option.get_help_record(ctx)[0] == "-q, --additional-mbtiles <path>"

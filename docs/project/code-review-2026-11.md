@@ -111,7 +111,7 @@ Every gain here is an *(estimate)* until a planet run's timings exist.
 
 - **`setup_ubuntu.sh` still treats the repository as private.** The comment above `ABT_REPO` says so, and the default is the deploy-key SSH alias `git@abt:…`, which a host without that alias can't clone from. The repository is public. Run from a checkout, as the README does, the script uses that checkout and never clones.
 - **`setup_ubuntu.sh` still builds other SQL from its variables.** The role statement is quoted now, but `PG_DB` goes into `WHERE datname = '${PG_DB}'` as it is. The operator sets it, so the risk is low.
-- **Typer isn't pinned** (`typer>=0.12`). A release that changes how help text renders would fail the new stale-page check on every pull request until `reference/cli.md` is regenerated.
+- **Typer isn't pinned** (`typer>=0.12`). A release that changes how help text renders fails the new stale-page check on every pull request until `reference/cli.md` is regenerated. It happened on this change's own pull request: CI installed Typer 0.29, which shows a repeatable option's type as `<list[Path]>` where 0.27 showed `<path>`. `bundler`'s `--additional-mbtiles` now names its own label, so that page no longer depends on which of the two is installed. A pin, or the lockfile in O7, would cover the next such change.
 - **`CONTRIBUTING.md` prefers squash merges, and every pull request so far has landed as a merge commit.** One of the two should change.
 - **A failed `bundler` run leaves its partial file** in `bundled/.partial/` until the next run clears it, as `export` does.
 - **The `init.sh` lock doesn't cover the database.** It is on the run directory, so two runs with different `ABT_RUN_DIR`s and the same `PG_DB` aren't stopped and would import over each other. A Postgres advisory lock held for the length of the run would cover that.
@@ -124,19 +124,19 @@ Every relative link in these docs resolves, and every page is in the nav. Every 
 
 ## Verification
 
-- `abtv2-tools` pytest: 375 passed, 1 skipped (the real-DuckDB test, on a machine without the `spatial` extension). Root `tests/`: 38 passed.
+- `abtv2-tools` pytest: 376 passed, 1 skipped (the real-DuckDB test, on a machine without the `spatial` extension). Root `tests/`: 38 passed. Both ran on Python 3.14 with Typer 0.27, and again on Python 3.13 with the package versions CI installs (Typer 0.29).
 - `cargo test --locked`: 23 passed. The golden cross-check: 9 passed. Neither covers changed code; they're a regression check.
 - `shellcheck` is clean on `init.sh`, `setup_ubuntu.sh` and `.github/scripts/subtree-sync.sh`, and `bash init.sh --help` runs.
-- `mkdocs build --strict` passes and leaves no difference under `docs/`.
+- `mkdocs build --strict` passes and leaves no difference under `docs/`, on both of those setups.
+- On the pull request, CI ran the lock and staging tests against the real `flock(1)` (38 passed), and the stale-page check failed the first push for the Typer difference described under [Noticed while fixing](#noticed-while-fixing).
 - L10's SQL ran against a scratch PostgreSQL 18.6 cluster: creating the role, altering an existing one, and passwords containing `'`, `$$`, a backslash and `$(id)`, each followed by a login with that password. The log's mode was checked for a new log and an existing one.
 - L12 and L3 run the real `init.sh` and `tile.sh` against stand-in tools. The journal tests for L1 and L3 leave a real hot SQLite journal beside the final name and check the new file's integrity after its first open.
 - A second reviewer with no part in the fixes read the whole branch. It found the lock on the data root instead of the run directory (a host that set `ABT_RUN_DIR` and couldn't create the default data root could no longer start), the stale-journal case, and a `chmod` that, run as root with `LOG_FILE=/dev/null`, would have made `/dev/null` unreadable to every other user. All three are fixed in the commits above, each with a test that failed first.
 
 Not verified:
 
-- **`flock(1)` itself.** The tests ran on macOS, which has none, with a stand-in that makes the same `flock(2)` call. CI runs them against the real one. Nothing tested the lock on a network filesystem.
+- **The lock on a network filesystem.** Locally the tests ran on macOS, which has no `flock(1)`, with a stand-in that makes the same `flock(2)` call; CI ran them against the real one. Both used a local disk.
 - **Whether a killed `tile-join` or tippecanoe leaves a hot journal.** The journal tests make one with Python's `sqlite3`; neither tool was killed mid-write.
 - **`setup_ubuntu.sh` end to end.** Only the role SQL and the log's mode were exercised.
-- **The workflow changes.** The timeouts and the stale-page check take effect only in CI.
-- **Python 3.13.** The suites and the docs build ran on 3.14 locally; CI runs 3.13.
+- **The job timeouts.** The workflows run with them, but no job has yet run long enough to reach one.
 - **Any timing.** No pipeline stage ran, so every performance finding is an estimate.

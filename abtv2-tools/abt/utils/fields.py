@@ -99,6 +99,11 @@ optional_max_zoom_field = typer.Option(
 additional_mbtiles_field = typer.Option(
     ..., # Default value [], making it optional
     *additional_mbtiles_aliases,
+    # Named here because Typer's own label for a repeatable option changed:
+    # 0.27 showed <path> and 0.29 shows <list[Path]>. docs/reference/cli.md is
+    # generated from the help, and the Docs workflow fails a pull request whose
+    # committed page differs, so the label must not depend on the Typer installed.
+    metavar="<path>",
     help="(Optional, repeatable) Path to an externally-produced mbtiles file to fold into "
          "the bundle -- e.g. contours. Pass multiple times to include more than one.",
 )
