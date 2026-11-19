@@ -41,6 +41,7 @@ Nothing is written straight to its final name, so a killed or failed run never l
 | An extraction | `<name>_extracted.partial/` beside it | once every member is extracted; the `.complete` marker follows |
 | A FlatGeobuf | `flatgeobuf/.partial/<layer_id>.fgb` | once `ogr2ogr` exits 0 |
 | An MBTiles | `mbtiles/.partial/<layer_id>.mbtiles` | once `tippecanoe` exits 0 and its metadata is set |
+| A run summary | `logs/<run_id>/summary.json.tmp` | once the whole file is written |
 
 A working directory from before this staging can still hold truncated files. See [Troubleshooting](../reference/troubleshooting.md#download-and-import) for which ones to delete.
 
