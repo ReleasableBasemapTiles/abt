@@ -1,6 +1,6 @@
 # Contributing
 
-This repository keeps [CHANGELOG.md](CHANGELOG.md) in [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) form. [git-cliff](https://git-cliff.org/) regenerates that file on every push to `main` and on every `v*` tag, from **Conventional Commits**.
+This repository keeps [CHANGELOG.md](CHANGELOG.md) in [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) form. [git-cliff](https://git-cliff.org/) regenerates that file on every push to `main`, on every `v*` tag and when a release is published, from **Conventional Commits**.
 
 <!-- The docs site includes the sections between these two markers in
      docs/project/contributing.md, so they exist in one place. Keep links
@@ -35,9 +35,9 @@ Squash-merging uses the **PR title** as the commit on `main`, which is the line 
 
 ## Changelog updates
 
-Do not edit `CHANGELOG.md` by hand for ordinary work. After merge (or after you push a `v*` tag), the Changelog workflow rewrites the file and commits `chore(changelog): update CHANGELOG.md [skip ci]`.
+Do not edit `CHANGELOG.md` by hand for ordinary work. After merge (or after you push a `v*` tag or publish a release), the Changelog workflow rewrites the file and commits `chore(changelog): update CHANGELOG.md [skip ci]`.
 
-GitHub Releases are still created by hand (`gh release create`). Repo tags like `v2.0.0` become changelog versions.
+GitHub Releases are still created by hand (`gh release create`). Repo tags like `v2.0.0` become changelog versions. Publishing the release is what reliably starts the workflow for it: the tip of `main` is usually the bot's own `[skip ci]` commit, and GitHub starts no run for a tag pushed onto one.
 
 ## Local commit-msg hook (optional)
 
