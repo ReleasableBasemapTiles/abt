@@ -6,10 +6,10 @@ A directory-by-directory map of the monorepo. For the conceptual relationship be
 
 | Path | What it is |
 |---|---|
-| `README.md` | The workspace walkthrough: pipeline overview, Ubuntu setup, and full planet + small-extract worked examples. |
+| `README.md` | The front page: what ABT is, a map of these docs, a quick start that builds a Norway tileset on a host set up by `setup_ubuntu.sh`, and how to build this site. The worked examples are the [Norway](../walkthroughs/norway.md) and [Planet](../walkthroughs/planet.md) walkthroughs. |
 | `init.sh` | The production orchestrator that drives the whole pipeline (plus Overture buildings and multi-projection builds) end to end. See [init.sh Orchestrator](../walkthroughs/init-sh.md). |
 | `setup_ubuntu.sh` | An idempotent Ubuntu 26.04 bootstrap script, in 11 numbered stages (1: OS check, 1a: Postgres sizing check, 1b: ABT root dir, 2: base apt packages, 2b: kernel/ulimit tuning, 3: PostgreSQL + PostGIS via `initdb`/a custom systemd unit, 4 & 5: role/database/extensions/tuning, 6: imposm from source, 7: tippecanoe from source, 7b: AWS CLI v2, 7c: duckdb CLI, 8: clone the monorepo, 9: Rust toolchain + `abt-vundler`, 10: micromamba + `env.yaml` Python env, 11: verification). Every stage self-checks before repeating work, so re-running it is safe. See [Ubuntu Setup](../install/ubuntu.md). |
-| `tests/` | Cross-component checks that need both `abtv2-tools/` and `rbt-schema/`, such as every export layer having a `carto_sql` view. See [Testing](../project/testing.md). |
+| `tests/` | The tests that belong to neither mirrored directory: the cross-component checks that need both `abtv2-tools/` and `rbt-schema/` (such as every export layer having a `carto_sql` view), and the tests that run `init.sh`, `setup_ubuntu.sh`'s role SQL and the Overture `tile.sh` against stub tools. See [Testing](../project/testing.md). |
 | `.cursor/plans/` | Internal planning docs — not part of the public site. |
 
 Two separate git repos, one history. `abtv2-tools` and `rbt-schema` used to be independent git repositories and were merged into this single repo with commit history preserved — `git log -- abtv2-tools/` and `git log -- rbt-schema/` both still work. Both are git subtrees, and this repo is now where they're developed: every merge to `main` publishes each directory back to its original repository ([abtv2-tools](https://github.com/ReleasableBasemapTiles/abtv2-tools), [rbt-schema](https://github.com/ReleasableBasemapTiles/rbt-schema)). See [Upstream Mirrors](../project/mirrors.md).
@@ -44,7 +44,7 @@ Two separate git repos, one history. `abtv2-tools` and `rbt-schema` used to be i
 | `import/osm/` | 38 imposm3 mapping YAML fragments, one per OSM-derived table. |
 | `import/aux_data/` | 23 JSON configs for non-OSM sources. |
 | `carto_sql/` | 33 active, numbered SQL scripts (including the sequential-suffix `099_update_geometry.sql`), plus one disabled via the `.skip` convention (`031_building.sql.skip`), `execution_plan.yml` (concurrency grouping), and a `static_data/` sub-folder — unrelated to the top-level `static_data/` below — holding manually-run seed SQL. |
-| `export/` | 58 active per-layer JSON configs, one disabled via `.skip` (`building_polygon.json.skip`, since that layer comes from the Overture pipeline instead). |
+| `export/` | 62 active per-layer JSON configs, one disabled via `.skip` (`building_polygon.json.skip`, since that layer comes from the Overture pipeline instead). |
 | `static_data/` | Raw data files checked directly into git (e.g. `ne_physical_centerlines.fgb.zip`), referenced by `import/aux_data/*.json` via `local_path`. |
 | `tile-metadata/metadata.py` | The `metadata` dict written into the final bundled mbtiles. |
 | `scripts/overture/` | A standalone (no Postgres) Overture Maps buildings pipeline: `fetch.sh`, `shard.sh`, `tile.sh`, `lock.sh`, `tag_crs.py`, plus its own README. See [Overture Buildings](../pipeline/overture.md). |

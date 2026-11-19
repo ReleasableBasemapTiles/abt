@@ -9,6 +9,9 @@ on:
       - "mkdocs.yml"
       - "requirements-docs.txt"
       - ".github/workflows/docs.yml"
+      # docs/project/contributing.md includes the commit rules from this
+      # file by snippet, and the build fails if the section markers go.
+      - "CONTRIBUTING.md"
       # docs/_hooks/*.py import or read these at build time (CLI reference,
       # layer registry, data sources, carto execution graph, database
       # schema), so a change here can break -- or silently go stale in --

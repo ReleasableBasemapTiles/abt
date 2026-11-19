@@ -126,7 +126,7 @@ mode a build would use.
 
 **`carto_sql` can produce more `export.*` views than are actually tiled.**
 `025_sports.sql` builds `export.golf_course` and `export.sports_ground`, but
-neither has a matching `export/*.json`. Every one of the 58 files in
+neither has a matching `export/*.json`. Every one of the 62 files in
 `export/` does have a matching `CREATE MATERIALIZED VIEW export.<layer_id>`
 somewhere in `carto_sql`, but the reverse isn't guaranteed.
 

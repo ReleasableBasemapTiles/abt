@@ -1,6 +1,6 @@
 # Pipeline
 
-ABT turns OpenStreetMap data plus a handful of auxiliary open datasets (Natural Earth, NGA GeoNames, OurAirports, FieldMaps admin boundaries, USGS domestic names, US Dept. of State LSIB, DISDI/MIRTA installations) into a bundled Mapbox vector tileset (`.mbtiles`), with an optional conversion to an Esri Compact Cache V2 tile bundle.
+ABT turns OpenStreetMap data plus a handful of auxiliary open datasets (Natural Earth, NGA GeoNames, OurAirports, FieldMaps admin boundaries, USGS domestic names, US Dept. of State LSIB, DISDI/MIRTA installations) into a bundled Mapbox vector tileset (`.mbtiles`), with an optional conversion to an Esri Compact Cache V2 tile bundle. Building footprints are the exception: they come from Overture Maps through a separate set of scripts, and `bundler` joins their tiles in with `-q`. See [Overture Buildings](../pipeline/overture.md).
 
 !!! note "No DAG engine"
     The pipeline is a strict sequence of CLI subcommands — there is no DAG engine, Makefile, or scheduler. Each stage reads from and writes to a `--working-dir` you choose, and reads pipeline configuration from a `--schema-dir` (in practice, your `rbt-schema` checkout). Within the `carto` stage itself, independent `carto_sql/*.sql` scripts can run concurrently against Postgres.
@@ -12,6 +12,7 @@ flowchart LR
     cartoStage --> exportStage["export<br/>PostGIS to FlatGeobuf to MBTiles"]
     exportStage --> bundlerStage["bundler<br/>tile-join into joined.mbtiles"]
     bundlerStage --> vundlerStage["vundler, optional<br/>converts to Esri Compact Cache V2"]
+    overtureStage["Overture buildings, optional<br/>scripts/overture, joined with -q"] --> bundlerStage
 ```
 
 ## Stages at a glance

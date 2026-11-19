@@ -21,8 +21,9 @@ V2 bundle. The pipeline is a fixed sequence of CLI stages, `download` → `impor
   `execution_plan.yml`), per-layer tile configs (`export/`), and bundle metadata
   (`tile-metadata/metadata.py`). It has no pipeline code except the standalone
   `scripts/overture/`.
-- `tests/` at the root holds the checks that need both `abtv2-tools/` and `rbt-schema/`, so it
-  sits outside both mirrors.
+- `tests/` at the root holds the checks that need both `abtv2-tools/` and `rbt-schema/`, and the
+  tests that run `init.sh`, `setup_ubuntu.sh`'s role SQL and the Overture `tile.sh` against stub
+  tools. It sits outside both mirrors.
 - `docs/` is the MkDocs site. The scripts in `docs/_hooks/` regenerate several pages from code and
   schema at build time.
 - `init.sh` is the production orchestrator and `setup_ubuntu.sh` is the host bootstrap. See
@@ -42,8 +43,9 @@ pip install -r requirements-dev.txt     # or: conda env create -f env.yaml && co
 pytest                                  # a few seconds; one skip unless duckdb is on PATH
 pytest tests/test_carto_processing_model.py -k plan
 
-# Cross-component checks (layer names, shard counts, the carto plan, imposm tags), from the root
-pytest tests                            # under a second; same requirements-dev.txt
+# Cross-component checks (layer names, shard counts, the carto plan, imposm tags) and the
+# init.sh, setup_ubuntu.sh and Overture tile.sh tests, from the root
+pytest tests                            # a few seconds; same requirements-dev.txt
 
 # Shell checks, as CI runs them, from the repo root
 shellcheck init.sh setup_ubuntu.sh .github/scripts/subtree-sync.sh
@@ -74,6 +76,7 @@ git config core.hooksPath .githooks     # optional: reject non-conventional comm
 - **Docs** runs `mkdocs build --strict` on every push to `main`, then publishes the site. On a PR
   it runs only if the PR touches one of these:
   - `docs/`, `mkdocs.yml`, `requirements-docs.txt`, or the workflow file itself
+  - `CONTRIBUTING.md`, whose commit rules `docs/project/contributing.md` includes by snippet
   - `abtv2-tools/`
   - one of `rbt-schema/{export,import/aux_data,tile-metadata,carto_sql}/`
 

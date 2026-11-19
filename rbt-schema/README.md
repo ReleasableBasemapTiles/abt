@@ -15,7 +15,7 @@ Full documentation for this directory lives under the workspace [`docs/`](https:
 - [Overture Buildings](https://ReleasableBasemapTiles.github.io/abt/pipeline/overture/) — the standalone `scripts/overture/` pipeline.
 - [Data Sources & Licensing](https://ReleasableBasemapTiles.github.io/abt/overview/data-sources/) — every source and its license terms, generated from `import/aux_data/*.json` and `tile-metadata/metadata.py`.
 
-See the workspace [`README.md`](https://github.com/ReleasableBasemapTiles/abt/blob/main/README.md) for the end-to-end pipeline overview and worked walkthroughs, and [`abtv2-tools/README.md`](https://github.com/ReleasableBasemapTiles/abt/blob/main/abtv2-tools/README.md) for the CLI/flag reference.
+To run the pipeline, start from the quick start in the workspace [`README.md`](https://github.com/ReleasableBasemapTiles/abt/blob/main/README.md); the [Norway](https://ReleasableBasemapTiles.github.io/abt/walkthroughs/norway/) and [Planet](https://ReleasableBasemapTiles.github.io/abt/walkthroughs/planet/) walkthroughs explain each step. Every command and flag is in the [`abt-tools` CLI Reference](https://ReleasableBasemapTiles.github.io/abt/reference/cli/).
 
 ## Layout
 

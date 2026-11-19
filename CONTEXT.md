@@ -490,8 +490,17 @@ output.
 
 ### Known doc drift
 
-None known as of 2026-09-29. If you find prose that disagrees with the code and can't fix it in
-the same change, list it here.
+Two items are known as of 2026-11-19. If you find prose that disagrees with the code and can't
+fix it in the same change, list it here.
+
+- The `-- Sources:` header lines of `carto_sql/003`, `006`, `023`, `025`, and `026` don't match
+  the `osm.*` and `aux_data.*` tables those scripts read. `docs/schema/database.md` is generated
+  from the headers, so its source lists for those layers are wrong too (finding L19 in
+  `docs/project/code-review-2026-11.md`).
+- The comment above `ABT_REPO` in `setup_ubuntu.sh` says the repository is private. It's public,
+  and the default is still the deploy-key SSH alias `git@abt:…`, which a host without that alias
+  can't clone from. The README quick start clones over HTTPS and runs the script from the
+  checkout instead.
 
 ## Where to start
 

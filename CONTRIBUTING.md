@@ -2,6 +2,10 @@
 
 This repository keeps [CHANGELOG.md](CHANGELOG.md) in [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) form. [git-cliff](https://git-cliff.org/) regenerates that file on every push to `main` and on every `v*` tag, from **Conventional Commits**.
 
+<!-- The docs site includes the sections between these two markers in
+     docs/project/contributing.md, so they exist in one place. Keep links
+     inside them absolute: a relative link would break on the site. -->
+<!-- --8<-- [start:commit-rules] -->
 ## Commit and pull request titles
 
 Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/):
@@ -44,6 +48,7 @@ git config core.hooksPath .githooks
 ```
 
 That only affects this clone. It does not change your global Git config.
+<!-- --8<-- [end:commit-rules] -->
 
 ## Standalone mirrors
 

@@ -49,7 +49,7 @@ ABT turns OpenStreetMap data plus a handful of authoritative auxiliary open data
 - **Concurrent `carto`** — independent `carto_sql/*.sql` scripts run against Postgres at once, grouped by [`execution_plan.yml`](schema/carto-sql.md), with concurrency auto-scaled to the host's CPU count.
 - **Multi-projection tiling** — [`init.sh`](walkthroughs/init-sh.md) runs `export`/`bundler` for several EPSG codes (3857, 3395, 4087 by default) in parallel and can fold in [Overture Maps buildings](pipeline/overture.md) and externally-produced contours.
 - **Esri bundle output** — [`vundler`](pipeline/vundler.md) converts the joined `.mbtiles` into an Esri Compact Cache V2 tile bundle via a Rust binary, [`abt-vundler`](reference/vundler-rs.md), ported from the original pure-Python implementation for better parallelism.
-- **~58 declared tile layers** — every layer's zoom range, attributes, and tippecanoe/ogr2ogr options live in one `rbt-schema/export/*.json` file each; inspect them all on the generated [Layer Registry](schema/layers.md).
+- **62 declared tile layers** — every layer's zoom range, attributes, and tippecanoe/ogr2ogr options live in one `rbt-schema/export/*.json` file each; inspect them all on the generated [Layer Registry](schema/layers.md).
 
 ## Requirements at a glance
 
