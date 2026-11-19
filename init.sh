@@ -213,7 +213,9 @@ overture_for() {
 # existing file into [5/6] via -q, exactly as a fresh run would. tile.sh
 # itself always runs tippecanoe with --force and has no such check, so
 # without this a re-run of --overture (e.g. alongside --from export) would
-# re-tile buildings from scratch every time.
+# re-tile buildings from scratch every time. Existence is enough to go on:
+# tile.sh builds under .partial/ and moves the tileset to this name only
+# once it's finished, so a run cleanup_overture killed leaves nothing here.
 overture_already_tiled() {
     local srs
     for srs in "${PROJECTIONS[@]}"; do

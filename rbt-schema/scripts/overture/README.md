@@ -67,6 +67,14 @@ layer name is always `building_polygon`. `shard.sh` skips files already done, an
 so the whole pipeline is safe to re-run after an interruption -- see
 "Concurrency" below for what that guarantee depends on.
 
+`tile.sh` builds each tileset at `data_dir/.partial/building_polygon_<srs>.mbtiles`
+and moves it to `data_dir/building_polygon_<srs>.mbtiles` only once `tippecanoe`
+has exited 0 and, for a reprojected build, `tag_crs.py` has tagged it. A
+`building_polygon_<srs>.mbtiles` in the data dir is therefore always a finished
+tileset: a `tile.sh` run that fails or is killed leaves the previous one (or
+none) in place, and the next run overwrites the partial. That matters because
+`init.sh` skips Overture, and bundles the file, whenever it exists.
+
 `area` is always `ST_Area_Spheroid` off the source WGS84 geometry, so the zoom
 filters in `tile.sh` mean the same thing in every projection.
 

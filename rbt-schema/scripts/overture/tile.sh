@@ -41,7 +41,16 @@ else
   PROJ_FLAG=(--projection=EPSG:3857)
 fi
 
-mkdir -p "$OUTDIR/tippe_temp"
+# tippecanoe writes here, and the tileset is moved to $OUT only once it and
+# tag_crs.py have succeeded. Written straight to $OUT, a run that was killed
+# partway (init.sh kills this script whenever another stage fails) left a
+# tileset missing its top zooms, or a reprojected one still labelled
+# EPSG:3857, and init.sh's overture_already_tiled check and `bundler -q`
+# only test that the file exists. Beside $OUT, so the move is a rename on one
+# filesystem. --force below lets tippecanoe overwrite what a killed run left.
+PARTIAL="$OUTDIR/.partial/building_polygon_$SRS.mbtiles"
+
+mkdir -p "$OUTDIR/tippe_temp" "$OUTDIR/.partial"
 
 # tippecanoe sizes its reader pool to the host's core count and opens ~10
 # descriptors per reader during setup (pool/tree/geom/index/vertex/node
@@ -89,7 +98,7 @@ raise_open_file_limit() {
 raise_open_file_limit
 
 tippecanoe \
-  -o "$OUT" \
+  -o "$PARTIAL" \
   -l building_polygon \
   -n "Releasable Basemap Tiles (RBT) - Buildings" \
   -P \
@@ -114,8 +123,15 @@ tippecanoe \
 # can tell what the coordinates really are. Stamp the true CRS plus bounds/center
 # for it. Invoked via the interpreter so a missing exec bit can't break the build.
 if [[ "$SRS" != "3857" ]]; then
-  "${PYTHON:-python3}" tag_crs.py "$SRS" "$OUT"
+  "${PYTHON:-python3}" tag_crs.py "$SRS" "$PARTIAL"
 fi
+
+# A tippecanoe killed while it wrote $OUT in place, as this script ran it
+# before it staged, leaves $OUT-journal, and SQLite replays a journal into
+# whichever database it next finds beside it: the finished tileset, once it
+# is moved here. Whatever that journal belonged to is being replaced.
+rm -f "$OUT-journal"
+mv -f "$PARTIAL" "$OUT"
 
 # Opt-in: drop the .fgb shards this build just consumed. A planet parts dir runs
 # to hundreds of GB and there is one per projection, so they are usually the

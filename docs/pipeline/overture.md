@@ -138,6 +138,14 @@ externally-produced, reprojected `contours_<srs>.mbtiles` files before bundling.
 re-run after an interruption — see [Concurrency](#concurrency) below for what
 that guarantee depends on.
 
+`tile.sh` builds each tileset at `<data_dir>/.partial/building_polygon_<srs>.mbtiles`
+and moves it to `<data_dir>/building_polygon_<srs>.mbtiles` only once `tippecanoe`
+has exited 0 and, for a reprojected build, `tag_crs.py` has tagged it. A
+`building_polygon_<srs>.mbtiles` in the data dir is therefore always a finished
+tileset: a `tile.sh` run that fails or is killed leaves the previous one (or
+none) in place, and the next run overwrites the partial. That matters because
+`init.sh` skips Overture, and bundles the file, whenever it exists.
+
 ## Concurrency
 
 `fetch.sh` and `tile.sh` coordinate through a single `flock` on
