@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Skip the real DuckDB check when its spatial extension is missing
+- Give every workflow job a timeout
+- Fail a pull request that leaves a generated page stale
+- Make the README quick start run through to a finished tileset
+- Cover the failures a first build runs into
+- Correct stale statements and keep the commit rules in one place
+- Add the November 2026 review of onboarding, reliability and performance
+- Pin Typer and rich for the docs build so a release can't change the CLI page
+
+### Fixed
+
+- Write summary.json under a temporary name and rename it into place
+- Keep the previous bundle until the new one is complete
+- Move a buildings tileset into place only once it is finished
+- Refuse to start while another init.sh run holds the run directory
+- Keep the Postgres password out of the setup log and quote it in SQL
+- Keep the help for --additional-mbtiles the same across Typer versions
+
 ## [2.2.0] - 2026-11-09
 
 ### Added
@@ -210,6 +232,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed abt_ prefix from metadata.py
 
+[unreleased]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.2.0..HEAD
 [2.2.0]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.1.0..v2.2.0
 [2.1.0]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.0.0..v2.1.0
 [2.0.0]: https://github.com/ReleasableBasemapTiles/abt/releases/tag/v2.0.0
