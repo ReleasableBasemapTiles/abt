@@ -22,21 +22,50 @@ Full documentation is published at <https://ReleasableBasemapTiles.github.io/abt
 
 ## Quick start
 
+These steps build a tileset of Norway on a fresh Ubuntu 26.04 host with at least 8 vCPUs and 32 GB of RAM. `setup_ubuntu.sh` installs Postgres and the tools, and it retunes the kernel and restarts Postgres, so run it only on a host dedicated to this. To install by hand instead, follow [Ubuntu Setup](docs/install/ubuntu.md).
+
 ```bash
-git clone git@github.com:ReleasableBasemapTiles/abt.git ~/abt
+git clone https://github.com/ReleasableBasemapTiles/abt.git ~/abt
 cd ~/abt
-./setup_ubuntu.sh                 # fresh Ubuntu 26.04 host -- see docs/install/ubuntu.md
+./setup_ubuntu.sh
 ```
 
-Then open a new SSH session, which picks up the raised open-file limit and micromamba's shell hook, and activate the Python env before running anything:
+Open a new SSH session, which picks up the raised open-file limit and micromamba's shell hook. The script created a database named `rbt` for the planet build. Give the Norway build one of its own, with the four extensions the pipeline needs:
+
+```bash
+sudo -u postgres createdb -O rbt rbt_norway
+sudo -u postgres psql -d rbt_norway <<'SQL'
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS hstore;
+CREATE EXTENSION IF NOT EXISTS dblink;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+SQL
+```
+
+Activate the Python environment and point the commands at that database. `rbt` is the script's default role and password; use your own `PG_USER` and `PG_PASSWORD` if you set them.
 
 ```bash
 micromamba activate abtv2
 cd ~/abt/abtv2-tools
-python abt-tools.py download -w ~/abt/run-norway -s ../rbt-schema -d all -k norway -n 4
+
+export PGHOST=127.0.0.1
+export PGPORT=5432
+export PGUSER=rbt
+export PGPASSWORD=rbt
+export PGDATABASE=rbt_norway
 ```
 
-See the [Norway walkthrough](docs/walkthroughs/norway.md) for the full, copy-pasteable sequence through `import`/`carto`/`export`/`bundler`, or the [Planet walkthrough](docs/walkthroughs/planet.md) for a full-scale build.
+Run the five stages in order. Keep `-k norway` on the first two: without it they download and import the whole planet.
+
+```bash
+python abt-tools.py download -w ~/abt/run-norway -s ../rbt-schema -d all -k norway
+python abt-tools.py import   -w ~/abt/run-norway -s ../rbt-schema -d all -k norway -c -p env
+python abt-tools.py carto    -w ~/abt/run-norway -s ../rbt-schema -p env
+python abt-tools.py export   -w ~/abt/run-norway -s ../rbt-schema -p env -z 13
+python abt-tools.py bundler  -w ~/abt/run-norway -s ../rbt-schema -p env
+```
+
+The tileset is `~/abt/run-norway/bundled/joined.mbtiles`. Each command exits non-zero if any of its tasks failed, and prints the path of the `summary.json` that says which. The [Norway walkthrough](docs/walkthroughs/norway.md) explains each step and its flags, [Troubleshooting](docs/reference/troubleshooting.md) covers the failures people hit, and the [Planet walkthrough](docs/walkthroughs/planet.md) is the full-scale build.
 
 ## Building the docs site
 

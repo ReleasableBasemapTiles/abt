@@ -3,18 +3,49 @@
 For fast iteration on schema/SQL changes — without planet-scale time or disk cost — the same pipeline can build a single Geofabrik extract instead. This walks through Norway (Geofabrik key `norway`, PBF currently ~1.4 GB); swap in any other Geofabrik key for a different extract (see "Confirming your Geofabrik key" in [Troubleshooting](../reference/troubleshooting.md)).
 
 !!! note "Prerequisites"
-    This walkthrough assumes the 8 vCPU / 32 GB tier from [Performance & Sizing](../install/performance.md), and a separate `rbt_norway` database so it can coexist with a planet build on the same host — see [Ubuntu Setup](../install/ubuntu.md#create-a-database-and-role) to create it.
+    This walkthrough assumes the 8 vCPU / 32 GB tier from [Performance & Sizing](../install/performance.md), on a host set up either by [`setup_ubuntu.sh`](../install/ubuntu.md#automated-setup-setup_ubuntush) or by hand with [Ubuntu Setup](../install/ubuntu.md). Both leave a superuser role named `rbt` (password `rbt`), which is all the first step below needs.
 
 For the full-scale version of this same sequence, see the [Planet walkthrough](planet.md). For the production, multi-projection, S3-uploading path that wraps all of these stages into one script, see [init.sh Orchestrator](init-sh.md).
 
-## Configure the database connection
+## Create the database
 
-The paths below follow the manual [Ubuntu Setup](../install/ubuntu.md): the repo cloned to `~/abt`, a conda env, and each run's working directory next to the clone. On a host [`setup_ubuntu.sh`](../install/ubuntu.md#automated-setup-setup_ubuntush) set up, activate the env with `micromamba activate abtv2` and `cd` into the `abtv2-tools/` of the checkout you ran it from (`/rbt/abtv2-tools` if you cloned to `/rbt`); every other command is the same.
+The walkthrough builds into a database of its own, `rbt_norway`, so it can coexist with a planet build in `rbt` on the same host. Create it with the four extensions the pipeline needs ([Configuration](../install/configuration.md) says what each is for):
 
 ```bash
-conda activate abtv2
-cd ~/abt/abtv2-tools
+sudo -u postgres createdb -O rbt rbt_norway
+sudo -u postgres psql -d rbt_norway <<'SQL'
+CREATE EXTENSION IF NOT EXISTS postgis;
+CREATE EXTENSION IF NOT EXISTS hstore;
+CREATE EXTENSION IF NOT EXISTS dblink;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+SQL
+```
 
+Skip this if `rbt_norway` already exists. To build into another database, such as the `rbt` one both setups create, set `PGDATABASE` to it below instead; it needs the same four extensions.
+
+## Configure the database connection
+
+Activate the Python environment and `cd` into the checkout's `abtv2-tools/`. The paths on this page assume the repo is cloned to `~/abt`, with each run's working directory inside the clone.
+
+=== "After `setup_ubuntu.sh`"
+
+    ```bash
+    micromamba activate abtv2
+    cd ~/abt/abtv2-tools
+    ```
+
+    Use the `abtv2-tools/` of the checkout you ran the script from: `/rbt/abtv2-tools` if you cloned to `/rbt`.
+
+=== "After the manual setup"
+
+    ```bash
+    conda activate abtv2
+    cd ~/abt/abtv2-tools
+    ```
+
+Then export the connection. `rbt` is the default role and password on both paths; use your own if you set `PG_USER` or `PG_PASSWORD`.
+
+```bash
 export PGHOST=127.0.0.1
 export PGPORT=5432
 export PGUSER=rbt
