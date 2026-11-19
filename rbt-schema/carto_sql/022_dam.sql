@@ -91,6 +91,7 @@ SELECT
         WHEN hw.total >= 0.25 * ST_Perimeter(s.geometry)              THEN 'highway'
     END                                                                 AS surface_src,
     s.area,
+    MinLabel(s.area)                                                    AS min_label,
     s.geometry
 FROM src s
 LEFT JOIN LATERAL (

@@ -40,7 +40,7 @@ COMMIT;
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.pumping_station_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.pumping_station_polygon AS
-SELECT * FROM infrastructure.pumping_station;
+SELECT *, MinLabel(area) AS min_label FROM infrastructure.pumping_station;
 
 CREATE INDEX idx_pumping_station_geometry ON export.pumping_station_polygon USING gist(geometry);
 CREATE INDEX idx_pumping_station_osm_id   ON export.pumping_station_polygon USING btree(osm_id);

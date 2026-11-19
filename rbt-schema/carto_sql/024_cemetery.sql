@@ -56,6 +56,7 @@ SELECT
     a.denomination,
     a.cemetery,
     a.area,
+    MinLabel(a.area)                                                    AS min_label,
     a.area_part,
     a.rank,
     CASE 

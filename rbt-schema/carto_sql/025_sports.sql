@@ -19,6 +19,7 @@ SELECT
     class,
     subclass,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                     AS min_label,
     geometry
 FROM osm.osm_builtup_area
 WHERE subclass IN ('sports_centre','stadium');

@@ -7,7 +7,8 @@
         {"name": "subclass", "type": "string", "description": ""},
         {"name": "operator", "type": "string", "description": ""},
         {"name": "substance","type": "string", "description": ""},
-        {"name": "area",     "type": "float",  "description": "area in m² (web mercator)"}
+        {"name": "area",     "type": "float",  "description": "area in m² (web mercator)"},
+        {"name": "min_label", "type": "float", "description": "Zoom, to 0.1, at which the feature is 32 px across (MinLabel); styles draw it from min_label - k"}
     ],
     "source_attribution": "",
     "tippecanoe_options": {

@@ -99,7 +99,7 @@ COMMIT;
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.grain_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.grain_polygon AS
-SELECT * FROM infrastructure.grain_srf;
+SELECT *, MinLabel(area) AS min_label FROM infrastructure.grain_srf;
 
 CREATE INDEX idx_grain_srf_geometry ON export.grain_polygon USING gist(geometry);
 CREATE INDEX idx_grain_srf_osm_id   ON export.grain_polygon USING btree(osm_id);
@@ -122,6 +122,7 @@ SELECT
     height,
     content,
     area,
+    MinLabel(area)                                                      AS min_label,
     tags,
     geometry
 FROM infrastructure.grain_point
@@ -134,6 +135,7 @@ SELECT
     height,
     content,
     area,
+    MinLabel(area)                                                      AS min_label,
     tags,
     geometry
 FROM infrastructure.grain_srf_pnt;

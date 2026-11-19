@@ -25,6 +25,7 @@ SELECT
     COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULLIF(protect_class, '')                                           AS protect_class,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                     AS min_label,
     geometry
 FROM osm.osm_park_polygon
 WHERE subclass IN (
@@ -48,6 +49,7 @@ SELECT
     COALESCE(NULLIF(name_en, ''), NULLIF(name, ''))                     AS name,
     NULL::text                                                          AS protect_class,
     ST_Area(ST_Transform(geometry, 3857))::real                         AS area,
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                     AS min_label,
     geometry
 FROM osm.osm_landuse_polygon
 WHERE subclass = 'pitch';

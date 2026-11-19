@@ -207,6 +207,7 @@ SELECT
     NULLIF(station, '')                                             AS station,
     NULLIF(service, '')                                             AS service,
     ST_Area(ST_Transform(geometry, 3857))::real                     AS area,
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                 AS min_label,
     geometry
 FROM osm.osm_transportation_polygon
 WHERE subclass IN ('station', 'bus_station', 'ferry_terminal', 'rest_area', 'services', 'platform');

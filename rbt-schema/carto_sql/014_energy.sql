@@ -131,7 +131,7 @@ COMMIT;
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.energy_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.energy_polygon AS
-SELECT * FROM infrastructure.energy_field;
+SELECT *, MinLabel(area) AS min_label FROM infrastructure.energy_field;
 
 CREATE INDEX idx_energy_polygon_geometry ON export.energy_polygon USING gist(geometry);
 CREATE INDEX idx_energy_polygon_osm_id   ON export.energy_polygon USING btree(osm_id);

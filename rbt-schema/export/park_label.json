@@ -3,7 +3,7 @@
     "description": "One label point per named park, on its largest part. Same-name parks that touch or nearly touch share one label.",
     "geometry_type": "point",
     "attributes": [
-        {"name": "min_label",     "type": "int",    "description": "Lowest zoom at which to label the park: where its area is 32 px across."},
+        {"name": "min_label",     "type": "float",    "description": "Lowest zoom at which to label the park: where its area is 32 px across."},
         {"name": "area",          "type": "float",  "description": "Web Mercator area in m² of the park, or of the same-name group it belongs to."},
         {"name": "name",          "type": "string", "description": ""},
         {"name": "subclass",      "type": "string", "description": ""},

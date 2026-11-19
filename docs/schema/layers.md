@@ -30,18 +30,18 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `building_polygon` | polygon | 11 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | **disabled** (`.skip`) |
 | `builtup_polygon` | polygon | 4 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
 | `cemetery_label` | point | 9 | 13 | 5 | `--drop-rate=1` | enabled |
-| `cemetery_polygon` | polygon | 9 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `cemetery_polygon` | polygon | 9 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `culvert_point` | point | 9 | 13 | 2 | `--drop-rate=1` | enabled |
 | `dam_label` | point | 9 | 13 | 3 | `--drop-rate=1` | enabled |
 | `dam_line` | linestring | 9 | 13 | 3 | `--simplify-only-low-zooms` | enabled |
-| `dam_polygon` | polygon | 9 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `dam_polygon` | polygon | 9 | 13 | 4 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `energy_label` | point | 9 | 13 | 9 | `--drop-rate=1` | enabled |
-| `energy_polygon` | polygon | 9 | 13 | 5 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `energy_polygon` | polygon | 9 | 13 | 6 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `ferry_line` | linestring | 8 | 13 | 1 | `--simplify-only-low-zooms` | enabled |
 | `glacier_label` | point | 0 | 13 | 4 | `--drop-rate=1` | enabled |
 | `glacier_polygon` | polygon | 0 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
-| `grain_point` | point | 9 | 13 | 3 | `--drop-rate=1` | enabled |
-| `grain_polygon` | polygon | 9 | 13 | 1 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `grain_point` | point | 9 | 13 | 4 | `--drop-rate=1` | enabled |
+| `grain_polygon` | polygon | 9 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `heliport_point` | point | 9 | 13 | 8 | `--drop-rate=1` | enabled |
 | `hydrographic_label` | point | 0 | 13 | 5 | `--drop-rate=1` | enabled |
 | `inland_water_intermittent_polygon` | polygon | 5 | 13 | 0 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound` | enabled |
@@ -52,7 +52,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `lock_line` | linestring | 9 | 13 | 2 | `--simplify-only-low-zooms` | enabled |
 | `ocean_polygon` | polygon | 0 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit` | enabled |
 | `park_label` | point | 9 | 13 | 5 | `--drop-rate=1` | enabled |
-| `park_polygon` | polygon | 9 | 13 | 4 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `park_polygon` | polygon | 9 | 13 | 5 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `physical_labels` | linestring | 3 | 13 | 5 | `--drop-rate=1` | enabled |
 | `pier_line` | linestring | 12 | 13 | 4 | `--simplify-only-low-zooms` | enabled |
 | `pier_polygon` | polygon | 12 | 13 | 5 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
@@ -60,21 +60,21 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `place_labels` | point | 3 | 13 | 6 | `--drop-rate=1` | enabled |
 | `poi_point` | point | 11 | 13 | 4 | `--drop-rate=1` | enabled |
 | `port_label` | point | 9 | 13 | 4 | `--drop-rate=1` | enabled |
-| `port_polygon` | polygon | 9 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `port_polygon` | polygon | 9 | 13 | 4 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `power_station_label` | point | 9 | 13 | 6 | `--drop-rate=1` | enabled |
-| `power_station_polygon` | polygon | 9 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `power_station_polygon` | polygon | 9 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `powerline_line` | linestring | 8 | 13 | 4 | `--simplify-only-low-zooms` | enabled |
 | `pumping_station_label` | point | 9 | 13 | 5 | `--drop-rate=1` | enabled |
-| `pumping_station_polygon` | polygon | 9 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `pumping_station_polygon` | polygon | 9 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `radar_label` | point | 8 | 13 | 8 | `--drop-rate=1` | enabled |
 | `rail_line` | linestring | 7 | 13 | 7 | `--simplify-only-low-zooms` | enabled |
 | `road_line` | linestring | 6 | 13 | 11 | `--simplify-only-low-zooms` | enabled |
 | `road_polygon` | polygon | 12 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `runway_line` | linestring | 11 | 13 | 4 | `-pS` | enabled |
 | `stadium_label` | point | 9 | 13 | 4 | `--drop-rate=1` | enabled |
-| `stadium_polygon` | polygon | 9 | 13 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `stadium_polygon` | polygon | 9 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `transportation_station_label` | point | 11 | 13 | 8 | `--drop-rate=1` | enabled |
-| `transportation_station_polygon` | polygon | 11 | 13 | 7 | `--drop-rate=1 --hilbert` | enabled |
+| `transportation_station_polygon` | polygon | 11 | 13 | 8 | `--drop-rate=1 --hilbert` | enabled |
 | `us_military_installations_label` | point | 9 | 13 | 3 | `-r1` | enabled |
 | `us_military_installations_polygon` | polygon | 9 | 13 | 0 | `--coalesce` | enabled |
 | `utility_point` | point | 9 | 13 | 13 | `--drop-rate=1` | enabled |

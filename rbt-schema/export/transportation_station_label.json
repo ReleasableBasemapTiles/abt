@@ -3,7 +3,7 @@
     "description": "",
     "geometry_type": "point",
     "attributes": [
-        {"name": "min_label", "type": "int", "description": "Lowest zoom at which to label the feature: where its area is 32 px across. 0 for features mapped as points."},
+        {"name": "min_label", "type": "float", "description": "Lowest zoom at which to label the feature: where its area is 32 px across. 0 for features mapped as points."},
         {"name": "subclass",  "type": "string", "description": ""},
         {"name": "name",      "type": "string", "description": ""},
         {"name": "operator",  "type": "string", "description": ""},

@@ -108,7 +108,7 @@ COMMIT;
 BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.port_polygon CASCADE;
 CREATE MATERIALIZED VIEW export.port_polygon AS
-SELECT * FROM infrastructure.port_surface_enhanced;
+SELECT *, MinLabel(area) AS min_label FROM infrastructure.port_surface_enhanced;
 
 CREATE INDEX idx_port_surface_geometry ON export.port_polygon USING gist(geometry);
 CREATE INDEX idx_port_surface_osm_id   ON export.port_polygon USING btree(osm_id);

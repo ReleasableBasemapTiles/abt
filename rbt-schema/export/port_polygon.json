@@ -9,6 +9,11 @@
             "description": ""
         },
         {
+            "name": "min_label",
+            "type": "float",
+            "description": "Zoom, to 0.1, at which the feature is 32 px across (MinLabel); styles draw it from min_label - k"
+        },
+        {
             "name": "subclass",
             "type": "string",
             "description": ""
