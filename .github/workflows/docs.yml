@@ -32,6 +32,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # The build takes a minute or two. Without a limit of its own a hung
+    # step holds a runner for GitHub's default six hours.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
         with:
@@ -72,6 +75,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write

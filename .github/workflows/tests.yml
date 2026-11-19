@@ -26,6 +26,9 @@ jobs:
   python:
     name: Python tests
     runs-on: ubuntu-latest
+    # Every job in this workflow finishes in a few minutes. Without a limit
+    # of its own a hung step holds a runner for GitHub's default six hours.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
@@ -44,6 +47,7 @@ jobs:
   vundler:
     name: abt-vundler tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20 # room for a cargo build with no cache
     defaults:
       run:
         working-directory: abtv2-tools/vundler-rs
@@ -79,6 +83,7 @@ jobs:
   shell:
     name: Shell scripts
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
       # shellcheck ships on the runner image. The Overture scripts under
