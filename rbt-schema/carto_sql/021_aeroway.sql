@@ -720,9 +720,18 @@ airports AS (
         END                                AS category,
         CASE WHEN a.type = 'closed' THEN 2 ELSE 1 END AS rank,
         a.geometry,
+        -- The label describes one runway per airport: the longest open one. A closed runway is
+        -- used only when every runway is closed, so a disused strip can't set the surface of an
+        -- airport that still operates. Equal lengths prefer a hard surface, then the runway
+        -- idents, so the pick is the same on every build instead of whichever row came first.
         ROW_NUMBER() OVER (
             PARTITION BY a.airport_id
-            ORDER BY COALESCE(a.runway_length_ft, -1) DESC
+            ORDER BY COALESCE(a.runway_closed, '0') = '1',
+                     COALESCE(a.runway_length_ft, -1) DESC,
+                     aeroway.runway_surface_class(
+                         COALESCE(surf_pat.standardized_code, surf_exact.standardized_code,
+                                  a.runway_surface)) = 'hard' DESC,
+                     a.runway_le_ident, a.runway_he_ident
         )                                  AS _row_rank
     FROM aeroway.airports_runways_osm a
     LEFT JOIN runway_counts b ON a.airport_id = b.airport_id
