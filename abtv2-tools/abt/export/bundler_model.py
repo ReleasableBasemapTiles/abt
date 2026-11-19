@@ -134,19 +134,29 @@ class Bundler(BaseModel):
         return self.bundled_dir / self.package_name
 
     @property
+    def bundled_mbtiles_partial(self) -> Path:
+        """Where bundler.py builds the bundle: tile-join writes here and the
+        metadata is rewritten here, and only the finished file is moved to
+        bundled_mbtiles_path. In bundled_dir so the move is a rename on one
+        filesystem; in a subdirectory so a half-built file can never be
+        mistaken for a bundle (see exporter.py, which stages the same way)."""
+        return self.bundled_dir / ".partial" / self.package_name
+
+    @property
     def bundled_mbtiles_tmp(self) -> Path:
         """Returns the full path to the temporary bundled MBTiles file."""
         tmp_dir = self.bundled_dir / "_tmp"
         tmp_dir.mkdir(parents=True, exist_ok=True)
         return tmp_dir
 
-    def build_tile_join_cmd(self, files: List[Path]) -> List[str]:
-        """Constructs a 'tile-join' command joining exactly the given files.
+    def build_tile_join_cmd(self, files: List[Path], output: Optional[Path] = None) -> List[str]:
+        """Constructs a 'tile-join' command joining exactly the given files
+        into `output` (bundled_mbtiles_path when not given).
 
         Split out from `tile_join_cmd` so bundler.py can join a set of
         zoom-trimmed temporary copies (see `max_zoom`) instead of the
-        original `tile_list` inputs, without duplicating the name/output
-        logic.
+        original `tile_list` inputs, and write to bundled_mbtiles_partial
+        instead of the final path, without duplicating the name logic.
         """
         default_name = f"Army Basemap Tiles (Build: {datetime.datetime.now().strftime('%Y-%m-%d')})"
         name = self.metadata.get("name", default_name) if self.metadata else default_name
@@ -154,7 +164,7 @@ class Bundler(BaseModel):
             "tile-join",
             "-pk",  # Don't skip tiles larger than 500K.
             "-n", name,
-            "--output", str(self.bundled_dir / self.package_name),
+            "--output", str(output if output is not None else self.bundled_mbtiles_path),
             *[str(p) for p in files],
         ]
 

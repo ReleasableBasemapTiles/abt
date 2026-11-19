@@ -99,7 +99,8 @@ except `vundler`'s. `docs/overview/working-directory.md` lists every file:
                        <name>_extracted.partial/ while extracting, then .<name>_extracted.complete
   flatgeobuf/          <layer_id>.fgb       (export, step 1; written in flatgeobuf/.partial/ first)
   mbtiles/             <layer_id>.mbtiles   (export, step 2; written in mbtiles/.partial/ first)
-  bundled/             joined.mbtiles, vundled/p12/, and _tmp/ (bundler -z only)
+  bundled/             joined.mbtiles (written in bundled/.partial/ first), vundled/p12/,
+                       and _tmp/ (bundler -z only)
   tmp/                 ogr_tmp/, tippecanoe_tmp/, per-layer temp dirs
   logs/<run_id>/       one per invocation (YYYY-MM-DD_HHMMSS): download/ import/ carto/ fgb/
                        mbtiles/, a *.log per task, and summary.json

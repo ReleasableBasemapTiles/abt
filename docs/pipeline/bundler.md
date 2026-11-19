@@ -26,6 +26,13 @@ python abt-tools.py bundler -w <working_dir> -s <schema_dir> [-p pg_config] [-q 
 
 - **Always rebuilds from scratch.** There's no incremental bundling — every run
   re-joins the full set of inputs.
+- **Keeps the previous bundle until the new one is finished.** `tile-join`
+  writes to `bundled/.partial/<output name>`, the metadata is rewritten there,
+  and the file is moved to `bundled/<output name>` last. A run that fails or is
+  killed leaves the previous bundle as it was, so the file at the final name is
+  always a complete, labelled bundle. Rebuilding over an existing bundle
+  therefore needs free space for both until the move. A failed run leaves its
+  partial behind, and the next run deletes it before it starts.
 - **Fails on mismatched projections across inputs.** All layers being joined
   need to agree on their CRS.
 - **Skips missing and empty inputs instead of failing.** Three kinds of input
