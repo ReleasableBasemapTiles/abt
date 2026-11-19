@@ -53,9 +53,11 @@ bash init.sh --help                     # safe: prints usage and exits before do
 cargo test --manifest-path abtv2-tools/vundler-rs/Cargo.toml  # also builds target/debug/abt-vundler
 pytest abtv2-tools/vundler-rs/tests/test_golden.py            # Rust vs frozen Python oracle; skips if unbuilt
 
-# Docs, as CI builds them, from the repo root
+# Docs, as CI builds them, from the repo root. The build regenerates committed pages, and CI
+# fails a PR if that leaves a diff under docs/.
 pip install -r requirements-docs.txt -r abtv2-tools/requirements-dev.txt
 mkdocs build --strict
+git diff --exit-code -- docs/
 
 # What this branch would publish to each mirror (needs a full, non-shallow clone)
 bash .github/scripts/subtree-sync.sh check abtv2-tools origin/main
@@ -75,7 +77,9 @@ git config core.hooksPath .githooks     # optional: reject non-conventional comm
   - `abtv2-tools/`
   - one of `rbt-schema/{export,import/aux_data,tile-metadata,carto_sql}/`
 
-  On a PR it uploads the built site as the `docs-site` artifact.
+  On a PR it uploads the built site as the `docs-site` artifact, then fails if the build changed
+  anything under `docs/`: a generated page whose source the PR edited without committing the
+  regenerated page (see [Docs gotchas](#docs-gotchas)).
 - **Tests** runs on every push to `main`, and on a PR that touches `abtv2-tools/`,
   `rbt-schema/`, `tests/`, `init.sh`, `setup_ubuntu.sh`, `.github/scripts/`, or its workflow
   file. On Python 3.13 it runs `pytest` in `abtv2-tools/` and `pytest tests` at the root. It
@@ -241,7 +245,8 @@ EOF
 ## Docs gotchas
 
 - **Generated pages: edit the source, not the page.** Then commit the regenerated page together
-  with its source.
+  with its source. The Docs workflow fails a PR that leaves one stale; `mkdocs build --strict`
+  followed by `git diff --exit-code -- docs/` is the same check locally.
 
   | Generated page (under `docs/`) | Source |
   |---|---|

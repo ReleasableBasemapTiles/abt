@@ -32,7 +32,11 @@ The shell checks need `shellcheck` (`brew install shellcheck` on macOS, `sudo ap
 shellcheck init.sh setup_ubuntu.sh .github/scripts/subtree-sync.sh
 ```
 
-To build these docs as well, `pip install -r requirements-docs.txt` into the same environment and run `mkdocs serve` (or `mkdocs build --strict`, as the Docs workflow does). Two tests in `test_overture_check_proj_agreement.py` also need `duckdb` or `ogr2ogr` on `PATH`, and skip themselves without it.
+To build these docs as well, `pip install -r requirements-docs.txt` into the same environment and run `mkdocs serve` (or `mkdocs build --strict`, as the Docs workflow does).
+
+The build rewrites five committed pages from code and schema: `reference/cli.md`, `schema/layers.md`, `overview/data-sources.md`, `schema/database.md`, and a block of `schema/carto-sql.md`. On a pull request the Docs workflow then runs `git diff --exit-code -- docs/` and fails if any of them changed, which means the pull request edited a source (a CLI help string, an `export/*.json`, a `carto_sql` header) without committing the page it generates. To fix it, run `mkdocs build --strict` and commit what changes under `docs/`. Build with Python 3.13 or newer: older versions ignore the `PYTHON_CPU_COUNT` the CLI reference is rendered with, so its worker defaults would follow your machine's core count.
+
+Two tests in `test_overture_check_proj_agreement.py` also need `duckdb` or `ogr2ogr` on `PATH`, and skip themselves without it.
 
 ## `abtv2-tools/tests/`
 
