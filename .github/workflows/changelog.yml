@@ -1,6 +1,15 @@
 # Regenerate CHANGELOG.md from Conventional Commits via git-cliff.
-# Runs on pushes to main and on v* tags. Bot commits use
-# `chore(changelog): ... [skip ci]` so this workflow does not loop.
+# Runs on pushes to main, on v* tags, and when a release is published. Bot
+# commits use `chore(changelog): ... [skip ci]` so this workflow does not loop.
+#
+# The release trigger is there because the tag trigger can't be relied on. The
+# tip of main is usually the bot's own `[skip ci]` commit, and a tag pushed
+# onto it starts no run at all, because GitHub skips a push event whose head
+# commit says [skip ci]. That is how v2.2.1 was cut, and its CHANGELOG.md
+# section wasn't written until a later push to main. A release event isn't
+# subject to [skip ci]. A release cut with `gh release create` fires both
+# triggers when its tag lands on an ordinary commit; the second run finds
+# nothing to change and exits.
 
 name: Changelog
 
@@ -8,6 +17,8 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  release:
+    types: [published]
 
 concurrency:
   group: changelog
