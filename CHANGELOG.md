@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Start the changelog workflow when a release is published
+
+## [2.2.1] - 2026-11-19
+
+### Changed
+
 - Skip the real DuckDB check when its spatial extension is missing
 - Give every workflow job a timeout
 - Fail a pull request that leaves a generated page stale
@@ -232,7 +238,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Removed abt_ prefix from metadata.py
 
-[unreleased]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.2.0..HEAD
+[unreleased]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.2.1..HEAD
+[2.2.1]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.2.0..v2.2.1
 [2.2.0]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.1.0..v2.2.0
 [2.1.0]: https://github.com/ReleasableBasemapTiles/abt/compare/v2.0.0..v2.1.0
 [2.0.0]: https://github.com/ReleasableBasemapTiles/abt/releases/tag/v2.0.0
