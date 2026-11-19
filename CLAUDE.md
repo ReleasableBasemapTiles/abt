@@ -263,6 +263,11 @@ EOF
 - **The CLI reference is rendered for a 48 vCPU host.** `gen_cli_reference.py` sets
   `PYTHON_CPU_COUNT=48`, so `[default: N]` in `docs/reference/cli.md` doesn't follow your CPU
   count. Python 3.12 and older ignore the variable: build with 3.13, or don't commit that churn.
+- **The CLI reference is rendered by a pinned Typer.** `requirements-docs.txt` pins `typer` and
+  `rich` to exact versions, because a release of either can change how `docs/reference/cli.md`
+  reads and fail the stale-page check. Build the docs in an environment installed from that
+  file, or don't commit that churn. To bump a pin, regenerate and commit the page in the same PR.
+  The runtime requirement (`abtv2-tools/requirements-dev.txt`, `env.yaml`) stays unpinned.
 - **The strict build needs `unpkg.com`.** The mermaid2 plugin checks its script URL there. In a
   network-restricted sandbox, `mkdocs build --strict` aborts on that single warning, and the
   failure isn't caused by your change.

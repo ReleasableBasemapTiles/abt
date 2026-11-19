@@ -51,6 +51,8 @@ jobs:
             abtv2-tools/requirements-dev.txt
       - name: Install docs dependencies
         run: |
+          # Pins the Typer and rich that render docs/reference/cli.md, so the
+          # page built here matches the committed one whatever PyPI's newest is.
           pip install -r requirements-docs.txt
           # docs/_hooks/gen_cli_reference.py imports abt-tools.py's Typer app
           # at build time, which needs abtv2-tools/abt importable -- same
@@ -77,7 +79,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           if ! git diff --exit-code -- docs/; then
-            echo "::error::The build regenerated the pages above. Run 'mkdocs build --strict' on Python 3.13 and commit the changes under docs/."
+            echo "::error::The build regenerated the pages above. Install requirements-docs.txt and abtv2-tools/requirements-dev.txt, run 'mkdocs build --strict' on Python 3.13, and commit the changes under docs/."
             exit 1
           fi
       - uses: actions/configure-pages@v5
