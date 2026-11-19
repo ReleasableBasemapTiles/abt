@@ -260,7 +260,7 @@ You'll be prompted for the `rbt` role's password by the `psql` line above unless
 ./setup_ubuntu.sh
 ```
 
-Safe to re-run — every stage checks whether its work is already done first (e.g. skips rebuilding `tippecanoe` if it's already on `PATH`, skips `initdb` if `PG_VERSION` already exists at `PG_DATA_DIR`). Output is mirrored to a timestamped log file under `$HOME` (override with `LOG_FILE`).
+Safe to re-run — every stage checks whether its work is already done first (e.g. skips rebuilding `tippecanoe` if it's already on `PATH`, skips `initdb` if `PG_VERSION` already exists at `PG_DATA_DIR`). Output is mirrored to a timestamped log file under `$HOME` (override with `LOG_FILE`), which only its owner can read. The closing "next steps" show `PGPASSWORD` only when it's the default `rbt`; a `PG_PASSWORD` of your own is replaced by a placeholder, so it reaches neither the terminal nor the log.
 
 Configuration is entirely via environment variables, all optional. See [Configuration](configuration.md) for the full environment-variable reference, or read the "Configuration" block at the top of `setup_ubuntu.sh` itself for every variable with its inline reasoning.
 
