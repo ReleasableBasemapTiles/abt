@@ -155,27 +155,11 @@ SELECT
     r.layer,
     r.level,
     r.is_oneway,
-    r.is_ramp,
-    CASE
-        WHEN n.service IS NULL AND n.lifecycle_type = 'intact' THEN
-            'railway_intact_' ||
-            CASE WHEN n.gauge = 'narrow' THEN 'narrow' ELSE 'broadstandard' END || '_' ||
-            CASE WHEN n.electrified = 1  THEN 'electrified' ELSE 'nonelectrified' END || '_' ||
-            CASE WHEN n.tracks = 'single' THEN 'singletrack' ELSE 'multipletracks' END
-        WHEN n.service IS NOT NULL AND n.lifecycle_type = 'intact' THEN
-            'sidetrack_intact_' ||
-            CASE WHEN n.gauge = 'narrow' THEN 'narrow' ELSE 'broadstandard' END || '_' ||
-            CASE WHEN n.electrified = 1  THEN 'electrified' ELSE 'nonelectrified' END
-        WHEN n.service IS NULL AND n.lifecycle_type != 'intact' THEN
-            'railway_not-intact_' ||
-            CASE WHEN n.gauge = 'narrow' THEN 'narrow' ELSE 'broadstandard' END || '_' ||
-            CASE WHEN n.electrified = 1  THEN 'electrified' ELSE 'nonelectrified' END || '_' ||
-            CASE WHEN n.tracks = 'single' THEN 'singletrack' ELSE 'multipletracks' END
-        WHEN n.service IS NOT NULL AND n.lifecycle_type != 'intact' THEN
-            'sidetrack_not-intact_' ||
-            CASE WHEN n.gauge = 'narrow' THEN 'narrow' ELSE 'broadstandard' END || '_' ||
-            CASE WHEN n.electrified = 1  THEN 'electrified' ELSE 'nonelectrified' END
-    END                                                             AS dps_type
+    r.is_ramp
+    -- There is no combined dps_type (railway_intact_narrow_electrified_singletrack, ...): styles
+    -- match its parts directly. railway vs sidetrack is whether service is set, the lifecycle is
+    -- lifecycle_type, and gauge, electrified and tracks are the columns above. Filters that
+    -- listed 8-12 combined strings to mean "intact railway" are now one or two conditions.
 FROM osm.osm_railway_linestring r
 LEFT JOIN transportation.railway_normalized n ON r.osm_id = n.osm_id
 WHERE NOT r.is_area

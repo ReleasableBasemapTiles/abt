@@ -67,7 +67,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `pumping_station_label` | point | 9 | 13 | 5 | `--drop-rate=1` | enabled |
 | `pumping_station_polygon` | polygon | 9 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `radar_label` | point | 8 | 13 | 8 | `--drop-rate=1` | enabled |
-| `rail_line` | linestring | 7 | 13 | 7 | `--simplify-only-low-zooms` | enabled |
+| `rail_line` | linestring | 7 | 13 | 8 | `--simplify-only-low-zooms` | enabled |
 | `road_line` | linestring | 6 | 13 | 11 | `--simplify-only-low-zooms` | enabled |
 | `road_polygon` | polygon | 12 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `runway_line` | linestring | 11 | 13 | 4 | `-pS` | enabled |

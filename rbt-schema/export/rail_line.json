@@ -4,7 +4,8 @@
     "geometry_type": "linestring",
     "attributes": [
         {"name": "brunnel",        "type": "string", "description": ""},
-        {"name": "dps_type",       "type": "string", "description": ""},
+        {"name": "electrified",    "type": "int",    "description": "1 if electrified (trams, subways, light rail, monorails and funiculars count as electrified unless tagged otherwise), else 0"},
+        {"name": "gauge",          "type": "string", "description": "standard, broad or narrow (narrow_gauge and miniature railways are narrow)"},
         {"name": "lifecycle_type", "type": "string", "description": ""},
         {"name": "name",           "type": "string", "description": ""},
         {"name": "service",        "type": "string", "description": ""},
