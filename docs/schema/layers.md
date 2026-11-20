@@ -23,7 +23,7 @@ back through `carto_sql/*.sql` to its `osm.*`/`aux_data.*` sources.
 | `adm2_label` | point | 11 | 13 | 2 | `--drop-rate=1` | enabled |
 | `adm2_line` | linestring | 11 | 13 | 5 | `--simplify-only-low-zooms -pS` | enabled |
 | `airport_label` | point | 7 | 13 | 11 | `--drop-rate=1` | enabled |
-| `airport_polygon` | polygon | 11 | 13 | 3 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
+| `airport_polygon` | polygon | 11 | 13 | 4 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom` | enabled |
 | `barrier_line` | linestring | 13 | 13 | 2 | `--simplify-only-low-zooms` | enabled |
 | `barrier_point` | point | 13 | 13 | 2 | `--drop-rate=1` | enabled |
 | `bathymetry_polygon` | polygon | 0 | 8 | 2 | `--simplify-only-low-zooms --no-tiny-polygon-reduction-at-maximum-zoom --hilbert --coalesce --detect-longitude-wraparound --no-feature-limit --no-tile-size-limit` | enabled |

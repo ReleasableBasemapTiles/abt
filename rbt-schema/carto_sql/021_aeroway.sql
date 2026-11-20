@@ -603,6 +603,7 @@ SELECT
     NULLIF(operator,       '')                                          AS operator,
     NULLIF(surface,        '')                                          AS surface,
     ST_Area(ST_Transform(geometry, 3857))::real                          AS area,
+    MinLabel(ST_Area(ST_Transform(geometry, 3857)))                      AS min_label,
     geometry
 FROM osm.osm_aeroway_polygon;
 
