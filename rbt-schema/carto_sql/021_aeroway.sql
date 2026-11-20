@@ -439,9 +439,11 @@ SELECT
     a.iso_region,
     a.municipality,
     a.scheduled_service,
-    a.gps_code                          AS icao,
-    a.iata_code                         AS iata,
-    a.local_code,
+    -- OurAirports leaves an unknown code as an empty CSV cell; make it NULL so it
+    -- isn't published as "" (a style's coalesce(icao, iata, local_code) stops at "").
+    NULLIF(TRIM(a.gps_code), '')        AS icao,
+    NULLIF(TRIM(a.iata_code), '')       AS iata,
+    NULLIF(TRIM(a.local_code), '')      AS local_code,
     a.geometry
 FROM aux_data.ourairports_airports a
 LEFT JOIN aux_data.ourairports_runways r ON a.id = r.airport_ref
@@ -702,11 +704,12 @@ airports AS (
 )
 SELECT
     airport_id, ident,
-    runway_length_ft, runway_width_ft, runway_surface,
+    -- whole feet: a length converted from OSM metres is fractional
+    round(runway_length_ft)::int AS runway_length_ft, runway_width_ft, runway_surface,
     runway_lighted, runway_closed,
     runway_le_ident, runway_le_heading,
     runway_he_ident, runway_he_heading,
-    type, name, elevation_ft,
+    type, name, round(elevation_ft)::int AS elevation_ft,
     continent, iso_country, iso_region, municipality, scheduled_service,
     icao, iata, local_code,
     osm_id_aerodrome, osm_id_runway, osm_aerodrome_area,

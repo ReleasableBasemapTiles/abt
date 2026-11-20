@@ -4,14 +4,14 @@
     "geometry_type": "point",
     "attributes": [
         {"name": "category",           "type": "float",  "description": ""},
-        {"name": "elevation_ft",       "type": "string", "description": ""},
+        {"name": "elevation_ft",       "type": "int",    "description": ""},
         {"name": "iata",               "type": "string", "description": ""},
         {"name": "icao",               "type": "string", "description": ""},
         {"name": "local_code",         "type": "string", "description": ""},
         {"name": "name",               "type": "string", "description": ""},
         {"name": "osm_aerodrome_area", "type": "float",  "description": ""},
-        {"name": "rank",               "type": "string", "description": ""},
-        {"name": "runway_length_ft",   "type": "string", "description": ""},
+        {"name": "rank",               "type": "int",    "description": ""},
+        {"name": "runway_length_ft",   "type": "int",    "description": ""},
         {"name": "runway_surface",     "type": "string", "description": ""},
         {"name": "type",               "type": "string", "description": ""}
     ],
@@ -25,4 +25,4 @@
     "ogr_export_options": {
         "additional_flags": "-lco SPATIAL_INDEX=NO"
     }
-}
+}
