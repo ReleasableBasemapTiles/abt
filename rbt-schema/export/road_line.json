@@ -24,14 +24,14 @@
 
     "*":
     ["any",
-    ["all", [">=", "$zoom", 4], ["in", "subclass", "motorway", "trunk", "construction_trunk", "construction_motorway"]],
-    ["all", [">=", "$zoom", 6], ["in", "subclass", "motorway", "trunk", "primary", "construction_trunk", "construction_motorway", "construction_primary"]],
-    ["all", [">=", "$zoom", 7], ["in", "subclass", "motorway", "motorway_link", "trunk", "primary", "construction_trunk", "construction_motorway", "construction_primary"]],
-    ["all", [">=", "$zoom", 8], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "secondary", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary"]],
-    ["all", [">=", "$zoom", 9], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary"]],
-    ["all", [">=", "$zoom", 10], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "tertiary", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary", "construction_tertiary", "construction", "construction_unclassified", "construction_road"]],
-    ["all", [">=", "$zoom", 11], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "road", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary", "construction_tertiary", "construction_unclassified", "construction_road","construction"]],
-    ["all", [">=", "$zoom", 12], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "proposed", "road", "living_street", "residential", "tertiary_link", "unclassified", "road", "construction_trunk", "construction_motorway", "construction_primary", "construction_secondary", "construction", "construction_tertiary", "construction_unclassified", "construction_road", "construction_residential", "construction_living_street"]],
+    ["all", [">=", "$zoom", 4], ["in", "subclass", "motorway", "trunk"]],
+    ["all", [">=", "$zoom", 6], ["in", "subclass", "motorway", "trunk", "primary"]],
+    ["all", [">=", "$zoom", 7], ["in", "subclass", "motorway", "motorway_link", "trunk", "primary"]],
+    ["all", [">=", "$zoom", 8], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "secondary"]],
+    ["all", [">=", "$zoom", 9], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary"]],
+    ["all", [">=", "$zoom", 10], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "tertiary"]],
+    ["all", [">=", "$zoom", 11], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "road"]],
+    ["all", [">=", "$zoom", 12], ["in", "subclass", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "road", "living_street", "residential"]],
     ["all", [">=", "$zoom", 13]]
     ]
 }
