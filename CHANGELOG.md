@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Start the changelog workflow when a release is published
+- Drop dead lifecycle subclasses from the road tile filter
 
 ## [2.2.1] - 2026-11-19
 
