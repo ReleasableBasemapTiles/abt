@@ -90,6 +90,11 @@ COMMIT;
 -- Labelling each part from its own size alone would bring the repetition
 -- back: Sterling Forest has about 15 parts of 1-10 km² packed together.
 --
+-- A part's own size holds its point back only until the part is 16 px across
+-- (part_ml - part_lead), not the 32 px of min_label: zoomed in beside a small
+-- detached block (the 1.7 ha ironworks block of Long Pond Ironworks State
+-- Park), the label says which park you are in, and spacing still stops repeats.
+--
 -- Distances are Web Mercator metres, which are screen pixels at any latitude.
 -- A point a zoom past spacing_zoom is twice as far apart on screen. Extra
 -- points stop at min_label 16: style filters show everything from z17-18
@@ -107,6 +112,7 @@ CREATE MATERIALIZED VIEW export.park_label AS
 WITH settings AS (
     SELECT 350.0::double precision AS spacing_px,   -- 512 px tiles, i.e. CSS px
            14.0::double precision  AS part_max_ml,  -- parts smaller than this never get their own point
+           1.0::double precision   AS part_lead,    -- zooms before a part is 32 px across: 1 = 16 px
            16.0::double precision  AS extra_max_ml  -- extra points past this would only show from the style cap
 ),
 clustered AS (
@@ -169,7 +175,7 @@ labelled AS (
         c.*,
         CASE WHEN c.rn = 1 THEN MinLabel(c.group_area)
              -- zoom at which dist is spacing_px on 512 px tiles: dist / ZRes(z + 1) = spacing_px
-             ELSE round(GREATEST(MinLabel(c.group_area), c.part_ml,
+             ELSE round(GREATEST(MinLabel(c.group_area), c.part_ml - s.part_lead,
                                  ln(s.spacing_px * 40075016.6855785 / (512 * GREATEST(sp.dist, 1))) / ln(2)
                         )::numeric, 1)::real
         END                                                             AS label_ml
