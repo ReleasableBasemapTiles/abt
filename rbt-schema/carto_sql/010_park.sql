@@ -105,7 +105,7 @@ BEGIN;
 DROP MATERIALIZED VIEW IF EXISTS export.park_label CASCADE;
 CREATE MATERIALIZED VIEW export.park_label AS
 WITH settings AS (
-    SELECT 400.0::double precision AS spacing_px,   -- 512 px tiles, i.e. CSS px
+    SELECT 350.0::double precision AS spacing_px,   -- 512 px tiles, i.e. CSS px
            14.0::double precision  AS part_max_ml,  -- parts smaller than this never get their own point
            16.0::double precision  AS extra_max_ml  -- extra points past this would only show from the style cap
 ),

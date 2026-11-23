@@ -1,9 +1,9 @@
 {
     "layer_id": "park_label",
-    "description": "Label points for named parks: one on the largest part, from the park's min_label, plus one on each other part big enough to label, from the zoom at which it is 400 px from every larger part's point. Same-name parks that touch or nearly touch are one park.",
+    "description": "Label points for named parks: one on the largest part, from the park's min_label, plus one on each other part big enough to label, from the zoom at which it is 350 px from every larger part's point. Same-name parks that touch or nearly touch are one park.",
     "geometry_type": "point",
     "attributes": [
-        {"name": "min_label",     "type": "float",    "description": "Lowest zoom at which to show this point: for the main point, where the park's area is 32 px across; for another part's point, the latest of that, where the part itself is 32 px across, and where it is 400 px from every larger part's point."},
+        {"name": "min_label",     "type": "float",    "description": "Lowest zoom at which to show this point: for the main point, where the park's area is 32 px across; for another part's point, the latest of that, where the part itself is 32 px across, and where it is 350 px from every larger part's point."},
         {"name": "area",          "type": "float",  "description": "Web Mercator area in m² of the park, or of the same-name group it belongs to."},
         {"name": "name",          "type": "string", "description": ""},
         {"name": "subclass",      "type": "string", "description": ""},
